@@ -145,6 +145,42 @@ cat demo/agent-documentation/state.json
 - [ ] 400+ test workers simultâneos
 - [ ] Auto-scaling baseado em carga
 
+## 💡 Advanced Optimizations
+
+### 🎯 Conditional Agent Activation
+**Game-changing insight**: Not all agents need to run on every change.
+
+```
+Change in UserService.java → Only activate:
+- user-service-tests (5 agents)
+- integration-tests-with-user (3 agents)  
+- e2e-flows-using-user (2 agents)
+= 10 agents (not 400) = 95% cost reduction
+```
+
+**Economic Impact**: $20 → $0.75 per execution through smart dependency analysis.
+
+### 🏗️ Hybrid Architecture: Local GPU + Cloud APIs
+
+**Tiered execution** based on task complexity:
+
+#### Tier 1: Local GPU (~$0 cost)
+- Simple tasks: test execution, syntax validation, file operations
+- Models: Llama 2 7B, CodeLlama 13B
+- 70% of agent executions
+
+#### Tier 2: Cheap APIs ($0.0002-0.002/1K tokens)
+- Moderate analysis: code quality, basic security scans
+- APIs: Gemini Flash, GPT-3.5
+- 20% of agent executions
+
+#### Tier 3: Premium APIs ($0.015-0.03/1K tokens)
+- Complex analysis: architecture review, advanced security
+- APIs: GPT-4, Claude Sonnet
+- 10% of agent executions (high-impact only)
+
+**Result**: $250/month vs $2000+ all-premium (8x cost reduction)
+
 ## 🧠 Contexto para IA
 
 ### Principais Insights da Conversa
