@@ -9,7 +9,7 @@ $(cat /mnt/ramdisk/primoia-main/conductor/projects/develop/agents/unit-test-stra
 
 Please analyze this Kotlin class and provide comprehensive test specifications:
 
-$(cat /mnt/ramdisk/develop/nex-web-backend/src/main/kotlin/br/com/nextar/web/service/AuthService.kt)
+$(cat /mnt/ramdisk/develop/nex-web-backend/src/main/kotlin/br/com/nextar/web/utils/DateHelpers.kt)
 
 Based on my analysis rules for the 'develop' environment, I need to:
 1. Identify all public methods that need testing
