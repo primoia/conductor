@@ -1,0 +1,43 @@
+claude --print "
+I am the Kotlin Test Creator Agent in the Conductor framework.
+
+My role as defined in agent.md:
+$(cat /mnt/ramdisk/primoia-main/conductor/projects/develop/agents/kotlin-test-creator-agent/agent.md)
+
+Based on the analysis from the Unit Test Strategy Agent, I need to implement comprehensive Kotlin tests for DateHelpers utility functions.
+
+Target class to test:
+$(cat /mnt/ramdisk/develop/nex-web-backend/src/main/kotlin/br/com/nextar/web/utils/DateHelpers.kt)
+
+Test specifications from strategy agent analysis:
+- 5 public extension functions requiring testing
+- 18 total test scenarios focusing on happy path + error cases  
+- Functions to test:
+  1. convertDateToLocalDateTime(date: Date): LocalDateTime
+  2. convertStringToDate(str: String): Date
+  3. convertStringISOToDate(str: String): Date?
+  4. formatDateToDDMMYYYY(date: Date): String
+  5. getHourFromDate(date: Date): String
+
+Key testing requirements:
+- Use JUnit 5 with AssertJ for assertions
+- Test class name: DateHelpersTest
+- Package: br.com.nextar.web.utils
+- Focus on string parsing edge cases and date formatting
+- Handle timezone considerations for consistent results
+- Test invalid format scenarios and exception handling
+
+Please generate a complete, compilable Kotlin test file that covers:
+- Happy path scenarios for all functions
+- Invalid string format handling for parsing functions
+- Edge cases like leap years, timezone conversions
+- Null safety where applicable
+- Exception testing for convertStringISOToDate
+
+Output should be production-ready Kotlin test code following the project conventions.
+
+IMPORTANT: After generating the test code, please save it to:
+/mnt/ramdisk/develop/nex-web-backend/src/test/kotlin/br/com/nextar/web/utils/DateHelpersTest.kt
+
+Use the Write tool to save the complete test file to this exact location.
+"
