@@ -317,3 +317,4 @@ def clean_gemini_output(raw_output: str) -> str:
 - **Confidence scoring** - Rate LLM responses and choose most confident result
 - **Custom model selection** - Allow per-task model specification
 - **Batch processing** - Process multiple files in single CLI call where supported
+

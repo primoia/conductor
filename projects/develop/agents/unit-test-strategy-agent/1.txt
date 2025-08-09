@@ -1,0 +1,53 @@
+claude --prompt "
+I am the Unit Test Strategy Agent in the Conductor framework. 
+
+My role as defined in agent.md:
+$(cat /mnt/ramdisk/primoia-main/conductor/projects/develop/agents/unit-test-strategy-agent/agent.md)
+
+My current environment configuration:
+$(cat /mnt/ramdisk/primoia-main/conductor/projects/develop/agents/unit-test-strategy-agent/config/develop.json)
+
+Please analyze this Kotlin class and provide comprehensive test specifications:
+
+$(cat /mnt/ramdisk/develop/nex-web-backend/src/main/kotlin/br/com/nextar/web/service/AuthService.kt)
+
+Based on my analysis rules for the 'develop' environment, I need to:
+1. Identify all public methods that need testing
+2. Define test scenarios for each method (happy path + error cases) 
+3. Specify what dependencies need mocking
+4. Generate test specifications in structured JSON format
+
+Please provide the analysis as a structured JSON response following this format:
+{
+  'class_analysis': {
+    'class_name': 'UserService',
+    'package_name': 'extracted_from_file',
+    'methods_to_test': ['method1', 'method2'],
+    'dependencies': ['dependency1', 'dependency2']
+  },
+  'test_specifications': [
+    {
+      'method_name': 'createUser',
+      'test_scenarios': [
+        {
+          'scenario_name': 'should_returnSuccess_when_validEmailAndPassword',
+          'test_type': 'happy_path',
+          'arrange': 'Set up valid email and password, mock repository and validator',
+          'act': 'Call createUser with valid inputs', 
+          'assert': 'Verify Result.success and user creation'
+        }
+      ]
+    }
+  ],
+  'mocking_strategy': {
+    'dependencies_to_mock': ['UserRepository', 'EmailValidator'],
+    'mock_behavior': 'liberal'
+  },
+  'coverage_analysis': {
+    'expected_coverage': 70,
+    'critical_paths': ['validation logic', 'error handling']
+  }
+}
+
+Save this analysis to test-specs.json and update my state accordingly.
+"
