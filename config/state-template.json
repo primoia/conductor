@@ -1,0 +1,46 @@
+{
+  "agent_id": "{AGENT_ID}",
+  "agent_type": "{AGENT_TYPE}",
+  "version": "1.0.0",
+  "created_at": "{ISO_TIMESTAMP}",
+  "updated_at": "{ISO_TIMESTAMP}",
+  
+  "status": {
+    "current": "idle",
+    "last_change": "{ISO_TIMESTAMP}",
+    "health": "healthy"
+  },
+  
+  "execution": {
+    "last_command": null,
+    "last_execution": null,
+    "execution_count": 0,
+    "total_runtime_seconds": 0,
+    "average_runtime_seconds": 0
+  },
+  
+  "state": {
+    "context": {},
+    "persistent_data": {},
+    "configuration": {},
+    "metrics": {
+      "success_count": 0,
+      "failure_count": 0,
+      "success_rate": 0.0
+    }
+  },
+  
+  "coordination": {
+    "waiting_for": null,
+    "blocking": [],
+    "last_event_received": null,
+    "last_event_sent": null
+  },
+  
+  "resources": {
+    "max_memory_mb": 512,
+    "max_runtime_seconds": 300,
+    "current_memory_mb": 0,
+    "disk_usage_mb": 0
+  }
+}
