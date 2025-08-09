@@ -192,7 +192,7 @@ Please analyze the test execution approach and expected outcomes for this test f
         
         try:
             cmd = ["claude", "--print", prompt]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
             
             end_time = time.time()
             execution_time = end_time - start_time
