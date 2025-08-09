@@ -1,0 +1,40 @@
+# Logs
+*.log
+/tmp/conductor-*.log
+
+# Runtime states (preserve demo states)
+# demo/*/state.json
+
+# Temporary files
+*.tmp
+*.backup
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Future: when we add real implementation
+node_modules/
+venv/
+__pycache__/
+*.pyc
+.env
+.env.local
+
+# Docker
+docker-compose.override.yml
+
+# Future: when we add monitoring
+/logs/
+/metrics/
+
+# Build artifacts (future)
+/build/
+/dist/
+/target/

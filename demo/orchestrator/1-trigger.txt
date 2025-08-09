@@ -1,0 +1,5 @@
+TRIGGER: agent-gradle-checker-x
+COMMAND: check gradle version microservice-x
+TIMESTAMP: 2025-01-09T10:30:00Z
+EXPECTED_DURATION: 30s
+DEPENDENCIES: none
