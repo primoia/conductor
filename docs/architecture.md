@@ -272,6 +272,169 @@ Agents → Meta-Agents → Meta-Meta-Agents
 - **Performance Metrics**: Latência, throughput, success rate por agent
 - **Alerting**: Notificações para padrões anômalos
 
+## 🎯 Advanced Concepts: Conditional Activation & Hybrid Architecture
+
+### Conditional Agent Activation (Game Theory Refined)
+
+#### Problem with Traditional Approach
+- **Naive assumption**: All agents run on every trigger
+- **Reality**: Most agents are irrelevant for specific changes
+- **Cost**: Unnecessary API calls and resource waste
+
+#### Smart Activation Pattern
+```
+Change in ServiceA.java
+    ↓
+Impact Analysis
+    ↓
+Selective Activation:
+- test-serviceA-unit-* (5 agents)
+- test-serviceA-integration-* (3 agents)  
+- test-end-to-end-flows-using-serviceA (2 agents)
+    ↓
+= 10 agents activated (not 400)
+= 95% cost reduction
+```
+
+#### Implementation Strategy
+```python
+class ConditionalOrchestrator:
+    def __init__(self):
+        self.dependency_graph = self.build_dependency_graph()
+        
+    def activate_agents_for_change(self, changed_files):
+        relevant_agents = []
+        for file in changed_files:
+            relevant_agents.extend(
+                self.dependency_graph.get(file, [])
+            )
+        return deduplicate(relevant_agents)
+        
+    def build_dependency_graph(self):
+        return {
+            "UserService.java": [
+                "test-user-validation",
+                "test-user-integration-auth", 
+                "test-e2e-user-registration"
+            ],
+            "PaymentService.java": [
+                "test-payment-processing",
+                "test-payment-security"
+            ]
+        }
+```
+
+#### Economic Impact
+```
+Traditional: 400 agents × $0.05 = $20 per execution
+Conditional: 15 agents × $0.05 = $0.75 per execution
+Savings: 96.25% cost reduction
+```
+
+### Hybrid Architecture: Local GPU + Cloud APIs
+
+#### Tiered Agent Classification
+
+##### Tier 1: Local GPU (Near-Zero Cost)
+```
+Simple Tasks - Small Models (7B-13B parameters)
+- Test executors: "Run test X" → Pass/Fail
+- Syntax validators: "Check Java syntax" → Valid/Invalid
+- File operations: "Check if file exists" → True/False
+- Basic formatting: "Format JSON" → Formatted output
+
+Cost: ~$0 (electricity only)
+Latency: 50-200ms
+Throughput: 100+ req/sec
+```
+
+##### Tier 2: Cheap APIs (GPT-3.5/Gemini Flash)
+```
+Intermediate Tasks - Moderate Analysis
+- Code quality: Basic code smell detection
+- Security scanning: Common vulnerability patterns
+- Test coverage: Coverage percentage calculation
+- Simple documentation: Basic API docs
+
+Cost: $0.0002-0.002 per 1K tokens
+Use case: 20% of agent executions
+```
+
+##### Tier 3: Premium APIs (GPT-4/Claude/Gemini Pro)
+```
+Complex Tasks - Deep Analysis
+- Architecture review: Design pattern violations
+- Advanced security: Authentication flow analysis
+- Performance optimization: Complex bottleneck detection
+- Business logic validation: Domain rule verification
+
+Cost: $0.015-0.03 per 1K tokens
+Use case: 10% of agent executions (high-impact only)
+```
+
+#### Smart Routing Algorithm
+```python
+class HybridRouter:
+    def route_task(self, task, context):
+        complexity = self.calculate_complexity(task, context)
+        
+        if complexity < 0.3:
+            return LocalGPUAgent(task)
+        elif complexity < 0.7:
+            return CheapAPIAgent(task)
+        else:
+            return PremiumAPIAgent(task)
+    
+    def calculate_complexity(self, task, context):
+        factors = [
+            task.requires_deep_context,
+            task.involves_business_logic,
+            task.affects_security,
+            task.needs_multi_step_reasoning,
+            len(context.related_files) > 5
+        ]
+        return sum(factors) / len(factors)
+```
+
+#### Escalation Pattern
+```
+Local Agent (confidence < 80%) → Cheap API
+Cheap API (confidence < 90%) → Premium API
+Premium API → Definitive result
+```
+
+#### Economic Model Example
+```
+100 PR reviews/month:
+- 70% tasks → Local GPU = $0
+- 20% tasks → Cheap API = $50/month  
+- 10% tasks → Premium API = $200/month
+────────────────────────────────────
+Total: $250/month vs $2000+ all-premium
+
+ROI: 8x cost reduction with maintained quality
+```
+
+#### Technical Stack
+```
+Local GPU Setup:
+- Hardware: RTX 4090 or similar
+- Models: Llama 2 7B, CodeLlama 13B, StarCoder
+- Framework: vLLM, Ollama, TensorRT-LLM
+- Deployment: Docker containers with GPU access
+
+Cloud APIs:
+- Cheap: Gemini Flash ($0.00015/1K), GPT-3.5 ($0.002/1K)
+- Premium: Claude Sonnet ($0.015/1K), GPT-4 ($0.03/1K)
+```
+
+#### Competitive Advantages
+1. **Cost Efficiency**: 10-20x cheaper than cloud-only solutions
+2. **Data Privacy**: Sensitive code never leaves local environment
+3. **Low Latency**: Local processing eliminates network overhead
+4. **Customization**: Fine-tune local models for specific projects
+5. **Scalability**: Add GPU capacity as needed
+
 ---
 
-Esta arquitetura foi pensada para crescer organicamente, começando simples (protótipo com arquivos) e evoluindo para sistema robusto de produção mantendo os mesmos princípios fundamentais.
+Esta arquitetura foi pensada para crescer organicamente, começando simples (protótipo com arquivos) e evoluindo para sistema robusto de produção mantendo os mesmos princípios fundamentais, agora com otimizações econômicas e técnicas avançadas.
