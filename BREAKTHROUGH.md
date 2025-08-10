@@ -44,7 +44,34 @@ graph LR
 
 ## 📊 **MÉTRICAS DE VALIDAÇÃO**
 
-### **Execution Metrics**
+### **Multi-LLM Comparative Analysis**
+
+| **Aspect** | **Claude** | **Gemini** |
+|-------------|------------|------------|
+| **Strategy Agent** | ✅ 44.5s | ✅ 38.1s |
+| **Creator Agent** | ✅ 69.4s (Fallback extraction) | ✅ 40.9s (Direct save) |
+| **Executor Agent** | ✅ 146.7s | ✅ 74.0s |
+| **File Creation** | Python extraction from text | Direct Write tool |
+| **File Size** | 11,335 bytes (~450 lines) | 4,744 bytes (~240 lines) |
+| **Test Quality** | Very robust & detailed | Professional & concise |
+| **Success Rate** | 100% | 100% |
+| **Compilation** | ✅ SUCCESS | ✅ SUCCESS |
+
+### **Key Technical Findings**
+
+**Claude Implementation:**
+- Uses `cd + stdin` approach for file access
+- Cannot save files directly, requires Python fallback extraction
+- Generates more comprehensive and verbose test suites
+- Slower but more thorough in analysis and generation
+
+**Gemini Implementation:**  
+- Uses `npx --yes @google/gemini-cli` command structure
+- Can save files directly via MCP Write tools
+- Generates concise, professional test code
+- Faster execution across all phases
+
+### **Legacy Execution Metrics (First Implementation)**
 - **Strategy Agent**: 47.6s (análise + especificações)
 - **Creator Agent**: 29.5s (geração + save de código)  
 - **Executor Agent**: 89.3s (compilação + análise)
