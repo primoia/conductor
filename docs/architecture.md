@@ -12,6 +12,10 @@
 
 ## 🎭 Modelo de Agentes
 
+Para uma descrição exaustiva da estrutura interna e do ciclo de vida de cada agente, consulte o documento [Anatomia e Ciclo de Vida de um Agente Conductor](agent-anatomy.md).
+
+Esta seção descreve os papéis e tipos de agentes no sistema.
+
 ### Anatomia de um Agente
 
 ```
