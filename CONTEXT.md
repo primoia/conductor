@@ -218,4 +218,32 @@ Esta é a diferença fundamental entre "AI automation" tradicional e o approach 
 
 ---
 
+### Fase 6: Refinamento da Arquitetura do Agente e Auto-Organização (2025-08-10)
+
+Nesta fase, aprofundamos a natureza de um agente, resultando em três refinamentos cruciais para a inteligência e sustentabilidade do sistema.
+
+#### 1. Especialização por Domínio, Não por Função
+
+A percepção fundamental foi que agentes não devem ser apenas especialistas em uma *função* (como "criar testes"), mas sim **mantenedores de um *domínio***. Isso levou à separação de responsabilidades para um mesmo serviço:
+
+*   **`AccountService_Implementation_Agent`**: Dono do código de produção (`AccountService.kt`), com um histórico focado na evolução da lógica de negócio.
+*   **`AccountService_Test_Agent`**: Dono do código de teste (`AccountServiceTest.kt`), com um histórico focado na evolução da qualidade e das estratégias de teste.
+
+Essa granularidade espelha o ciclo TDD e torna o contexto de cada agente ultra-focado e seu histórico linearmente coeso.
+
+#### 2. O "Diário de Falhas" (`avoid_patterns.md`)
+
+Para evitar que os agentes repitam erros, introduzimos um mecanismo de aprendizado por reforço negativo. Cada agente mantém um arquivo `avoid_patterns.md`.
+
+*   **Função:** Anotar explicitamente estratégias, versões de bibliotecas ou abordagens que foram tentadas e falharam.
+*   **Benefício:** A IA é instruída a ler este arquivo antes de agir, quebrando loops de falha e tornando o agente mais eficiente e "sábio" a cada erro.
+
+#### 3. O Princípio da Bifurcação de Agentes
+
+Esta é a solução arquitetural para o problema do contexto crescente. Em vez de tratar o sintoma (contexto grande) com compressão, tratamos a causa (complexidade excessiva do agente).
+
+*   **Tese:** Um contexto grande é um "code smell" que indica que um agente acumulou responsabilidades demais.
+*   **Solução:** Quando um agente se torna muito complexo, ele é **refatorado** (bifurcado) em dois ou mais agentes-filhos mais especializados. Seu histórico é dividido e migrado sem perdas para os novos agentes.
+*   **Benefício:** Garante que o contexto de cada agente permaneça limpo, relevante e de alta densidade informacional, evitando a necessidade de compressão com perdas e garantindo a escalabilidade sustentável do sistema.
+
 **Para próximas conversas**: Leia este contexto primeiro, então foque na execução e refinamento dos conceitos já estabelecidos. A fundação arquitetural está sólida.
