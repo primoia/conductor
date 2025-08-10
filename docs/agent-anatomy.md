@@ -10,44 +10,77 @@ Este documento detalha a arquitetura padrão para qualquer agente operando dentr
 4.  **Auditabilidade**: Todas as ações e decisões tomadas por um agente são registradas em um histórico imutável, permitindo depuração e análise de causa raiz.
 5.  **Comunicação por Contrato**: Agentes recebem tarefas e entregam resultados através de formatos de mensagem bem definidos ("Contratos"), garantindo a interoperabilidade.
 
+## Gerenciamento de Identidade e Endereçamento de Agentes
+
+Para operar em um ambiente com múltiplos projetos e microserviços, uma estratégia de endereçamento robusta é fundamental. O Conductor adota o padrão **"DNS com Escopo de Projeto"** para garantir unicidade, descoberta e governança.
+
+### O Padrão: DNS com Escopo de Projeto
+
+O princípio central é a separação entre o **Endereço Físico** de um agente (onde ele "mora" no sistema) e sua **Identidade Lógica** (como ele é "conhecido" e suas capacidades).
+
+#### 1. Endereço Físico (Governança e Isolamento)
+
+A localização de um agente no sistema de arquivos reflete sua "cidadania", garantindo que agentes de um projeto não interfiram em outros.
+
+*   **Estrutura:** `agentes/{nome_do_projeto}/{nome_do_microservico}/{uuid_do_agente}/`
+*   **Exemplo:** `agentes/develop/user-service/a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d/`
+*   **Função:** O Orquestrador, ao operar em um determinado contexto de projeto, é restringido a interagir apenas com os agentes dentro do diretório daquele projeto. Isso cria uma fronteira de segurança e organização.
+
+#### 2. Identidade Lógica (Descoberta e Capacidades)
+
+Dentro do "endereço físico" do agente, um manifesto define suas capacidades de forma flexível e pesquisável.
+
+*   **Artefato:** `.../{uuid_do_agente}/context/manifest.json`
+*   **Conteúdo de Exemplo:**
+    ```json
+    {
+      "uuid": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "human_name": "Java User Service Test Executor",
+      "project": "develop",
+      "microservice": "user-service",
+      "tags": [
+        "language:java",
+        "purpose:test-executor",
+        "framework:spring-boot",
+        "supports_batching:true"
+      ]
+    }
+    ```
+
+#### 3. O Registro de Agentes (O "Servidor DNS")
+
+Um componente central, o **Registro de Agentes** (`agent_registry.json`), indexa os manifestos de todos os agentes para permitir a descoberta rápida e com escopo definido.
+
+*   **Estrutura do Registro (Particionada):**
+    ```json
+    {
+      "develop": {
+        "user-service": {
+          "a1b2c3d4-e5f6...": {
+            "tags": [ "language:java", "purpose:test-executor" ]
+          }
+        }
+      }
+    }
+    ```
+*   **Fluxo de Consulta:** O Orquestrador sempre consulta o registro com um escopo. Ex: "No projeto `develop`, microserviço `user-service`, encontre agentes com a tag `purpose:test-executor`".
+
 ## O Padrão "Caixa Postal do Agente"
 
-Cada agente no sistema possui seu próprio diretório de trabalho isolado, que funciona como seu "escritório" ou "caixa postal". Esta estrutura é o alicerce para todos os princípios acima.
+Cada agente, em seu "endereço físico", segue o padrão de "Caixa Postal" para gerenciar seu estado e tarefas.
 
 ### Estrutura de Diretórios Padrão
 
 ```
-agentes/
-└── {agent-type}-{instance-id}/  (ex: agente-implementador-servico-01)
+.../{uuid_do_agente}/
     ├── 📥 inbox/              # Fila de entrada de tarefas.
     ├── 📤 outbox/             # Fila de saída de resultados.
-    ├── 🧠 context/            # Memória de longo prazo e conhecimento do agente.
+    ├── 🧠 context/            # Memória de longo prazo e o manifest.json.
     ├── 📜 history/            # Log de auditoria de todas as ações.
     └── 🔒 .lock              # Arquivo de trava para controle de concorrência.
 ```
 
-### Detalhes dos Componentes
-
-*   **`inbox/` (Caixa de Entrada)**
-    *   **Propósito:** Fila de tarefas pendentes. O Orquestrador é o único ator que pode colocar "cartas" (arquivos de contrato/tarefa) aqui.
-    *   **Formato:** Cada arquivo é um JSON representando uma única tarefa a ser executada.
-    *   **Operação:** O agente consome as tarefas desta pasta, uma de cada vez.
-
-*   **`outbox/` (Caixa de Saída)**
-    *   **Propósito:** Local para depositar os resultados do trabalho concluído. O Orquestrador monitora esta pasta para coletar os resultados e acionar os próximos passos no workflow.
-    *   **Formato:** Arquivos JSON representando o resultado de uma tarefa, sempre correlacionados com a tarefa de entrada.
-
-*   **`context/` (Cérebro / Memória)**
-    *   **Propósito:** Armazenar o estado interno e o conhecimento especializado do agente. Permite que o agente "aprenda" e melhore com o tempo.
-    *   **Exemplos de Conteúdo:** `knowledge_base.json` com preferências de bibliotecas, padrões de código aprendidos, resumos de interações passadas, etc.
-
-*   **`history/` (Arquivo Morto / Log de Auditoria)**
-    *   **Propósito:** Manter um registro cronológico e imutável de todas as ações significativas tomadas pelo agente. Essencial para depuração.
-    *   **Formato:** Arquivos de log com timestamp (ex: `2025-08-09T12-30-00.log`), detalhando a tarefa recebida, a análise feita e o resultado produzido.
-
-*   **`.lock` (A Tranca na Porta)**
-    *   **Propósito:** Um mecanismo de semáforo simples para garantir que apenas um processo esteja operando no "escritório" do agente por vez.
-    *   **Operação:** O processo do agente cria este arquivo ao iniciar seu ciclo de trabalho e o remove ao concluir. Se o arquivo já existir, o processo sabe que outra instância está ativa e deve aguardar ou terminar.
+*Para detalhes sobre cada pasta, consulte a seção de Ciclo de Vida abaixo.*
 
 ## Ciclo de Vida de Execução de uma Tarefa
 
