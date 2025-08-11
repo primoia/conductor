@@ -471,3 +471,13 @@ Assim como um programador refatora uma "Classe Deus" em classes menores e mais f
 *   **Escalabilidade Sustentável:** O sistema se auto-organiza para combater a entropia e a complexidade, garantindo que ele permaneça ágil e manutenível à medida que cresce.
 
 Este princípio garante que a arquitetura de agentes do Conductor evolua de forma saudável, espelhando as melhores práticas de arquitetura de software do mundo real.
+
+---
+
+## Interface Humana: A Forja de Agentes
+
+A interação estratégica e o gerenciamento da complexa força de trabalho de agentes do Conductor são projetados para ocorrer através de uma interface gráfica e gamificada. Esta interface, conhecida como "A Forja de Agentes", desacopla o Arquiteto Humano da complexidade do backend.
+
+Ela permite a criação, o monitoramento e a evolução dos agentes usando uma metáfora de RPG, e serve como o principal mecanismo para popular e refinar o grafo de dependências do sistema de forma interativa.
+
+Para a visão completa deste componente, consulte o documento: **[Visão: A Forja de Agentes](vision-agent-forge.md)**.
