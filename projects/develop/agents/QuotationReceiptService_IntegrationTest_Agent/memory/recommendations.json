@@ -1,0 +1,27 @@
+{
+  "last_updated": "2025-08-11T10:00:00Z",
+  "source_agent": "Supervisor-Agent",
+  "recommendations": [
+    {
+      "id": "REC-001",
+      "type": "TEST_SETUP",
+      "title": "Testcontainer Lifecycle Management",
+      "description": "Use a helper class, such as 'MongoDBTest.kt', to manage the MongoDB container lifecycle. Start the container in a `@BeforeAll` block and ensure it's available for all test instances.",
+      "example_reference": "br.com.nextar.web.service.receipt.QuotationReceiptServiceIntegrationTest.kt"
+    },
+    {
+      "id": "REC-002",
+      "type": "DEPENDENCY_MANAGEMENT",
+      "title": "Manual Dependency Injection and Mocks",
+      "description": "Instantiate services and repositories manually in the test class constructor. For external dependencies that are not the focus of the test (e.g., AletheiaConfigService, EmailReceiptService), use mocks to isolate behavior.",
+      "example_reference": "br.com.nextar.web.service.receipt.QuotationReceiptServiceIntegrationTest.kt"
+    },
+    {
+      "id": "REC-003",
+      "type": "DATA_SETUP",
+      "title": "Test Data Setup",
+      "description": "Create and insert all necessary entities (Customer, User, etc.) directly into MongoDB via container before executing test logic. This ensures the test starts with a known and consistent state.",
+      "example_reference": "br.com.nextar.web.service.receipt.QuotationReceiptServiceIntegrationTest.kt"
+    }
+  ]
+}
