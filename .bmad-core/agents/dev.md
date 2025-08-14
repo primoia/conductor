@@ -70,6 +70,7 @@ dependencies:
   tasks:
     - execute-checklist.md
     - validate-next-story.md
+    - create-implementation-plan.md
   checklists:
     - story-dod-checklist.md
 ```

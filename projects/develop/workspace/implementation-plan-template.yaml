@@ -1,0 +1,37 @@
+# Implementation Plan Template
+# This template defines the contract between .bmad-core and conductor systems
+
+storyId: "stories/story-XXX.md"
+description: "Brief description of what this implementation plan covers"
+
+# List of sequential or parallel tasks for Conductor
+tasks:
+  - name: "task-name"
+    description: "Detailed description of what this task accomplishes"
+    agent: "AgentName_Type_Agent" # The specific Conductor worker
+    inputs:
+      - "path/to/input/file1.md"
+      - "path/to/input/file2.md#section"
+    outputs:
+      - "path/to/output/file1.kt"
+      - "path/to/output/file2.kt"
+    depends_on: "previous-task-name" # Optional: ensures sequential execution
+    validation:
+      - "Specific validation criteria for this task"
+      - "Another validation rule"
+
+# How to validate that the plan was completed successfully
+validationCriteria:
+  - "All tests in TaskNameTest.kt must pass"
+  - "Linter should not report any errors"
+  - "All acceptance criteria from story are met"
+
+# Optional: Environment or configuration requirements
+environment:
+  - "Required environment variables"
+  - "Required dependencies or tools"
+
+# Optional: Rollback plan
+rollback:
+  - "Steps to revert changes if validation fails"
+  - "Backup locations for original files"
