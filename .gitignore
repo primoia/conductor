@@ -15,6 +15,11 @@
 *.swp
 *.swo
 
+# Pastas de configuração de IDEs e Agentes de IA
+.claude/
+.cursor/
+.gemini/
+
 # OS files
 .DS_Store
 Thumbs.db
