@@ -1,0 +1,103 @@
+# Example Implementation Plan
+# This demonstrates how to structure an implementation plan for conductor
+
+storyId: "stories/1.1.product-entity.story.md"
+description: "Implement product entity with CRUD operations and validation"
+
+# List of sequential or parallel tasks for Conductor
+tasks:
+  - name: "create-product-entity"
+    description: "Create the Product entity class with all required fields and annotations"
+    agent: "KotlinEntityCreator_Agent"
+    inputs:
+      - "stories/1.1.product-entity.story.md#entity-definition"
+      - "docs/architecture/coding-standards.md"
+      - "src/main/kotlin/com/example/domain/entities/"
+    outputs:
+      - "src/main/kotlin/com/example/domain/entities/Product.kt"
+    validation:
+      - "Product class compiles without errors"
+      - "All required fields are present with correct types"
+      - "JPA annotations are properly applied"
+
+  - name: "create-product-repository"
+    description: "Create the Product repository interface with basic CRUD operations"
+    agent: "KotlinRepositoryCreator_Agent"
+    inputs:
+      - "src/main/kotlin/com/example/domain/entities/Product.kt"
+      - "docs/architecture/repository-pattern.md"
+    outputs:
+      - "src/main/kotlin/com/example/domain/repositories/ProductRepository.kt"
+    depends_on: "create-product-entity"
+    validation:
+      - "Repository interface extends JpaRepository"
+      - "Basic CRUD methods are available"
+
+  - name: "create-product-service"
+    description: "Create the Product service with business logic and validation"
+    agent: "KotlinServiceCreator_Agent"
+    inputs:
+      - "src/main/kotlin/com/example/domain/entities/Product.kt"
+      - "src/main/kotlin/com/example/domain/repositories/ProductRepository.kt"
+      - "stories/1.1.product-entity.story.md#business-logic"
+    outputs:
+      - "src/main/kotlin/com/example/domain/services/ProductService.kt"
+    depends_on: "create-product-repository"
+    validation:
+      - "Service class has proper dependency injection"
+      - "Business logic methods are implemented"
+      - "Validation logic is in place"
+
+  - name: "create-product-controller"
+    description: "Create the Product REST controller with CRUD endpoints"
+    agent: "KotlinControllerCreator_Agent"
+    inputs:
+      - "src/main/kotlin/com/example/domain/services/ProductService.kt"
+      - "docs/architecture/rest-api-standards.md"
+      - "stories/1.1.product-entity.story.md#api-endpoints"
+    outputs:
+      - "src/main/kotlin/com/example/controllers/ProductController.kt"
+    depends_on: "create-product-service"
+    validation:
+      - "Controller has proper REST annotations"
+      - "All required endpoints are implemented"
+      - "Error handling is in place"
+
+  - name: "create-product-tests"
+    description: "Create comprehensive unit tests for Product entity, service, and controller"
+    agent: "KotlinTestCreator_Agent"
+    inputs:
+      - "src/main/kotlin/com/example/domain/entities/Product.kt"
+      - "src/main/kotlin/com/example/domain/services/ProductService.kt"
+      - "src/main/kotlin/com/example/controllers/ProductController.kt"
+      - "docs/testing/unit-test-standards.md"
+    outputs:
+      - "src/test/kotlin/com/example/domain/entities/ProductTest.kt"
+      - "src/test/kotlin/com/example/domain/services/ProductServiceTest.kt"
+      - "src/test/kotlin/com/example/controllers/ProductControllerTest.kt"
+    depends_on: "create-product-controller"
+    validation:
+      - "All tests compile successfully"
+      - "Test coverage is above 80%"
+      - "All business logic scenarios are covered"
+
+# How to validate that the plan was completed successfully
+validationCriteria:
+  - "All Kotlin files compile without errors"
+  - "All unit tests pass with coverage above 80%"
+  - "Product entity supports all required CRUD operations"
+  - "REST API endpoints respond correctly"
+  - "Business validation rules are enforced"
+
+# Environment requirements
+environment:
+  - "Kotlin 1.8+"
+  - "Spring Boot 2.7+"
+  - "JUnit 5 for testing"
+  - "Mockito for mocking"
+
+# Rollback plan
+rollback:
+  - "Remove all created files if validation fails"
+  - "Restore any modified existing files from git"
+  - "Rollback database schema changes if any"
