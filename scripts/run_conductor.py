@@ -4,6 +4,7 @@ Conductor - Implementation Plan Executor
 
 This script reads and executes implementation plans in YAML format,
 orchestrating the execution of tasks by specialized agents.
+Supports multiple AI providers (Claude, Gemini) and configurable project paths.
 """
 
 import yaml
@@ -28,8 +29,10 @@ logger = logging.getLogger(__name__)
 class ConductorExecutor:
     """Main orchestrator for executing implementation plans."""
     
-    def __init__(self, plan_path: str):
+    def __init__(self, plan_path: str, ai_provider: str = 'claude', project_path: str = None):
         self.plan_path = Path(plan_path)
+        self.ai_provider = ai_provider
+        self.project_path = project_path or os.getcwd()
         self.plan_data = None
         self.executed_tasks = set()
         self.failed_tasks = set()
@@ -50,6 +53,8 @@ class ConductorExecutor:
             logger.info(f"Loaded plan: {self.plan_data['description']}")
             logger.info(f"Story: {self.plan_data['storyId']}")
             logger.info(f"Tasks: {len(self.plan_data['tasks'])}")
+            logger.info(f"AI Provider: {self.ai_provider}")
+            logger.info(f"Project Path: {self.project_path}")
             
             return True
             
@@ -139,8 +144,8 @@ class ConductorExecutor:
                 logger.error(f"Failed to build prompt for {agent_name}")
                 return False
             
-            # Step 3: Execute AI call
-            ai_response = self._execute_ai_call(prompt)
+            # Step 3: Execute AI call with the new dispatcher function
+            ai_response = self._invoke_ai_subprocess(prompt, self.ai_provider, self.project_path)
             if not ai_response:
                 logger.error(f"Failed to get AI response for {agent_name}")
                 return False
@@ -163,6 +168,49 @@ class ConductorExecutor:
         except Exception as e:
             logger.error(f"Agent {agent_name} failed with exception: {e}")
             return False
+    
+    def _invoke_ai_subprocess(self, prompt: str, provider: str, project_path: str) -> Optional[str]:
+        """Centralized function to invoke AI subprocess based on provider."""
+        logger.info(f"Executing AI call with provider: {provider}")
+        
+        try:
+            if provider == 'claude':
+                command = ["claude", "--print", "--dangerously-skip-permissions", prompt]
+            elif provider == 'gemini':
+                command = ["npx", "--yes", "@google/gemini-cli", "-p", prompt]
+            else:
+                logger.error(f"Unsupported AI provider: {provider}")
+                return None
+            
+            process = subprocess.run(
+                command, 
+                capture_output=True, 
+                text=True, 
+                timeout=300,
+                cwd=project_path  # Execute from the specified project directory
+            )
+
+            if process.returncode != 0:
+                logger.error(f"AI execution failed with return code {process.returncode}:")
+                logger.error(process.stderr)
+                return None
+
+            response = process.stdout.strip()
+            logger.info(f"AI call completed successfully with {provider}")
+            return response
+
+        except FileNotFoundError:
+            if provider == 'claude':
+                logger.error("Claude command not found. Make sure 'claude' is installed and in your PATH.")
+            elif provider == 'gemini':
+                logger.error("Gemini CLI not found. Make sure 'npx' is available and @google/gemini-cli can be installed.")
+            return None
+        except subprocess.TimeoutExpired:
+            logger.error(f"AI call timed out after 300 seconds with {provider}.")
+            return None
+        except Exception as e:
+            logger.error(f"AI call failed with an unexpected exception using {provider}: {e}")
+            return None
     
     def validate_results(self) -> bool:
         """Validate that all validation criteria are met."""
@@ -215,7 +263,9 @@ class ConductorExecutor:
         logger.info(f"Loading agent brain for: {agent_name}")
         
         # Construct agent path following the convention
-        agent_path = os.path.join("projects", "develop", "agents", agent_name)
+        # Get the conductor root directory (parent of scripts)
+        conductor_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        agent_path = os.path.join(conductor_root, "projects", "develop", "agents", agent_name)
         
         if not os.path.exists(agent_path):
             logger.error(f"Agent path not found: {agent_path}")
@@ -275,7 +325,7 @@ class ConductorExecutor:
             
             input_context = "\n\n".join(input_contents) if input_contents else "No input files provided."
             
-            # Build the prompt following the pattern from focused_claude_orchestrator.py
+            # Build the prompt following the pattern from focused orchestrators
             prompt = f"""You are a specialist AI agent for software development. Your agent-specific "brain" is pre-loaded below.
 
 **# YOUR AGENT BRAIN (PRE-LOADED CONTEXT)**
@@ -316,49 +366,13 @@ class ConductorExecutor:
    </source_code>
    ```
 
-**Important:** Focus on the specific task and ensure the generated code follows the patterns and best practices defined in your agent brain."""
+**Important:** Focus on the specific task and ensure the generated code follows the patterns and best practices defined in your agent brain. You are working in directory: {self.project_path}"""
             
             logger.info(f"Prompt built successfully for task: {task['name']}")
             return prompt
             
         except Exception as e:
             logger.error(f"Failed to build prompt for task {task['name']}: {e}")
-            return None
-    
-    def _execute_ai_call(self, prompt: str) -> Optional[str]:
-        """Execute AI call using subprocess to invoke the AI tool."""
-        logger.info("Executing real AI call via subprocess...")
-        
-        try:
-            # The command to execute the AI. Assumes 'claude' is in the system PATH.
-            # The project root is used as the current working directory.
-            command = ["claude", "--print", "--dangerously-skip-permissions", prompt]
-            
-            process = subprocess.run(
-                command, 
-                capture_output=True, 
-                text=True, 
-                timeout=300,
-                cwd=os.getcwd() # Execute from the current working directory of the script
-            )
-
-            if process.returncode != 0:
-                logger.error(f"AI execution failed with return code {process.returncode}:")
-                logger.error(process.stderr)
-                return None
-
-            response = process.stdout.strip()
-            logger.info("AI call completed successfully")
-            return response
-
-        except FileNotFoundError:
-            logger.error("AI command not found. Make sure 'claude' is installed and in your PATH.")
-            return None
-        except subprocess.TimeoutExpired:
-            logger.error("AI call timed out after 300 seconds.")
-            return None
-        except Exception as e:
-            logger.error(f"AI call failed with an unexpected exception: {e}")
             return None
     
     def _process_ai_response(self, ai_response: str, task: Dict[str, Any]) -> bool:
@@ -373,11 +387,13 @@ class ConductorExecutor:
             
             # Extract code from response if not directly saved
             code_match = re.search(r'<source_code>(.*?)</source_code>', ai_response, re.DOTALL)
-            if not code_match:
-                logger.error("No source code found in AI response")
-                return False
-            
-            code_content = code_match.group(1).strip()
+            if code_match:
+                code_content = code_match.group(1).strip()
+            else:
+                # If no source_code tags found, use the entire response as content
+                # This handles cases where the AI provider doesn't use the expected format
+                code_content = ai_response.strip()
+                logger.info("No source_code tags found, using entire response as content")
             
             # Save to output files
             for output_file in task.get('outputs', []):
@@ -436,8 +452,15 @@ class ConductorExecutor:
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(description='Execute implementation plans')
+    parser = argparse.ArgumentParser(description='Execute implementation plans with configurable AI providers')
     parser.add_argument('plan_file', help='Path to the implementation plan YAML file')
+    parser.add_argument('--ai-provider', '--ia', 
+                       choices=['claude', 'gemini'], 
+                       default='claude',
+                       help='Specifies the AI provider to be used (claude or gemini)')
+    parser.add_argument('--project-path', '--projeto', 
+                       required=True,
+                       help='The absolute path to the target project directory where the AI will operate')
     parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose logging')
     
     args = parser.parse_args()
@@ -450,8 +473,13 @@ def main():
         logger.error(f"Plan file not found: {args.plan_file}")
         sys.exit(1)
     
+    # Check if project path exists
+    if not os.path.exists(args.project_path):
+        logger.error(f"Project path not found: {args.project_path}")
+        sys.exit(1)
+    
     # Execute the plan
-    executor = ConductorExecutor(args.plan_file)
+    executor = ConductorExecutor(args.plan_file, args.ai_provider, args.project_path)
     success = executor.run()
     
     if success:
