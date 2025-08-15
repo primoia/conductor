@@ -1,0 +1,24 @@
+# Arquivo de Definição do Agente - Conforme especificação "Maestro" v2.1
+
+id: AgentCreator_Agent
+version: 1.0
+description: "Um agente especialista em projetar e criar novos Agentes Especialistas para o framework Maestro."
+
+# Caminho para o prompt que define a personalidade e o comportamento
+persona_prompt_path: "persona.md"
+
+# Caminho para o arquivo de estado (memória) do agente
+state_file_path: "state.json"
+
+# Tarefa a ser executada no modo automático (pelo Conductor)
+# A execução automática poderia criar um agente a partir de um arquivo de especificação de alto nível.
+execution_task: |
+  Com base no `input_file` (uma especificação de agente), gere a estrutura completa do agente.
+  Crie o diretório, o agent.yaml, a persona.md e o state.json conforme a especificação.
+  Reporte o sucesso ou a falha da operação.
+
+# Ferramentas disponíveis no modo interativo (pelo Agente Mestre)
+# Estas são as ferramentas de "metaprogramação" que permitem a este agente criar outros.
+available_tools:
+  - write_file
+  - run_shell_command # Usado para criar diretórios (mkdir)
