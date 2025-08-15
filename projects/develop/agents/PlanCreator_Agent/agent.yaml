@@ -1,0 +1,24 @@
+# Arquivo de Definição do Agente - Conforme especificação "Maestro" v1.0
+
+id: PlanCreator_Agent
+version: 1.0
+description: "Colabora com o usuário para transformar um 'Problema Polido' em um `implementation_plan.yaml` executável pelo Conductor."
+
+# Caminho para o prompt que define a personalidade e o comportamento
+persona_prompt_path: "persona.md"
+
+# Caminho para o arquivo de estado (memória) do agente
+state_file_path: "state.json"
+
+# Tarefa a ser executada no modo automático (pelo Conductor)
+# A "execução" deste agente é a geração do plano final.
+execution_task: |
+  Com base no artefato `polished_problem.md` e no histórico da conversa (`state.json`), gere o plano de implementação.
+  O plano deve estar no formato `implementation_plan.yaml`.
+  Quebre a solução em tarefas discretas, atribuindo cada uma a um Agente Especialista apropriado (ex: KotlinEntityCreator_Agent, etc.).
+  Certifique-se de que as `inputs` e `outputs` de cada tarefa estejam corretamente encadeadas.
+
+# Ferramentas disponíveis no modo interativo (pelo Agente Mestre)
+available_tools:
+  - read_file
+  - list_directory
