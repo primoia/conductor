@@ -21,7 +21,7 @@ data class Product(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
-    val id: Long? = null,
+    val id: Long = 0,
     
     /**
      * Product name - required field with maximum 100 characters
@@ -59,12 +59,12 @@ data class Product(
      */
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    val createdAt: LocalDateTime? = null,
+    val createdAt: LocalDateTime = LocalDateTime.now(),
     
     /**
      * Timestamp when the product was last updated - automatically updated on modification
      */
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
-    val updatedAt: LocalDateTime? = null
+    val updatedAt: LocalDateTime = LocalDateTime.now()
 )
