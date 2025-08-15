@@ -1,1 +1,0 @@
-document gradle status for microservice-x and microservice-y

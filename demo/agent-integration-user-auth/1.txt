@@ -1,2 +1,0 @@
-# Initial command for integration-user-auth
-# Agent created at 2025-08-09T06:01:32Z
