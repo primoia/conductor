@@ -11,6 +11,7 @@ import sys
 import os
 import argparse
 import logging
+import re
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 import subprocess
@@ -102,24 +103,9 @@ class ConductorExecutor:
         logger.info(f"Executing task: {task_name}")
         logger.info(f"Agent: {agent}")
         
-        # Prepare task context
-        task_context = {
-            'task_name': task_name,
-            'description': task['description'],
-            'inputs': task.get('inputs', []),
-            'outputs': task.get('outputs', []),
-            'validation': task.get('validation', []),
-            'plan_data': self.plan_data
-        }
-        
-        # Save task context to temporary file
-        context_file = f"/tmp/conductor_task_{task_name}.yaml"
-        with open(context_file, 'w') as f:
-            yaml.dump(task_context, f)
-        
         try:
-            # Execute the agent (this is where we'd invoke the actual agent)
-            success = self._invoke_agent(agent, context_file, task)
+            # Execute the agent with the new signature
+            success = self._invoke_agent(task)
             
             if success:
                 self.executed_tasks.add(task_name)
@@ -134,38 +120,49 @@ class ConductorExecutor:
             self.failed_tasks.add(task_name)
             logger.error(f"Task '{task_name}' failed with exception: {e}")
             return False
-        finally:
-            # Clean up temporary file
-            if os.path.exists(context_file):
-                os.remove(context_file)
     
-    def _invoke_agent(self, agent_name: str, context_file: str, task: Dict[str, Any]) -> bool:
+    def _invoke_agent(self, task: Dict[str, Any]) -> bool:
         """Invoke the specified agent to execute the task."""
-        # This is a placeholder implementation
-        # In a real implementation, this would:
-        # 1. Load the agent configuration
-        # 2. Set up the execution environment
-        # 3. Pass the task context to the agent
-        # 4. Monitor the agent's execution
-        # 5. Return success/failure status
-        
+        agent_name = task['agent']
         logger.info(f"Invoking agent: {agent_name}")
-        logger.info(f"Context file: {context_file}")
         
-        # For now, we'll simulate agent execution
-        # In practice, this would be a more complex integration
-        time.sleep(1)  # Simulate work
-        
-        # Simulate success (90% success rate for demo)
-        import random
-        success = random.random() > 0.1
-        
-        if success:
+        try:
+            # Step 1: Load agent brain
+            agent_brain = self._load_agent_brain(agent_name)
+            if not agent_brain:
+                logger.error(f"Failed to load agent brain for {agent_name}")
+                return False
+            
+            # Step 2: Build focused prompt
+            prompt = self._build_agent_prompt(agent_brain, task)
+            if not prompt:
+                logger.error(f"Failed to build prompt for {agent_name}")
+                return False
+            
+            # Step 3: Execute AI call
+            ai_response = self._execute_ai_call(prompt)
+            if not ai_response:
+                logger.error(f"Failed to get AI response for {agent_name}")
+                return False
+            
+            # Step 4: Process and save response
+            success = self._process_ai_response(ai_response, task)
+            if not success:
+                logger.error(f"Failed to process AI response for {agent_name}")
+                return False
+            
+            # Step 5: Validate task completion
+            validation_success = self._validate_task(task)
+            if not validation_success:
+                logger.error(f"Task validation failed for {agent_name}")
+                return False
+            
             logger.info(f"Agent {agent_name} completed successfully")
-        else:
-            logger.error(f"Agent {agent_name} failed")
-        
-        return success
+            return True
+            
+        except Exception as e:
+            logger.error(f"Agent {agent_name} failed with exception: {e}")
+            return False
     
     def validate_results(self) -> bool:
         """Validate that all validation criteria are met."""
@@ -212,6 +209,229 @@ class ConductorExecutor:
         
         logger.info("Conductor execution completed successfully")
         return True
+    
+    def _load_agent_brain(self, agent_name: str) -> Optional[Dict[str, Any]]:
+        """Load the agent's brain (persona, context, memory) dynamically."""
+        logger.info(f"Loading agent brain for: {agent_name}")
+        
+        # Construct agent path following the convention
+        agent_path = os.path.join("projects", "develop", "agents", agent_name)
+        
+        if not os.path.exists(agent_path):
+            logger.error(f"Agent path not found: {agent_path}")
+            return None
+        
+        try:
+            # Load core agent files
+            persona_file = os.path.join(agent_path, "persona.md")
+            context_file = os.path.join(agent_path, "memory", "context.md")
+            avoid_patterns_file = os.path.join(agent_path, "memory", "avoid_patterns.md")
+            
+            # Read files with error handling
+            persona = self._read_file_safely(persona_file)
+            context = self._read_file_safely(context_file)
+            avoid_patterns = self._read_file_safely(avoid_patterns_file)
+            
+            if not all([persona, context, avoid_patterns]):
+                logger.error(f"Missing required agent brain files for {agent_name}")
+                return None
+            
+            agent_brain = {
+                "persona": persona,
+                "context": context,
+                "avoid_patterns": avoid_patterns,
+                "agent_path": agent_path
+            }
+            
+            logger.info(f"Agent brain loaded successfully for {agent_name}")
+            return agent_brain
+            
+        except Exception as e:
+            logger.error(f"Failed to load agent brain for {agent_name}: {e}")
+            return None
+    
+    def _read_file_safely(self, file_path: str) -> Optional[str]:
+        """Read file content safely with error handling."""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        except Exception as e:
+            logger.error(f"Failed to read file {file_path}: {e}")
+            return None
+    
+    def _build_agent_prompt(self, agent_brain: Dict[str, Any], task: Dict[str, Any]) -> Optional[str]:
+        """Build a focused prompt combining agent brain with task information."""
+        logger.info(f"Building prompt for task: {task['name']}")
+        
+        try:
+            # Read input files to provide context
+            input_contents = []
+            for input_file in task.get('inputs', []):
+                content = self._read_file_safely(input_file)
+                if content:
+                    input_contents.append(f"### {input_file}:\n```\n{content}\n```")
+                else:
+                    logger.warning(f"Could not read input file: {input_file}")
+            
+            input_context = "\n\n".join(input_contents) if input_contents else "No input files provided."
+            
+            # Build the prompt following the pattern from focused_claude_orchestrator.py
+            prompt = f"""You are a specialist AI agent for software development. Your agent-specific "brain" is pre-loaded below.
+
+**# YOUR AGENT BRAIN (PRE-LOADED CONTEXT)**
+
+### PERSONA:
+{agent_brain["persona"]}
+
+### CONTEXT AND MISSION:
+{agent_brain["context"]}
+
+### PATTERNS TO AVOID (SCARS):
+{agent_brain["avoid_patterns"]}
+
+**# YOUR CURRENT TASK**
+
+**Task Name:** {task['name']}
+**Description:** {task['description']}
+
+**Objective:** Create or modify the following output files:
+{chr(10).join([f"- {output}" for output in task.get('outputs', [])])}
+
+**Input Context:**
+{input_context}
+
+**Steps to execute:**
+
+1. **Analyze Input Files:** Read and understand the provided input files to understand existing code patterns and requirements.
+
+2. **Generate Code:** Create complete code content following the requirements in your mission and the task description.
+
+3. **PRIMARY ACTION (DIRECT SAVE):** Try to save the generated code directly to the output files specified above.
+   If successful, respond with ONLY: `[SAVE_SUCCESS]`
+
+4. **FALLBACK ACTION (TEXT RETURN):** If you cannot save the file, return the complete source code within:
+   ```
+   <source_code>
+   (complete code here)
+   </source_code>
+   ```
+
+**Important:** Focus on the specific task and ensure the generated code follows the patterns and best practices defined in your agent brain."""
+            
+            logger.info(f"Prompt built successfully for task: {task['name']}")
+            return prompt
+            
+        except Exception as e:
+            logger.error(f"Failed to build prompt for task {task['name']}: {e}")
+            return None
+    
+    def _execute_ai_call(self, prompt: str) -> Optional[str]:
+        """Execute AI call using subprocess to invoke the AI tool."""
+        logger.info("Executing real AI call via subprocess...")
+        
+        try:
+            # The command to execute the AI. Assumes 'claude' is in the system PATH.
+            # The project root is used as the current working directory.
+            command = ["claude", "--print", "--dangerously-skip-permissions", prompt]
+            
+            process = subprocess.run(
+                command, 
+                capture_output=True, 
+                text=True, 
+                timeout=300,
+                cwd=os.getcwd() # Execute from the current working directory of the script
+            )
+
+            if process.returncode != 0:
+                logger.error(f"AI execution failed with return code {process.returncode}:")
+                logger.error(process.stderr)
+                return None
+
+            response = process.stdout.strip()
+            logger.info("AI call completed successfully")
+            return response
+
+        except FileNotFoundError:
+            logger.error("AI command not found. Make sure 'claude' is installed and in your PATH.")
+            return None
+        except subprocess.TimeoutExpired:
+            logger.error("AI call timed out after 300 seconds.")
+            return None
+        except Exception as e:
+            logger.error(f"AI call failed with an unexpected exception: {e}")
+            return None
+    
+    def _process_ai_response(self, ai_response: str, task: Dict[str, Any]) -> bool:
+        """Process AI response and save to output files."""
+        logger.info(f"Processing AI response for task: {task['name']}")
+        
+        try:
+            # Check if AI indicated direct save success
+            if "[SAVE_SUCCESS]" in ai_response:
+                logger.info("AI reported direct save success")
+                return True
+            
+            # Extract code from response if not directly saved
+            code_match = re.search(r'<source_code>(.*?)</source_code>', ai_response, re.DOTALL)
+            if not code_match:
+                logger.error("No source code found in AI response")
+                return False
+            
+            code_content = code_match.group(1).strip()
+            
+            # Save to output files
+            for output_file in task.get('outputs', []):
+                success = self._save_code_to_file(code_content, output_file)
+                if not success:
+                    logger.error(f"Failed to save code to {output_file}")
+                    return False
+            
+            logger.info(f"Code saved successfully for task: {task['name']}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to process AI response for task {task['name']}: {e}")
+            return False
+    
+    def _save_code_to_file(self, code_content: str, file_path: str) -> bool:
+        """Save code content to file, creating directories if needed."""
+        try:
+            # Create parent directories if they don't exist
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            
+            # Write the code to file
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(code_content)
+            
+            logger.info(f"Code saved to: {file_path}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to save code to {file_path}: {e}")
+            return False
+    
+    def _validate_task(self, task: Dict[str, Any]) -> bool:
+        """Validate that the task was completed successfully."""
+        logger.info(f"Validating task: {task['name']}")
+        
+        try:
+            # Check if output files were created and are not empty
+            for output_file in task.get('outputs', []):
+                if not os.path.exists(output_file):
+                    logger.error(f"Output file not found: {output_file}")
+                    return False
+                
+                # Check if file is not empty
+                if os.path.getsize(output_file) == 0:
+                    logger.error(f"Output file is empty: {output_file}")
+                    return False
+            
+            logger.info(f"Task validation passed: {task['name']}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Task validation failed for {task['name']}: {e}")
+            return False
 
 
 def main():

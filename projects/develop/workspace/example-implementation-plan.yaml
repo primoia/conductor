@@ -10,9 +10,8 @@ tasks:
     description: "Create the Product entity class with all required fields and annotations"
     agent: "KotlinEntityCreator_Agent"
     inputs:
-      - "stories/1.1.product-entity.story.md#entity-definition"
+      - "stories/1.1.product-entity.story.md"
       - "docs/architecture/coding-standards.md"
-      - "src/main/kotlin/com/example/domain/entities/"
     outputs:
       - "src/main/kotlin/com/example/domain/entities/Product.kt"
     validation:
