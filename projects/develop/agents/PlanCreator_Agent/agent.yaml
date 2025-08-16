@@ -16,12 +16,20 @@ state_file_path: "state.json"
 # Tarefa a ser executada no modo automático (pelo Conductor)
 # A "execução" deste agente é a geração do plano final.
 execution_task: |
-  Com base no artefato `polished_problem.md` e no histórico da conversa (`state.json`), gere o plano de implementação.
-  O plano deve estar no formato `implementation_plan.yaml`.
-  Quebre a solução em tarefas discretas, atribuindo cada uma a um Agente Especialista apropriado (ex: KotlinEntityCreator_Agent, etc.).
-  Certifique-se de que as `inputs` e `outputs` de cada tarefa estejam corretamente encadeadas.
+  Com base no artefato `polished_problem.md` e no histórico da conversa (`state.json`), gere o plano de implementação (${output_artifact}).
+  O plano deve estar no formato YAML estruturado com:
+  - Lista sequencial de tarefas com dependências
+  - Atribuição a Agentes Especialistas apropriados (KotlinEntityCreator_Agent, etc.)
+  - Inputs e outputs corretamente encadeados entre tarefas
+  - Estimativas de tempo e prioridades
+
+# Configuração de saída parametrizada
+output_artifact: "implementation_plan.yaml"
+output_directory: "workspace/plans"
 
 # Ferramentas disponíveis no modo interativo (pelo Agente Mestre)
 available_tools:
-  - read_file
-  - list_directory
+  - Read                # Para analisar polished_problem.md e arquivos existentes
+  - Write               # Para criar implementation plans
+  - Grep                # Para buscar padrões no código
+  - Glob                # Para encontrar arquivos relacionados

@@ -2153,7 +2153,15 @@ class ClaudeCLIClient(LLMClient):
             full_prompt = self._build_full_prompt_with_persona(prompt)
             
             # Build command with proper arguments
-            cmd = [self.claude_command, "--print", full_prompt]
+            # Build command with conditional permissions
+            cmd = [self.claude_command, "--print"]
+            
+            # Only skip permissions if explicitly requested (for file operations)
+            if "Write" in prompt or "write_file" in prompt or "criar arquivo" in prompt.lower() or "salvar" in prompt.lower():
+                cmd.append("--dangerously-skip-permissions")
+                logger.debug("Adding --dangerously-skip-permissions for file operations")
+            
+            cmd.append(full_prompt)
             
             # Execute Claude CLI with timeout
             result = subprocess.run(
@@ -2356,7 +2364,13 @@ class GenesisAgent:
             self.current_agent = agent_name
             self.embodied = True
             
-            logger.info(f"Successfully embodied agent: {agent_name}")
+            # CRITICAL FIX: Update working directory to agent's folder
+            # This allows the agent to save files in its own directory
+            self.working_directory = agent_dir
+            self.toolbelt.working_directory = agent_dir
+            self.llm_client.working_directory = agent_dir
+            
+            logger.info(f"Successfully embodied agent: {agent_name} (working_directory: {agent_dir})")
             return True
             
         except Exception as e:

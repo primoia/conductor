@@ -17,17 +17,22 @@ state_file_path: "state.json"
 # Neste caso, a "execução" é a consolidação da análise em um artefato.
 execution_task: |
   Com base no histórico da conversa interativa (`state.json`), consolide o entendimento do problema.
-  Gere um documento Markdown (`polished_problem.md`) que descreve claramente:
+  Gere um documento Markdown (`${output_artifact}`) que descreve claramente:
   1. O objetivo principal do usuário.
   2. O contexto técnico relevante (arquivos, classes, funções impactadas).
   3. Os requisitos e restrições levantados.
   4. As perguntas que ainda precisam ser respondidas.
   Este documento será o input para o PlanCreator_Agent.
 
+# Configuração de saída parametrizada
+output_artifact: "polished_problem.md"
+output_directory: "workspace/outbox"
+
 # Ferramentas disponíveis no modo interativo (pelo Agente Mestre)
 # Essencial para este agente poder analisar o código-fonte.
 available_tools:
-  - read_file
-  - list_directory
-  - search_file_content
-  - glob
+  - Read
+  - Write
+  - LS
+  - Grep
+  - Glob

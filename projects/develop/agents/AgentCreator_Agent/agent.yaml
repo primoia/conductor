@@ -16,12 +16,20 @@ state_file_path: "state.json"
 # Tarefa a ser executada no modo automático (pelo Conductor)
 # A execução automática poderia criar um agente a partir de um arquivo de especificação de alto nível.
 execution_task: |
-  Com base no `input_file` (uma especificação de agente), gere a estrutura completa do agente.
+  Com base no `input_file` (uma especificação de agente), gere a estrutura completa do agente e relatório (${output_artifact}).
   Crie o diretório, o agent.yaml, a persona.md e o state.json conforme a especificação.
-  Reporte o sucesso ou a falha da operação.
+  Documente o processo de criação, estrutura gerada e validações realizadas.
+  Reporte o sucesso ou a falha da operação com detalhes técnicos.
+
+# Configuração de saída parametrizada (para relatório de criação)
+output_artifact: "agent_creation_report.md"
+output_directory: "workspace/reports"
 
 # Ferramentas disponíveis no modo interativo (pelo Agente Mestre)
 # Estas são as ferramentas de "metaprogramação" que permitem a este agente criar outros.
 available_tools:
-  - write_file
-  - run_shell_command # Usado para criar diretórios (mkdir)
+  - Write               # Para criar arquivos de agente e relatórios
+  - Read                # Para analisar especificações e templates
+  - Bash                # Para criar diretórios e estruturas
+  - Grep                # Para buscar padrões em templates
+  - Glob                # Para encontrar templates existentes
