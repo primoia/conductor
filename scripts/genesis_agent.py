@@ -2032,8 +2032,19 @@ class LLMClient:
         """
         self.working_directory = working_directory or os.getcwd()
         self.conversation_history = []
+        self.agent_persona = None
         
         logger.debug(f"LLMClient base initialized with working directory: {self.working_directory}")
+    
+    def set_agent_persona(self, persona: str):
+        """
+        Set the agent persona for this LLM client.
+        
+        Args:
+            persona: The agent's persona text from persona.md
+        """
+        self.agent_persona = persona
+        logger.debug("Agent persona set in LLM client")
     
     def _invoke_subprocess(self, prompt: str) -> Optional[str]:
         """
@@ -2103,6 +2114,30 @@ class ClaudeCLIClient(LLMClient):
         
         return "\n".join(context_parts)
     
+    def _build_full_prompt_with_persona(self, new_prompt: str) -> str:
+        """
+        Build a complete prompt that includes persona and conversation context.
+        
+        Args:
+            new_prompt: The new user prompt
+            
+        Returns:
+            Complete prompt with persona and context
+        """
+        prompt_parts = []
+        
+        # Add persona if available
+        if self.agent_persona:
+            prompt_parts.append("### PERSONA:")
+            prompt_parts.append(self.agent_persona)
+            prompt_parts.append("")  # Empty line separator
+        
+        # Add contextual conversation
+        contextual_prompt = self._build_contextual_prompt(new_prompt)
+        prompt_parts.append(contextual_prompt)
+        
+        return "\n".join(prompt_parts)
+    
     def _invoke_subprocess(self, prompt: str) -> Optional[str]:
         """
         Invoke Claude CLI with the given prompt including conversation context.
@@ -2114,8 +2149,8 @@ class ClaudeCLIClient(LLMClient):
             Claude's response or None if failed
         """
         try:
-            # Build full prompt with conversation context
-            full_prompt = self._build_contextual_prompt(prompt)
+            # Build full prompt with persona and conversation context
+            full_prompt = self._build_full_prompt_with_persona(prompt)
             
             # Build command with proper arguments
             cmd = [self.claude_command, "--print", full_prompt]
@@ -2308,6 +2343,11 @@ class GenesisAgent:
             state_file_path = os.path.join(agent_dir, self.agent_config.get("state_file_path", "state.json"))
             self._load_agent_state(state_file_path)
             
+            # Load agent persona
+            persona_path = os.path.join(agent_dir, self.agent_config.get("persona_prompt_path", "persona.md"))
+            if not self._load_agent_persona(persona_path):
+                return False
+            
             # Store paths for future state saving
             self.agent_dir = agent_dir
             self.state_file_path = state_file_path
@@ -2366,6 +2406,35 @@ class GenesisAgent:
             }
             if hasattr(self.llm_client, 'conversation_history'):
                 self.llm_client.conversation_history = []
+    
+    def _load_agent_persona(self, persona_path: str) -> bool:
+        """
+        Load agent persona from persona.md file.
+        
+        Args:
+            persona_path: Path to the persona.md file
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if os.path.exists(persona_path):
+                with open(persona_path, 'r', encoding='utf-8') as f:
+                    self.agent_persona = f.read()
+                
+                # Pass persona to LLM client if it supports it
+                if hasattr(self.llm_client, 'set_agent_persona'):
+                    self.llm_client.set_agent_persona(self.agent_persona)
+                
+                logger.debug(f"Loaded persona from {persona_path}")
+                return True
+            else:
+                logger.error(f"Persona file not found: {persona_path}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error loading agent persona: {e}")
+            return False
     
     def _save_agent_state(self):
         """
