@@ -1,0 +1,71 @@
+# Workflow Template: Setup Deployment Básico DevOps
+# Este é um implementation_plan.yaml template para configurar deployment básico com Docker e CI/CD
+
+storyId: "setup-basic-deployment"
+description: "Workflow para configurar deployment básico com Dockerfile, pipeline CI/CD e manifesto Kubernetes"
+
+# Lista de tarefas em sequência
+tasks:
+  - name: "create-dockerfile"
+    description: "Criar Dockerfile otimizado com multi-stage build"
+    agent: "DockerfileCreator_Agent"
+    inputs: []
+    outputs: ["Dockerfile", ".dockerignore"]
+    context: |
+      Criar Dockerfile para aplicação Node.js/Spring Boot:
+      - Multi-stage build (build + runtime)
+      - Stage build: instalar dependências e compilar
+      - Stage runtime: apenas arquivos necessários
+      - Usuário não-root para segurança
+      - Labels para metadata
+      - HEALTHCHECK para monitoring
+      - .dockerignore para otimizar build context
+
+  - name: "create-ci-pipeline"
+    description: "Criar pipeline GitHub Actions para CI/CD"
+    agent: "CIPipelineCreator_Agent"
+    inputs: ["Dockerfile"]
+    outputs: [".github/workflows/ci-cd.yml"]
+    context: |
+      Criar pipeline com:
+      - Trigger em push para main e PRs
+      - Jobs: test, build, deploy
+      - Testes unitários e lint
+      - Build da imagem Docker
+      - Push para registry (ghcr.io)
+      - Deploy em ambiente de staging
+      - Parallel jobs onde possível
+      - Secrets para registry e deploy
+
+  - name: "create-k8s-manifests"
+    description: "Criar manifestos Kubernetes básicos"
+    agent: "K8sManifestCreator_Agent"
+    inputs: ["Dockerfile", ".github/workflows/ci-cd.yml"]
+    outputs: ["k8s/deployment.yaml", "k8s/service.yaml", "k8s/ingress.yaml"]
+    context: |
+      Criar manifestos para:
+      1. Deployment: app com 2 replicas, resource limits, health checks
+      2. Service: ClusterIP para comunicação interna
+      3. Ingress: roteamento HTTP com TLS
+      Configurar labels consistentes e annotations necessárias.
+      Usar ConfigMap e Secrets para configurações.
+
+  - name: "create-monitoring-config"
+    description: "Criar configurações básicas de monitoramento"
+    agent: "InfrastructureCreator_Agent"
+    inputs: ["k8s/deployment.yaml"]
+    outputs: ["monitoring/prometheus.yml", "monitoring/grafana-dashboard.json"]
+    context: |
+      Criar configurações para:
+      1. Prometheus: scrape configs para a aplicação
+      2. Grafana: dashboard com métricas básicas
+      - Request rate, error rate, response time
+      - Resource usage (CPU, memory)
+      - Health check status
+      - Alerting rules básicas
+
+# Configuração de execução
+execution_config:
+  parallel_execution: false  # Executar em sequência
+  stop_on_error: true       # Parar se uma tarefa falhar
+  ai_provider: "claude"     # Provedor padrão para todas as tarefas

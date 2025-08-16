@@ -1,0 +1,65 @@
+# Workflow Template: Criar Entidade Kotlin Completa
+# Este é um implementation_plan.yaml template para criar uma entidade completa com repositório, serviço e testes
+
+storyId: "create-kotlin-entity-complete"
+description: "Workflow para criar uma entidade Kotlin completa com JPA, repositório Spring Data, serviço e testes"
+
+# Lista de tarefas em sequência
+tasks:
+  - name: "create-entity"
+    description: "Criar a entidade JPA com anotações Hibernate"
+    agent: "KotlinEntityCreator_Agent"
+    inputs: []
+    outputs: ["src/main/kotlin/entities/Product.kt"]
+    context: |
+      Criar uma entidade Product com os seguintes campos:
+      - id: Long (primary key, auto-generated)
+      - name: String (not null)
+      - description: String (nullable)
+      - price: BigDecimal (not null)
+      - category: String (not null)
+      - createdAt: LocalDateTime (auto-generated)
+      - updatedAt: LocalDateTime (auto-updated)
+
+  - name: "create-repository"
+    description: "Criar repositório Spring Data JPA"
+    agent: "KotlinRepositoryCreator_Agent"
+    inputs: ["src/main/kotlin/entities/Product.kt"]
+    outputs: ["src/main/kotlin/repositories/ProductRepository.kt"]
+    context: |
+      Criar um repositório que estende JpaRepository com métodos customizados:
+      - findByCategory(category: String): List<Product>
+      - findByNameContaining(name: String): List<Product>
+      - findByPriceBetween(minPrice: BigDecimal, maxPrice: BigDecimal): List<Product>
+
+  - name: "create-service"
+    description: "Criar serviço de negócio"
+    agent: "KotlinServiceCreator_Agent"
+    inputs: ["src/main/kotlin/entities/Product.kt", "src/main/kotlin/repositories/ProductRepository.kt"]
+    outputs: ["src/main/kotlin/services/ProductService.kt"]
+    context: |
+      Criar um serviço com operações CRUD e validações:
+      - findAll(): List<Product>
+      - findById(id: Long): Product?
+      - save(product: Product): Product
+      - update(id: Long, product: Product): Product
+      - delete(id: Long): Boolean
+      - findByCategory(category: String): List<Product>
+      Incluir validações de negócio e tratamento de exceções.
+
+  - name: "create-tests"
+    description: "Criar testes unitários e de integração"
+    agent: "KotlinTestCreator_Agent"
+    inputs: ["src/main/kotlin/entities/Product.kt", "src/main/kotlin/repositories/ProductRepository.kt", "src/main/kotlin/services/ProductService.kt"]
+    outputs: ["src/test/kotlin/repositories/ProductRepositoryTest.kt", "src/test/kotlin/services/ProductServiceTest.kt"]
+    context: |
+      Criar testes completos:
+      1. ProductRepositoryTest: Testar queries customizadas com @DataJpaTest
+      2. ProductServiceTest: Testar lógica de negócio com @MockBean
+      Incluir cenários de sucesso, falha e edge cases.
+
+# Configuração de execução
+execution_config:
+  parallel_execution: false  # Executar em sequência
+  stop_on_error: true       # Parar se uma tarefa falhar
+  ai_provider: "claude"     # Provedor padrão para todas as tarefas

@@ -1,0 +1,67 @@
+# Workflow Template: Criar Componente React Reutilizável
+# Este é um implementation_plan.yaml template para criar um componente reutilizável com documentação
+
+storyId: "create-react-reusable-component"
+description: "Workflow para criar um componente React reutilizável com props tipadas, estilos e documentação"
+
+# Lista de tarefas em sequência
+tasks:
+  - name: "create-component"
+    description: "Criar componente base com TypeScript"
+    agent: "ReactComponentCreator_Agent"
+    inputs: []
+    outputs: ["src/components/Button/Button.tsx"]
+    context: |
+      Criar um componente Button reutilizável:
+      - Props: variant: 'primary' | 'secondary' | 'danger', size: 'sm' | 'md' | 'lg'
+      - Props: disabled?: boolean, loading?: boolean, children: ReactNode
+      - Props: onClick?: () => void, type?: 'button' | 'submit' | 'reset'
+      - Suporte a ref forwarding
+      - Estados de loading com spinner
+      - Acessibilidade completa (ARIA, keyboard)
+
+  - name: "create-component-styles"
+    description: "Criar estilos modulares para o componente"
+    agent: "CSSStyleCreator_Agent"
+    inputs: ["src/components/Button/Button.tsx"]
+    outputs: ["src/components/Button/Button.module.css"]
+    context: |
+      Criar estilos para diferentes variantes:
+      - Variables CSS para cores, tamanhos e transições
+      - Estilos para primary, secondary, danger variants
+      - Tamanhos sm, md, lg com padding e font-size apropriados
+      - Estados hover, focus, active, disabled
+      - Loading state com animation
+      - Focus ring para acessibilidade
+
+  - name: "create-component-index"
+    description: "Criar arquivo index para export limpo"
+    agent: "ReactComponentCreator_Agent"
+    inputs: ["src/components/Button/Button.tsx"]
+    outputs: ["src/components/Button/index.ts"]
+    context: |
+      Criar arquivo index.ts que exporta:
+      - export { Button } from './Button'
+      - export type { ButtonProps } from './Button'
+      - Facilitar imports: import { Button } from 'components/Button'
+
+  - name: "create-component-tests"
+    description: "Criar testes abrangentes para o componente"
+    agent: "ReactTestCreator_Agent"
+    inputs: ["src/components/Button/Button.tsx"]
+    outputs: ["src/components/Button/Button.test.tsx"]
+    context: |
+      Criar testes para:
+      - Rendering com diferentes props
+      - Variants (primary, secondary, danger)
+      - Sizes (sm, md, lg)
+      - Estados disabled e loading
+      - Event handlers (onClick)
+      - Acessibilidade (screen reader, keyboard)
+      - Snapshot testing para regressions
+
+# Configuração de execução
+execution_config:
+  parallel_execution: false  # Executar em sequência
+  stop_on_error: true       # Parar se uma tarefa falhar
+  ai_provider: "claude"     # Provedor padrão para todas as tarefas

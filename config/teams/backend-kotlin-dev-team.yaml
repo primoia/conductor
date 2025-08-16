@@ -1,0 +1,59 @@
+# Team Template - Backend Kotlin Development Team
+# Maestro Framework Team Template v1.0
+
+id: backend-kotlin-dev-team
+name: "Time de Desenvolvimento Backend Kotlin"
+description: "Um time otimizado para criar entidades, serviços, repositórios e testes em Kotlin/Spring Boot. Ideal para desenvolvimento de APIs RESTful robustas."
+persona_type: "Desenvolvedor Backend"
+
+# Lista de agentes incluídos neste time
+agents:
+  - id: KotlinEntityCreator_Agent
+    config_overrides:
+      ai_provider: 'claude'
+      description: "Especialista em criar entidades JPA/Hibernate para Kotlin/Spring"
+  
+  - id: KotlinRepositoryCreator_Agent
+    config_overrides:
+      ai_provider: 'claude'
+      description: "Especialista em criar repositórios Spring Data JPA para Kotlin"
+  
+  - id: KotlinServiceCreator_Agent
+    config_overrides:
+      ai_provider: 'claude'
+      description: "Especialista em criar serviços de negócio para Kotlin/Spring"
+  
+  - id: KotlinTestCreator_Agent
+    config_overrides:
+      ai_provider: 'claude'
+      test_framework: 'junit5'
+      description: "Especialista em criar testes unitários e de integração com JUnit 5"
+
+# Lista de workflows padrão (implementation_plan templates)
+workflows:
+  - id: create-new-entity-workflow
+    name: "Criar Nova Entidade Completa"
+    path: "workflows/kotlin_create_entity_complete.yaml"
+    description: "Cria entidade, repositório, serviço e testes em sequência"
+  
+  - id: add-entity-field-workflow
+    name: "Adicionar Campo à Entidade"
+    path: "workflows/kotlin_add_entity_field.yaml"
+    description: "Adiciona um novo campo a uma entidade existente com migração"
+
+# Exemplos de uso específicos para este time
+usage_examples:
+  - name: "Incorporar especialista em entidades"
+    command: "python scripts/genesis_agent.py --embody KotlinEntityCreator_Agent --project-root ./meu-projeto-kotlin --repl"
+    description: "Inicia sessão interativa para criar/modificar entidades"
+  
+  - name: "Executar criação completa de entidade"
+    command: "python scripts/run_conductor.py --projeto ./meu-projeto-kotlin workflows/kotlin_create_entity_complete.yaml"
+    description: "Executa workflow automatizado para criar entidade completa"
+
+# Configurações específicas deste time
+team_config:
+  default_ai_provider: 'claude'
+  recommended_project_structure: 'spring-boot-gradle'
+  supported_languages: ['kotlin']
+  target_frameworks: ['spring-boot', 'spring-data-jpa', 'hibernate']

@@ -1,0 +1,59 @@
+# Team Template - Frontend React Development Team
+# Maestro Framework Team Template v1.0
+
+id: frontend-react-dev-team
+name: "Time de Desenvolvimento Frontend React"
+description: "Um time especializado em desenvolvimento de interfaces React modernas com TypeScript, hooks e componentes reutilizáveis. Otimizado para SPAs e aplicações web responsivas."
+persona_type: "Desenvolvedor Frontend"
+
+# Lista de agentes incluídos neste time
+agents:
+  - id: ReactComponentCreator_Agent
+    config_overrides:
+      ai_provider: 'claude'
+      description: "Especialista em criar componentes React funcionais com TypeScript e hooks"
+  
+  - id: ReactHookCreator_Agent
+    config_overrides:
+      ai_provider: 'claude'
+      description: "Especialista em criar custom hooks reutilizáveis para React"
+  
+  - id: ReactTestCreator_Agent
+    config_overrides:
+      ai_provider: 'claude'
+      test_framework: 'jest'
+      description: "Especialista em testes de componentes React com Jest e Testing Library"
+  
+  - id: CSSStyleCreator_Agent
+    config_overrides:
+      ai_provider: 'claude'
+      description: "Especialista em criar estilos CSS/SCSS modulares e responsivos"
+
+# Lista de workflows padrão (implementation_plan templates)
+workflows:
+  - id: create-new-page-workflow
+    name: "Criar Nova Página Completa"
+    path: "workflows/react_create_page_complete.yaml"
+    description: "Cria página, componentes, hooks e estilos em sequência"
+  
+  - id: create-reusable-component-workflow
+    name: "Criar Componente Reutilizável"
+    path: "workflows/react_create_reusable_component.yaml"
+    description: "Cria componente com props tipadas, estilos e testes"
+
+# Exemplos de uso específicos para este time
+usage_examples:
+  - name: "Incorporar especialista em componentes"
+    command: "python scripts/genesis_agent.py --embody ReactComponentCreator_Agent --project-root ./meu-projeto-react --repl"
+    description: "Inicia sessão interativa para criar/modificar componentes React"
+  
+  - name: "Executar criação completa de página"
+    command: "python scripts/run_conductor.py --projeto ./meu-projeto-react workflows/react_create_page_complete.yaml"
+    description: "Executa workflow automatizado para criar página completa"
+
+# Configurações específicas deste time
+team_config:
+  default_ai_provider: 'claude'
+  recommended_project_structure: 'create-react-app-typescript'
+  supported_languages: ['typescript', 'javascript']
+  target_frameworks: ['react', 'react-router', 'styled-components']
