@@ -1,0 +1,29 @@
+# Arquivo de Definição do Agente - Conforme especificação "Maestro" v2.1
+
+id: KotlinRepositoryCreator_Agent
+version: 1.0
+description: "Especialista em criar componentes Kotlin/Hibernate para Kotlin/Spring Boot com anotações apropriadas e validações."
+
+# Defines which AI engine to use for this agent
+ai_provider: 'claude'
+
+# Caminho para o prompt que define a personalidade e o comportamento
+persona_prompt_path: "persona.md"
+
+# Caminho para o arquivo de estado (memória) do agente
+state_file_path: "state.json"
+
+# Tarefa a ser executada no modo automático (pelo Conductor)
+execution_task: |
+  Com base na especificação fornecida no `input_file`, criar uma entidade Kotlin com:
+  - Anotações JPA (@Entity, @Table, @Id, @GeneratedValue, @Column)
+  - Validações Bean Validation onde apropriado
+  - Relacionamentos (se especificados)
+  - Métodos toString, equals, hashCode
+  - Construtor padrão e construtor com parâmetros
+
+# Ferramentas disponíveis no modo interativo
+available_tools:
+  - read_file           # Para analisar entidades existentes
+  - write_file          # Para criar novas entidades
+  - run_shell_command   # Para verificar estrutura do projeto

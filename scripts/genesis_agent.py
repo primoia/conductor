@@ -64,7 +64,9 @@ class Toolbelt:
         self.tools = {
             'read_file': self.read_file,
             'write_file': self.write_file,
-            'run_shell_command': self.run_shell_command
+            'run_shell_command': self.run_shell_command,
+            'list_team_templates': self.list_team_templates,
+            'apply_team_template': self.apply_team_template
         }
         
         logger.debug(f"Toolbelt initialized with working directory: {self.working_directory}")
@@ -291,6 +293,258 @@ class Toolbelt:
             raise FileNotFoundError(f"Path does not exist: {file_path}")
         
         return resolved_path
+    
+    def list_team_templates(self) -> Dict[str, Any]:
+        """
+        List available team templates from config/teams/ directory.
+        
+        Returns:
+            Dict containing success status and list of available team templates
+        """
+        try:
+            teams_dir = os.path.join(os.getcwd(), "config", "teams")
+            
+            if not os.path.exists(teams_dir):
+                return {
+                    'success': False,
+                    'error': 'Team templates directory not found: config/teams/',
+                    'available_templates': []
+                }
+            
+            templates = []
+            for file_name in os.listdir(teams_dir):
+                if file_name.endswith('.yaml') or file_name.endswith('.yml'):
+                    template_path = os.path.join(teams_dir, file_name)
+                    try:
+                        with open(template_path, 'r', encoding='utf-8') as f:
+                            template_data = yaml.safe_load(f)
+                            templates.append({
+                                'id': template_data.get('id', file_name.replace('.yaml', '').replace('.yml', '')),
+                                'name': template_data.get('name', 'Unknown'),
+                                'description': template_data.get('description', 'No description available'),
+                                'persona_type': template_data.get('persona_type', 'General'),
+                                'agents_count': len(template_data.get('agents', [])),
+                                'workflows_count': len(template_data.get('workflows', []))
+                            })
+                    except Exception as e:
+                        logger.warning(f"Failed to parse team template {file_name}: {e}")
+                        continue
+            
+            return {
+                'success': True,
+                'available_templates': templates,
+                'count': len(templates)
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to list team templates: {e}")
+            return {
+                'success': False,
+                'error': f"Failed to list team templates: {str(e)}",
+                'available_templates': []
+            }
+    
+    def apply_team_template(self, team_id: str, project_root: str, env: str, project_name: str = None) -> Dict[str, Any]:
+        """
+        Apply a team template to a specific project.
+        
+        Args:
+            team_id: ID of the team template to apply
+            project_root: Absolute path to the target project
+            env: Environment (develop, main, production)
+            project_name: Name of the project (auto-inferred if not provided)
+            
+        Returns:
+            Dict containing success status, created agents, and operation details
+        """
+        try:
+            # Validate inputs
+            if not os.path.exists(project_root):
+                return {
+                    'success': False,
+                    'error': f'Project root does not exist: {project_root}'
+                }
+            
+            # Auto-infer project name if not provided
+            if not project_name:
+                project_name = os.path.basename(project_root.rstrip('/'))
+            
+            # Load team template
+            teams_dir = os.path.join(os.getcwd(), "config", "teams")
+            template_path = os.path.join(teams_dir, f"{team_id}.yaml")
+            
+            if not os.path.exists(template_path):
+                return {
+                    'success': False,
+                    'error': f'Team template not found: {team_id}'
+                }
+            
+            with open(template_path, 'r', encoding='utf-8') as f:
+                template_data = yaml.safe_load(f)
+            
+            # Create target directory structure
+            target_agents_dir = os.path.join(project_root, "projects", env, project_name, "agents")
+            os.makedirs(target_agents_dir, exist_ok=True)
+            
+            created_agents = []
+            skipped_agents = []
+            
+            # Process each agent in the template
+            for agent_config in template_data.get('agents', []):
+                agent_id = agent_config['id']
+                config_overrides = agent_config.get('config_overrides', {})
+                
+                # Check if source agent exists
+                source_agent_path = os.path.join(os.getcwd(), "projects", "develop", "agents", agent_id, "agent.yaml")
+                if not os.path.exists(source_agent_path):
+                    logger.warning(f"Source agent not found: {agent_id}, skipping...")
+                    skipped_agents.append({
+                        'id': agent_id,
+                        'reason': 'Source agent definition not found'
+                    })
+                    continue
+                
+                # Create agent directory
+                agent_dir = os.path.join(target_agents_dir, agent_id)
+                
+                # Check if agent already exists
+                if os.path.exists(agent_dir):
+                    skipped_agents.append({
+                        'id': agent_id,
+                        'reason': 'Agent already exists in target project'
+                    })
+                    continue
+                
+                os.makedirs(agent_dir, exist_ok=True)
+                
+                # Load source agent.yaml
+                with open(source_agent_path, 'r', encoding='utf-8') as f:
+                    source_agent_data = yaml.safe_load(f)
+                
+                # Apply config overrides
+                for key, value in config_overrides.items():
+                    source_agent_data[key] = value
+                
+                # Write customized agent.yaml
+                target_agent_yaml = os.path.join(agent_dir, "agent.yaml")
+                with open(target_agent_yaml, 'w', encoding='utf-8') as f:
+                    yaml.dump(source_agent_data, f, default_flow_style=False, allow_unicode=True)
+                
+                # Copy persona.md
+                source_persona = os.path.join(os.getcwd(), "projects", "develop", "agents", agent_id, "persona.md")
+                if os.path.exists(source_persona):
+                    target_persona = os.path.join(agent_dir, "persona.md")
+                    with open(source_persona, 'r', encoding='utf-8') as src:
+                        with open(target_persona, 'w', encoding='utf-8') as dst:
+                            dst.write(src.read())
+                
+                # Create initial state.json
+                initial_state = {
+                    "conversation_history": [],
+                    "project_context": {
+                        "project_root": project_root,
+                        "project_name": project_name,
+                        "environment": env
+                    },
+                    "version": "1.0",
+                    "created_from_template": team_id,
+                    "last_updated": "2025-01-16T00:00:00Z"
+                }
+                
+                target_state = os.path.join(agent_dir, "state.json")
+                with open(target_state, 'w', encoding='utf-8') as f:
+                    json.dump(initial_state, f, indent=2)
+                
+                created_agents.append({
+                    'id': agent_id,
+                    'path': agent_dir,
+                    'overrides_applied': list(config_overrides.keys())
+                })
+            
+            # Copy workflows if any
+            workflows_copied = []
+            if 'workflows' in template_data:
+                workflows_dir = os.path.join(project_root, "workflows")
+                os.makedirs(workflows_dir, exist_ok=True)
+                
+                for workflow_config in template_data['workflows']:
+                    workflow_id = workflow_config['id']
+                    workflow_path = workflow_config['path']
+                    source_workflow = os.path.join(os.getcwd(), "config", "workflows", workflow_path)
+                    
+                    if os.path.exists(source_workflow):
+                        target_workflow = os.path.join(workflows_dir, f"{workflow_id}.yaml")
+                        with open(source_workflow, 'r', encoding='utf-8') as src:
+                            with open(target_workflow, 'w', encoding='utf-8') as dst:
+                                dst.write(src.read())
+                        workflows_copied.append(workflow_id)
+            
+            # Generate project README with usage examples
+            readme_content = self._generate_project_readme(template_data, project_name, created_agents, project_root)
+            readme_path = os.path.join(project_root, "CONDUCTOR_TEAM_README.md")
+            with open(readme_path, 'w', encoding='utf-8') as f:
+                f.write(readme_content)
+            
+            return {
+                'success': True,
+                'team_applied': template_data.get('name', team_id),
+                'project_path': target_agents_dir,
+                'created_agents': created_agents,
+                'skipped_agents': skipped_agents,
+                'workflows_copied': workflows_copied,
+                'readme_created': readme_path
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to apply team template: {e}")
+            return {
+                'success': False,
+                'error': f"Failed to apply team template: {str(e)}"
+            }
+    
+    def _generate_project_readme(self, template_data: Dict, project_name: str, created_agents: List, project_root: str) -> str:
+        """Generate a README.md with usage examples for the applied team template."""
+        
+        readme_content = f"""# {template_data.get('name', 'Team')} - Conductor Setup
+
+Este projeto foi configurado com o team template: **{template_data.get('id', 'unknown')}**
+
+## Descrição
+{template_data.get('description', 'No description available')}
+
+## Agentes Criados
+
+"""
+        
+        for agent in created_agents:
+            readme_content += f"- **{agent['id']}**: Localizado em `{agent['path']}`\n"
+        
+        readme_content += f"""
+## Exemplos de Uso
+
+### Modo Interativo (Conversar com um agente)
+```bash
+# Incorporar um agente específico
+python scripts/genesis_agent.py --embody [AGENT_ID] --project-root {project_root} --repl
+```
+
+### Modo Automático (Executar workflows)
+```bash
+# Executar um workflow pré-configurado
+python scripts/run_conductor.py --projeto {project_root} workflows/[WORKFLOW_NAME].yaml
+```
+
+## Próximos Passos
+
+1. **Explore os agentes**: Use o modo interativo para conversar com cada agente
+2. **Execute workflows**: Use os workflows pré-configurados para tarefas comuns  
+3. **Customize**: Modifique os agent.yaml conforme suas necessidades
+
+---
+*Gerado automaticamente pelo Conductor Onboarding*
+"""
+        
+        return readme_content
 
 
 class LLMClient:
@@ -876,6 +1130,10 @@ class GenesisAgent:
             return self._handle_help_command()
         elif command == '/save':
             return self._handle_save_command()
+        elif command == '/onboard':
+            return self._handle_onboard_command()
+        elif command == '/back':
+            return self._handle_back_command()
         else:
             print(f"❌ Unknown command: {command}")
             print("💡 Type /help to see available commands")
@@ -910,6 +1168,8 @@ class GenesisAgent:
         print("\n🔧 Genesis Agent Internal Commands:")
         print("  /help    - Show this help message")
         print("  /save    - Save the current conversation state")
+        print("  /onboard - Start the '3 Clicks to Productivity' team setup")
+        print("  /back    - Return from onboarding mode to original agent")
         print("  /exit    - Exit the REPL session (with confirmation)")
         print("\n🎭 Embodied Agent Information:")
         print(f"  Agent ID: {self.agent_id}")
@@ -960,6 +1220,93 @@ class GenesisAgent:
         except Exception as e:
             print(f"❌ Failed to save state: {e}")
             logger.error(f"Failed to save state: {e}")
+        
+        return True
+    
+    def _handle_onboard_command(self) -> bool:
+        """
+        Handle the /onboard command - start the 3 Clicks to Productivity experience.
+        
+        This command switches to the Onboarding_Agent temporarily to guide the user
+        through team template selection and application.
+        
+        Returns:
+            bool: Always True to continue REPL
+        """
+        try:
+            print("\n🎼 Bem-vindo ao Conductor Onboarding!")
+            print("Vou ajudá-lo a configurar um time de agentes especialistas em apenas 3 cliques!")
+            print("=" * 70)
+            
+            # Check if Onboarding_Agent exists
+            onboard_agent_path = os.path.join(os.getcwd(), "projects", "develop", "agents", "Onboarding_Agent")
+            if not os.path.exists(onboard_agent_path):
+                print("❌ Onboarding_Agent não encontrado!")
+                print("💡 Certifique-se de que o Onboarding_Agent foi criado em projects/develop/agents/")
+                return True
+            
+            # Temporarily switch context to Onboarding_Agent
+            original_agent = {
+                'id': self.agent_id,
+                'path': self.agent_path,
+                'data': self.agent_data
+            }
+            
+            # Load Onboarding_Agent
+            try:
+                self.agent_id = "Onboarding_Agent"
+                self.agent_path = onboard_agent_path
+                self.agent_data = self._load_agent_config(onboard_agent_path)
+                
+                print(f"🤖 Onboarding_Agent ativado!")
+                print("💬 Agora você está conversando com o especialista em onboarding.")
+                print("🚀 Digite sua mensagem para começar a experiência '3 Clicks to Productivity'")
+                print("💡 Ou digite '/back' para voltar ao agente anterior")
+                print()
+                
+                # Set a flag to indicate we're in onboarding mode
+                self._in_onboarding_mode = True
+                self._original_agent = original_agent
+                
+            except Exception as e:
+                print(f"❌ Erro ao carregar Onboarding_Agent: {e}")
+                return True
+                
+        except Exception as e:
+            print(f"❌ Erro no comando /onboard: {e}")
+            logger.error(f"Onboard command failed: {e}")
+        
+        return True
+    
+    def _handle_back_command(self) -> bool:
+        """
+        Handle the /back command - return from onboarding mode to original agent.
+        
+        Returns:
+            bool: Always True to continue REPL
+        """
+        try:
+            if hasattr(self, '_in_onboarding_mode') and self._in_onboarding_mode:
+                # Restore original agent
+                original = self._original_agent
+                self.agent_id = original['id']
+                self.agent_path = original['path']
+                self.agent_data = original['data']
+                
+                # Clear onboarding mode flags
+                self._in_onboarding_mode = False
+                del self._original_agent
+                
+                print(f"\n🔙 Retornado para {self.agent_id}")
+                print("💬 Você está de volta ao agente original.")
+                print()
+            else:
+                print("💡 Comando /back só funciona quando você está no modo onboarding.")
+                print("💡 Use /onboard para iniciar a experiência de onboarding.")
+                
+        except Exception as e:
+            print(f"❌ Erro no comando /back: {e}")
+            logger.error(f"Back command failed: {e}")
         
         return True
     

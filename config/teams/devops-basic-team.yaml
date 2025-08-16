@@ -1,0 +1,58 @@
+# Team Template - DevOps Basic Team
+# Maestro Framework Team Template v1.0
+
+id: devops-basic-team
+name: "Time DevOps Básico"
+description: "Um time fundamental para automação de infraestrutura, CI/CD e monitoramento. Ideal para projetos que precisam de configurações básicas de deployment e pipeline."
+persona_type: "Engenheiro DevOps"
+
+# Lista de agentes incluídos neste time
+agents:
+  - id: DockerfileCreator_Agent
+    config_overrides:
+      ai_provider: 'claude'
+      description: "Especialista em criar Dockerfiles otimizados e multi-stage builds"
+  
+  - id: CIPipelineCreator_Agent
+    config_overrides:
+      ai_provider: 'claude'
+      description: "Especialista em criar pipelines CI/CD para GitHub Actions e GitLab CI"
+  
+  - id: K8sManifestCreator_Agent
+    config_overrides:
+      ai_provider: 'claude'
+      description: "Especialista em criar manifestos Kubernetes (deployments, services, ingress)"
+  
+  - id: InfrastructureCreator_Agent
+    config_overrides:
+      ai_provider: 'claude'
+      description: "Especialista em criar scripts de infraestrutura como código (Terraform, Ansible)"
+
+# Lista de workflows padrão (implementation_plan templates)
+workflows:
+  - id: setup-basic-deployment-workflow
+    name: "Setup Deployment Básico"
+    path: "workflows/devops_setup_basic_deployment.yaml"
+    description: "Configura Dockerfile, CI pipeline e manifesto K8s básico"
+  
+  - id: add-monitoring-workflow
+    name: "Adicionar Monitoramento"
+    path: "workflows/devops_add_monitoring.yaml"
+    description: "Adiciona configurações básicas de logging e métricas"
+
+# Exemplos de uso específicos para este time
+usage_examples:
+  - name: "Incorporar especialista em Docker"
+    command: "python scripts/genesis_agent.py --embody DockerfileCreator_Agent --project-root ./meu-projeto --repl"
+    description: "Inicia sessão interativa para criar/otimizar Dockerfiles"
+  
+  - name: "Executar setup completo de deployment"
+    command: "python scripts/run_conductor.py --projeto ./meu-projeto workflows/devops_setup_basic_deployment.yaml"
+    description: "Executa workflow automatizado para configurar deployment básico"
+
+# Configurações específicas deste time
+team_config:
+  default_ai_provider: 'claude'
+  recommended_project_structure: 'containerized-microservice'
+  supported_languages: ['yaml', 'bash', 'hcl']
+  target_frameworks: ['docker', 'kubernetes', 'github-actions']

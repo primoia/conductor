@@ -1,0 +1,62 @@
+# Workflow Template: Adicionar Campo à Entidade Kotlin
+# Este é um implementation_plan.yaml template para adicionar um novo campo a uma entidade existente
+
+storyId: "add-kotlin-entity-field"
+description: "Workflow para adicionar um campo a uma entidade existente com migração de banco e testes"
+
+# Lista de tarefas em sequência
+tasks:
+  - name: "update-entity"
+    description: "Adicionar novo campo à entidade existente"
+    agent: "KotlinEntityCreator_Agent"
+    inputs: ["src/main/kotlin/entities/Product.kt"]
+    outputs: ["src/main/kotlin/entities/Product.kt"]
+    context: |
+      Adicionar o campo 'tags: List<String>' à entidade Product existente:
+      - Campo deve ser nullable (@Column(nullable = true))
+      - Usar @ElementCollection para mapear a lista
+      - Adicionar validação @Size(max = 10) para limitar número de tags
+      - Atualizar construtor e métodos toString/equals/hashCode se necessário
+
+  - name: "update-repository"
+    description: "Adicionar métodos de busca para o novo campo"
+    agent: "KotlinRepositoryCreator_Agent"
+    inputs: ["src/main/kotlin/entities/Product.kt", "src/main/kotlin/repositories/ProductRepository.kt"]
+    outputs: ["src/main/kotlin/repositories/ProductRepository.kt"]
+    context: |
+      Adicionar métodos de busca para tags:
+      - findByTagsContaining(tag: String): List<Product>
+      - findByTagsIn(tags: List<String>): List<Product>
+      - countByTagsContaining(tag: String): Long
+
+  - name: "update-service"
+    description: "Adicionar lógica de negócio para tags"
+    agent: "KotlinServiceCreator_Agent"
+    inputs: ["src/main/kotlin/entities/Product.kt", "src/main/kotlin/repositories/ProductRepository.kt", "src/main/kotlin/services/ProductService.kt"]
+    outputs: ["src/main/kotlin/services/ProductService.kt"]
+    context: |
+      Adicionar métodos relacionados a tags no ProductService:
+      - findByTag(tag: String): List<Product>
+      - findByTags(tags: List<String>): List<Product>
+      - addTagToProduct(productId: Long, tag: String): Product
+      - removeTagFromProduct(productId: Long, tag: String): Product
+      - getMostUsedTags(): List<String>
+      Incluir validações: tags não podem ser vazias ou duplicadas.
+
+  - name: "update-tests"
+    description: "Atualizar testes para cobrir o novo campo"
+    agent: "KotlinTestCreator_Agent"
+    inputs: ["src/main/kotlin/entities/Product.kt", "src/main/kotlin/repositories/ProductRepository.kt", "src/main/kotlin/services/ProductService.kt"]
+    outputs: ["src/test/kotlin/repositories/ProductRepositoryTest.kt", "src/test/kotlin/services/ProductServiceTest.kt"]
+    context: |
+      Atualizar testes existentes e adicionar novos:
+      1. ProductRepositoryTest: Testar novos métodos de busca por tags
+      2. ProductServiceTest: Testar lógica de manipulação de tags
+      3. Adicionar testes para validações de tags
+      4. Testar cenários com tags nulas e vazias
+
+# Configuração de execução
+execution_config:
+  parallel_execution: false  # Executar em sequência
+  stop_on_error: true       # Parar se uma tarefa falhar
+  ai_provider: "claude"     # Provedor padrão para todas as tarefas

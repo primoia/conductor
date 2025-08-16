@@ -1,0 +1,84 @@
+# Workflow Template: Criar Página React Completa
+# Este é um implementation_plan.yaml template para criar uma página React com componentes, hooks e estilos
+
+storyId: "create-react-page-complete"
+description: "Workflow para criar uma página React completa com componentes, custom hooks, estilos e testes"
+
+# Lista de tarefas em sequência
+tasks:
+  - name: "create-main-component"
+    description: "Criar o componente principal da página"
+    agent: "ReactComponentCreator_Agent"
+    inputs: []
+    outputs: ["src/pages/ProductListPage.tsx"]
+    context: |
+      Criar uma página ProductListPage com:
+      - Interface TypeScript para props
+      - Estado para lista de produtos e loading
+      - Estrutura JSX com header, lista e paginação
+      - Props: title?: string, showFilters?: boolean
+      - Usar hooks: useState, useEffect
+      - Implementar responsividade básica
+
+  - name: "create-product-card"
+    description: "Criar componente ProductCard reutilizável"
+    agent: "ReactComponentCreator_Agent"
+    inputs: ["src/pages/ProductListPage.tsx"]
+    outputs: ["src/components/ProductCard.tsx"]
+    context: |
+      Criar um componente ProductCard que exibe:
+      - Props tipadas: product: Product, onClick?: (id: string) => void
+      - Imagem, nome, preço, categoria
+      - Botões de ação (ver detalhes, adicionar ao carrinho)
+      - Estados hover e loading
+      - Acessibilidade (ARIA labels, keyboard navigation)
+
+  - name: "create-custom-hook"
+    description: "Criar custom hook para gerenciar produtos"
+    agent: "ReactHookCreator_Agent"
+    inputs: ["src/pages/ProductListPage.tsx"]
+    outputs: ["src/hooks/useProducts.ts"]
+    context: |
+      Criar hook useProducts com:
+      - Estado: products, loading, error, filters
+      - Funções: fetchProducts, filterByCategory, searchProducts
+      - Paginação: currentPage, totalPages, nextPage, prevPage
+      - Cache simples com Map ou SessionStorage
+      - Cleanup no unmount
+      - TypeScript interfaces para Product e Filters
+
+  - name: "create-styles"
+    description: "Criar estilos responsivos e modulares"
+    agent: "CSSStyleCreator_Agent"
+    inputs: ["src/pages/ProductListPage.tsx", "src/components/ProductCard.tsx"]
+    outputs: ["src/styles/ProductListPage.module.css", "src/styles/ProductCard.module.css"]
+    context: |
+      Criar estilos com:
+      1. ProductListPage.module.css:
+         - Grid layout responsivo (1-4 colunas)
+         - Estilos para header, filters, pagination
+         - Mobile-first approach
+      2. ProductCard.module.css:
+         - Card layout com shadow e hover effects
+         - Estados loading e hover
+         - Botões com feedback visual
+      Usar CSS Variables para tema e breakpoints.
+
+  - name: "create-tests"
+    description: "Criar testes para componentes e hook"
+    agent: "ReactTestCreator_Agent"
+    inputs: ["src/pages/ProductListPage.tsx", "src/components/ProductCard.tsx", "src/hooks/useProducts.ts"]
+    outputs: ["src/__tests__/ProductListPage.test.tsx", "src/__tests__/ProductCard.test.tsx", "src/__tests__/useProducts.test.ts"]
+    context: |
+      Criar testes completos:
+      1. ProductListPage.test.tsx: Rendering, interactions, props
+      2. ProductCard.test.tsx: Props, events, accessibility
+      3. useProducts.test.ts: Hook behavior, async operations
+      Usar @testing-library/react, jest, e mock de APIs.
+      Testar loading states, error handling, e user interactions.
+
+# Configuração de execução
+execution_config:
+  parallel_execution: false  # Executar em sequência
+  stop_on_error: true       # Parar se uma tarefa falhar
+  ai_provider: "claude"     # Provedor padrão para todas as tarefas

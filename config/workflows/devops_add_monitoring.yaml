@@ -1,0 +1,73 @@
+# Workflow Template: Adicionar Monitoramento DevOps
+# Este é um implementation_plan.yaml template para adicionar logging avançado e métricas a uma aplicação
+
+storyId: "add-monitoring"
+description: "Workflow para adicionar sistema de monitoramento completo com logs estruturados e métricas customizadas"
+
+# Lista de tarefas em sequência
+tasks:
+  - name: "setup-structured-logging"
+    description: "Configurar logging estruturado na aplicação"
+    agent: "InfrastructureCreator_Agent"
+    inputs: []
+    outputs: ["config/logging.conf", "src/utils/logger.ts"]
+    context: |
+      Configurar logging estruturado:
+      - JSON format para logs
+      - Levels: error, warn, info, debug
+      - Context fields: requestId, userId, timestamp
+      - Configuração para diferentes ambientes
+      - Rotation de logs por tamanho/tempo
+      - Integration com ELK stack ou similar
+
+  - name: "add-application-metrics"
+    description: "Adicionar métricas de aplicação customizadas"
+    agent: "InfrastructureCreator_Agent"
+    inputs: ["src/utils/logger.ts"]
+    outputs: ["src/middleware/metrics.ts", "src/metrics/custom-metrics.ts"]
+    context: |
+      Implementar métricas customizadas:
+      - Request duration histogram
+      - Request count counter por endpoint
+      - Error rate gauge
+      - Business metrics específicas
+      - Middleware para captura automática
+      - Endpoint /metrics para Prometheus
+
+  - name: "setup-log-aggregation"
+    description: "Configurar agregação de logs"
+    agent: "InfrastructureCreator_Agent"
+    inputs: ["config/logging.conf"]
+    outputs: ["docker-compose.logging.yml", "config/fluentd.conf"]
+    context: |
+      Configurar stack de logging:
+      - Fluentd/Fluent Bit para coleta
+      - Elasticsearch para armazenamento
+      - Kibana para visualização
+      - Log parsing e enrichment
+      - Retention policies
+      - Index templates
+
+  - name: "create-monitoring-dashboards"
+    description: "Criar dashboards de monitoramento"
+    agent: "InfrastructureCreator_Agent"
+    inputs: ["src/metrics/custom-metrics.ts"]
+    outputs: ["monitoring/application-dashboard.json", "monitoring/infrastructure-dashboard.json"]
+    context: |
+      Criar dashboards para:
+      1. Application Dashboard:
+         - Request throughput e latência
+         - Error rates por endpoint
+         - Database query performance
+         - Business KPIs
+      2. Infrastructure Dashboard:
+         - CPU, Memory, Disk usage
+         - Network I/O
+         - Container health
+         - Resource quotas
+
+# Configuração de execução
+execution_config:
+  parallel_execution: false  # Executar em sequência
+  stop_on_error: true       # Parar se uma tarefa falhar
+  ai_provider: "claude"     # Provedor padrão para todas as tarefas
