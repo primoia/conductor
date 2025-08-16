@@ -1,7 +1,6 @@
-
 # Especificação Arquitetural: Framework de Agentes "Maestro"
 
-**Versão:** 1.0
+**Versão:** 2.0
 
 **Autor:** Gemini (em colaboração com o arquiteto do projeto)
 
@@ -71,6 +70,10 @@ id: KotlinEntityCreator_Agent
 version: 1.0
 description: "Cria uma entidade de dados Kotlin com anotações JPA a partir de uma especificação."
 
+# (NOVO) Define qual motor de IA usar para este agente.
+# Valores válidos: 'claude' ou 'gemini'.
+ai_provider: 'claude'
+
 # Caminho para o prompt que define a personalidade e o comportamento
 persona_prompt_path: "persona.md"
 
@@ -103,8 +106,8 @@ state_schema:
 Um agente, definido por um único `agent.yaml`, pode operar de duas maneiras:
 
 ### Modo Incorporado (Interativo)
-*   **Invocação:** `python genesis_agent.py --embody <agent_id>`
-*   **Processo:** O Agente Mestre lê o `agent.yaml` do agente alvo. Ele carrega a persona, o estado e as ferramentas (`available_tools`) em uma sessão de chat. O Maestro pode então conversar com o especialista, pedir para ele ler arquivos, executar comandos e colaborar na resolução de um problema.
+*   **Invocação:** `python genesis_agent.py --embody <agent_id> --project-root <caminho_para_o_projeto>`
+*   **Processo:** O Agente Mestre lê o `agent.yaml` do agente alvo. Ele carrega a persona, o estado e as ferramentas (`available_tools`) em uma sessão de chat. O Gênesis usa o `--project-root` para contextualizar todas as chamadas de ferramentas (ex: `read_file`), garantindo que o agente opere apenas dentro do projeto alvo.
 *   **Casos de Uso:** Análise de problemas, criação de planos, depuração interativa de um agente que falhou no modo automático, refatoração guiada.
 
 ### Modo Orquestrado (Automático)
@@ -116,17 +119,16 @@ Um agente, definido por um único `agent.yaml`, pode operar de duas maneiras:
 
 ## 6. Exemplo de Fluxo de Trabalho
 
-1.  **Intenção:** O Maestro quer adicionar um campo `tags` (uma lista de strings) à entidade `Product`.
-2.  **Fase 1 (Análise):**
-    *   O Maestro inicia: `python genesis_agent.py --embody KotlinEntityCreator_Agent`
-    *   Na sessão de chat, ele diz: "Preciso adicionar um campo `tags` à entidade `Product`. Pode analisar o arquivo `Product.kt` e me dizer o impacto?"
-    *   O agente (incorporado) usa sua ferramenta `read_file` para ler `Product.kt` e responde com os detalhes.
-3.  **Fase 2 (Planejamento):**
-    *   Eles colaboram e definem que a melhor abordagem é criar um novo agente para lidar com migrações de banco de dados.
-    *   O resultado da conversa é um `implementation_plan.yaml` que contém duas tarefas: uma para o `KotlinEntityCreator_Agent` (para adicionar o campo) e outra para o novo `DatabaseMigration_Agent`.
-4.  **Fase 3 (Execução):**
-    *   O Maestro executa: `python conductor.py --plan a_migration_plan.yaml`
-    *   O `conductor` executa as duas tarefas em sequência, modificando o código.
-5.  **Fase 4 (Feedback):**
-    *   Após o PR ser aprovado, o `state.json` do `KotlinEntityCreator_Agent` é atualizado, talvez adicionando "campos de lista de strings" aos seus padrões comuns.
-
+1.  **Criação do Agente (se necessário):** O Maestro usa o `AgentCreator_Agent` para criar um novo agente especialista dentro do caminho de contexto correto, ex: `projects/develop/my-app/agents/MyNewTaskAgent`.
+2.  **Intenção:** O Maestro quer adicionar um campo `tags` à entidade `Product` no projeto `my-app`.
+3.  **Fase 1 (Análise):**
+    *   O Maestro inicia: `python genesis_agent.py --embody KotlinEntityCreator_Agent --project-root /path/to/my-app --repl`
+    *   Na sessão de chat, ele diz: "Preciso adicionar um campo `tags` à entidade `Product`. Pode analisar o arquivo `src/Product.kt` e me dizer o impacto?"
+    *   O agente (incorporado) usa sua ferramenta `read_file` (contextualizada pelo Gênesis para `/path/to/my-app/src/Product.kt`) e responde com os detalhes.
+4.  **Fase 2 (Planejamento):**
+    *   Eles colaboram e definem a abordagem. O resultado é um `implementation_plan.yaml`.
+5.  **Fase 3 (Execução):**
+    *   O Maestro executa: `python conductor.py --plan a_plan.yaml`
+    *   O `conductor` executa as tarefas, gerando o código dentro do projeto `my-app`.
+6.  **Fase 4 (Feedback):**
+    *   Após o PR ser aprovado, o `state.json` do `KotlinEntityCreator_Agent` é atualizado.

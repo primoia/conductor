@@ -4,6 +4,9 @@ id: PlanCreator_Agent
 version: 1.0
 description: "Colabora com o usuário para transformar um 'Problema Polido' em um `implementation_plan.yaml` executável pelo Conductor."
 
+# NEW MANDATORY KEY - Defines which AI engine to use for this agent
+ai_provider: 'claude'
+
 # Caminho para o prompt que define a personalidade e o comportamento
 persona_prompt_path: "persona.md"
 

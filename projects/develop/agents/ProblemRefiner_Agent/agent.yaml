@@ -4,6 +4,9 @@ id: ProblemRefiner_Agent
 version: 1.0
 description: "Refina uma declaração de problema inicial através de um diálogo interativo e análise do código-fonte para produzir um artefato 'Problema Polido'."
 
+# NEW MANDATORY KEY - Defines which AI engine to use for this agent
+ai_provider: 'claude'
+
 # Caminho para o prompt que define a personalidade e o comportamento
 persona_prompt_path: "persona.md"
 

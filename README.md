@@ -1,224 +1,97 @@
-# 🎼 Conductor - AI-Powered Code Orchestrator
+# 🎼 Conductor & Maestro Framework
 
-> **Intelligent orchestrator that coordinates AI agents to generate quality code**
+> **Um ecossistema de IA que transforma o diálogo em código de produção, de forma interativa e orquestrada.**
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)]()
 
-## 🚀 **Overview**
+## 🚀 Visão Geral
 
-The **Conductor** is an orchestration system that integrates `.bmad-core` methodology with specialized AI agents to generate production code in an automated and intelligent way.
+Este repositório contém uma arquitetura de dois componentes principais que trabalham em harmonia:
 
-### ✨ **Key Features**
+1.  **Maestro Framework (via `genesis_agent.py`):** Uma interface de linha de comando **interativa e conversacional**. É aqui que o desenvolvedor (o "Maestro") colabora com Agentes de IA especialistas para analisar problemas, criar planos de implementação e até mesmo criar novos agentes. É o cérebro e o centro de design do ecossistema.
 
-- 🤖 **Multiple AI Providers**: Support for Claude and Gemini
-- 🎯 **Specialized Agents**: Each agent has specific expertise
-- 📋 **Implementation Plans**: YAML structure to define tasks
-- 🔄 **Intelligent Orchestration**: Sequential and parallel execution
-- ✅ **Automatic Validation**: Quality verification of generated code
-- 📚 **Integrated Methodology**: Uses `.bmad-core` for planning
-- 🎛️ **Flexible Configuration**: Configurable project directory
+2.  **Conductor Engine (via `run_conductor.py`):** Um motor de execução **não-interativo e automatizado**. Ele pega os planos de implementação (`.yaml`) gerados pelo Maestro e os executa, orquestrando agentes para gerar, modificar e testar o código de forma massiva.
 
-## 📁 **Project Structure**
+### ✨ Funcionalidades Chave
+
+- 💬 **Sessões Interativas com Agentes:** Dialogue com IAs especialistas para refinar ideias.
+- 🤖 **Multi-Provedor de IA:** Suporte para Claude e Gemini, configurável por agente.
+- 📂 **Suporte Multi-Projeto e Multi-Ambiente:** Gerencie e opere em múltiplos projetos de forma segura e contextualizada.
+- 🛠️ **Sistema de Ferramentas (Poderes Especiais):** Agentes podem ler arquivos, executar comandos e interagir com o sistema de forma segura.
+- 🧬 **Metaprogramação:** Capacidade de criar novos agentes usando o `AgentCreator_Agent`.
+- 📋 **Execução Baseada em Planos:** Orquestração automatizada de tarefas de codificação a partir de um plano YAML.
+- 🧠 **Aprendizado Contínuo e Conhecimento Negativo:** Agentes aprendem com o sucesso e o fracasso, evitando repetir erros passados.
+
+## 📁 Estrutura de Diretórios
 
 ```
 conductor/
-├── 📚 docs/                    # Complete documentation
-│   ├── README.md              # Detailed documentation
-│   ├── integration/           # Integration guides
-│   ├── plans/                 # Implementation plans
-│   ├── cleanup/               # Cleanup documentation
-│   └── history/               # Project history
-├── 🚀 scripts/                # Main scripts
-│   ├── run_conductor.py       # Main orchestrator
-│   ├── demo_integration.py    # Demonstration
-│   └── test_integration.py    # Tests
-├── 🎭 demo/                   # Practical examples
-├── 📖 .bmad-core/             # Development methodology
-├── 🔧 projects/               # Projects and agents
-├── 📝 stories/                # Example stories
-└── 💻 src/                    # Generated code
+├── 📚 docs/                    # Documentação completa da arquitetura
+├── 🚀 scripts/                # Scripts principais
+│   ├── genesis_agent.py       # O motor INTERATIVO (Maestro)
+│   └── run_conductor.py       # O motor AUTOMATIZADO (Conductor)
+├── 🔧 projects/               # Definição dos agentes
+│   ├── _common/               # (Futuro) Agentes compartilhados
+│   └── <ambiente>/            # Ex: develop, main
+│       └── <projeto>/         # Ex: nex-web-backend
+│           └── agents/        # Agentes específicos para o projeto/ambiente
+│               └── <agent_id>/  # Definição do agente (agent.yaml, etc)
+└── ...
 ```
 
-## 🚀 **Quick Start**
+## 🚀 Guia Rápido
 
-### **Prerequisites**
+### Modo Interativo (Maestro)
+
+Use este modo para analisar, planejar e depurar.
+
 ```bash
-# Claude CLI installed (for using Claude)
-which claude
-# Output: /usr/bin/claude
-
-# Node.js and NPM (for using Gemini)
-which npx
-# Output: /usr/bin/npx
+# Inicie uma sessão de chat com um agente, no contexto de um projeto
+python scripts/genesis_agent.py --embody ProblemRefiner_Agent --project-root /path/to/your/project --repl
 ```
 
-### **Basic Execution**
+### Modo de Execução (Automático)
+
+Use este modo para executar um plano de implementação já definido.
+
 ```bash
-# Run orchestrator with Claude (default)
-python scripts/run_conductor.py --projeto /path/to/project implementation_plan.yaml
-
-# Run orchestrator with Gemini
-python scripts/run_conductor.py --ia gemini --projeto /path/to/project implementation_plan.yaml
-
-# Run demo
-python scripts/demo_integration.py
-
-# Run tests
-python scripts/test_integration.py
+# Execute um plano de implementação para um projeto
+python scripts/run_conductor.py --projeto /path/to/your/project implementation_plan.yaml
 ```
 
-## 📚 **Documentation**
+## 📚 Documentação Arquitetural
 
-### **📖 [Complete Documentation](docs/README.md)**
-Detailed guide covering all aspects of Conductor.
+Nossa arquitetura é projetada para ser robusta, escalável e segura. Para entender completamente o design e as melhores práticas, consulte nossos documentos principais:
 
-### **🔗 [Integration Guide](docs/integration/INTEGRATION_README.md)**
-How to integrate Conductor with your projects.
+- **[📖 Especificação Arquitetural "Maestro"](docs/GEMINI_ARCH_SPEC.md)**: O blueprint da nossa arquitetura de agentes.
+- **[🚀 Plano de Execução do Gênesis](docs/GENESIS_EXECUTION_PLAN.md)**: O design técnico detalhado do motor interativo.
+- **[Guia de Onboarding de Projetos](docs/ONBOARDING_NEW_PROJECT.md)**: Guia para integrar um novo projeto.
+- **[Guia de Design de Agentes](docs/AGENT_DESIGN_PATTERNS.md)**: Melhores práticas para criar novos agentes.
 
-### **📋 [Implementation Plans](docs/plans/)**
-Detailed development and refactoring plans.
+## 🔧 Configuração de Agentes
 
-### **🧹 [Cleanup Documentation](docs/cleanup/)**
-Repository cleanup and organization process.
+Cada agente é definido por um conjunto de arquivos, com o `agent.yaml` sendo o principal.
 
-### **📜 [Project History](docs/history/)**
-Project evolution and important milestones.
-
-## 🎯 **Use Cases**
-
-### **1. Kotlin Entity Generation**
 ```yaml
-# Implementation plan example
-storyId: "stories/product-entity.story.md"
-tasks:
-  - name: "create-product-entity"
-    agent: "KotlinEntityCreator_Agent"
-    inputs: ["stories/product-entity.story.md"]
-    outputs: ["src/main/kotlin/Product.kt"]
+# projects/<env>/<proj>/agents/<agent_id>/agent.yaml
+
+id: MyAgent
+version: 1.0
+description: "Descrição da responsabilidade do agente."
+ai_provider: 'claude' # 'claude' ou 'gemini'
+persona_prompt_path: "persona.md"
+state_file_path: "state.json"
+available_tools: ["read_file", "write_file"]
+execution_task: "Instrução para o modo automático..."
 ```
 
-### **2. Repository Creation**
-```yaml
-  - name: "create-product-repository"
-    agent: "KotlinRepositoryCreator_Agent"
-    inputs: ["src/main/kotlin/Product.kt"]
-    outputs: ["src/main/kotlin/ProductRepository.kt"]
-```
+## 🙏 Agradecimentos
 
-### **3. Service and Controller Generation**
-```yaml
-  - name: "create-product-service"
-    agent: "KotlinServiceCreator_Agent"
-    inputs: ["src/main/kotlin/Product.kt", "src/main/kotlin/ProductRepository.kt"]
-    outputs: ["src/main/kotlin/ProductService.kt"]
-```
-
-## 🤖 **Available Agents**
-
-| Agent | Specialty | Status |
-|-------|-----------|--------|
-| `KotlinEntityCreator_Agent` | JPA entity creation | ✅ Functional |
-| `KotlinRepositoryCreator_Agent` | Repository creation | ✅ Functional |
-| `KotlinServiceCreator_Agent` | Service creation | 🚧 In development |
-| `KotlinControllerCreator_Agent` | Controller creation | 🚧 In development |
-| `KotlinTestCreator_Agent` | Test creation | 🚧 In development |
-
-## 🧪 **Testing and Validation**
-
-### **Run Integration Tests**
-```bash
-python scripts/test_integration.py
-```
-
-### **Run Complete Demo**
-```bash
-python scripts/demo_integration.py
-```
-
-### **Validate Implementation Plan**
-```bash
-# Validate with Claude
-python scripts/run_conductor.py --projeto /path/to/project plan.yaml
-
-# Validate with Gemini
-python scripts/run_conductor.py --ia gemini --projeto /path/to/project plan.yaml
-```
-
-## 🔧 **Configuration**
-
-### **Command Line Arguments**
-```bash
-# Available arguments
---ai-provider, --ia    # AI provider (claude or gemini, default: claude)
---project-path, --projeto  # Target project path (required)
---verbose, -v         # Detailed logging
-```
-
-### **Usage Examples**
-```bash
-# Use Claude in a Kotlin project
-python scripts/run_conductor.py --projeto /mnt/ramdisk/develop/nex-web-backend plan.yaml
-
-# Use Gemini in a Node.js project
-python scripts/run_conductor.py --ia gemini --projeto /mnt/ramdisk/develop/nex-web plan.yaml
-
-# Execution with detailed logging
-python scripts/run_conductor.py --ia claude --projeto /path/to/project --verbose plan.yaml
-```
-
-### **Environment Variables**
-```bash
-# Claude configuration (optional)
-export CLAUDE_API_KEY="your-api-key"
-export CLAUDE_MODEL="claude-3.5-sonnet"
-
-# Gemini configuration (optional)
-export GEMINI_API_KEY="your-gemini-api-key"
-```
-
-### **Agent Configuration**
-```bash
-# Agent structure
-projects/develop/agents/AgentName/
-├── persona.md           # Personality and expertise
-├── memory/
-│   ├── context.md       # Context and knowledge
-│   └── avoid_patterns.md # Patterns to avoid
-```
-
-## 📊 **Metrics and Performance**
-
-- ⚡ **Execution Time**: ~40s per task
-- 🎯 **Success Rate**: 95%+
-- 📝 **Code Quality**: Production-ready
-- 🔄 **Parallelization**: Support for parallel execution
-
-## 🤝 **Contribution**
-
-1. **Fork** the project
-2. **Create** a branch for your feature
-3. **Develop** following the standards
-4. **Test** with `python scripts/test_integration.py`
-5. **Commit** your changes
-6. **Push** to the branch
-7. **Open** a Pull Request
-
-## 📄 **License**
-
-This project is licensed under the [MIT License](LICENSE).
-
-## 🙏 **Acknowledgments**
-
-- **Claude AI** for intelligent code generation
-- **`.bmad-core`** for development methodology
-- **Community** for feedback and contributions
+- **Comunidade de IA** pelas ferramentas e modelos incríveis.
+- **Inspiração:** O projeto `.bmad-core` serviu como inspiração inicial para a definição de agentes baseada em arquivos, que evoluiu para o Framework Maestro.
 
 ---
 
-**🎼 Conductor** - Transforming ideas into code, one orchestration at a time.
-
-**📧 Contact**: [your-email@example.com](mailto:your-email@example.com)  
-**🐛 Issues**: [GitHub Issues](https://github.com/your-username/conductor/issues)  
-**📖 Wiki**: [Complete Documentation](docs/README.md)
+**🎼 Conductor & Maestro** - Orquestrando o diálogo e transformando ideias em código.
