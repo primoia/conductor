@@ -1,0 +1,220 @@
+# Conductor Onboarding Rules Configuration
+# Rules engine for team template suggestions based on user profiles
+
+# Version for compatibility checking
+version: "1.0"
+
+# Team Template Suggestion Rules
+# Each rule evaluates user profile attributes and assigns scores to team templates
+suggestion_rules:
+  
+  # Role-based matching rules
+  role_matching:
+    backend:
+      preferred_templates:
+        - pattern: ".*backend.*"
+          score: 30
+          reason: "Perfeito para desenvolvedor backend"
+        - pattern: ".*kotlin.*"
+          score: 25
+          reason: "Excellent for backend development"
+        - pattern: ".*java.*"
+          score: 20
+          reason: "Strong backend language support"
+    
+    frontend:
+      preferred_templates:
+        - pattern: ".*frontend.*"
+          score: 30
+          reason: "Ideal para desenvolvedor frontend"
+        - pattern: ".*react.*"
+          score: 25
+          reason: "Modern frontend framework"
+        - pattern: ".*vue.*"
+          score: 20
+          reason: "Popular frontend framework"
+    
+    fullstack:
+      preferred_templates:
+        - pattern: ".*fullstack.*"
+          score: 30
+          reason: "Complete fullstack solution"
+        - pattern: ".*react.*"
+          score: 20
+          reason: "Frontend component for fullstack"
+        - pattern: ".*kotlin.*"
+          score: 20
+          reason: "Backend component for fullstack"
+    
+    devops:
+      preferred_templates:
+        - pattern: ".*devops.*"
+          score: 30
+          reason: "Especializado para DevOps"
+        - pattern: ".*docker.*"
+          score: 25
+          reason: "Container orchestration focus"
+        - pattern: ".*k8s.*"
+          score: 25
+          reason: "Kubernetes deployment ready"
+    
+    scrum_master:
+      preferred_templates:
+        - pattern: ".*agile.*"
+          score: 30
+          reason: "Agile project management focus"
+        - pattern: ".*team.*"
+          score: 20
+          reason: "Team collaboration tools"
+    
+    tech_lead:
+      preferred_templates:
+        - pattern: ".*complete.*"
+          score: 25
+          reason: "Comprehensive toolset for leadership"
+        - pattern: ".*advanced.*"
+          score: 20
+          reason: "Advanced development tools"
+
+  # Language-based matching rules  
+  language_matching:
+    kotlin:
+      preferred_templates:
+        - pattern: ".*kotlin.*"
+          score: 25
+          reason: "Suporte nativo para Kotlin"
+        - pattern: ".*spring.*"
+          score: 20
+          reason: "Spring Boot framework support"
+    
+    java:
+      preferred_templates:
+        - pattern: ".*kotlin.*"
+          score: 20
+          reason: "JVM compatibility"
+        - pattern: ".*java.*"
+          score: 25
+          reason: "Native Java support"
+    
+    javascript:
+      preferred_templates:
+        - pattern: ".*react.*"
+          score: 25
+          reason: "JavaScript ecosystem"
+        - pattern: ".*node.*"
+          score: 20
+          reason: "Node.js backend support"
+    
+    typescript:
+      preferred_templates:
+        - pattern: ".*react.*"
+          score: 25
+          reason: "TypeScript optimization"
+        - pattern: ".*angular.*"
+          score: 20
+          reason: "Angular framework support"
+    
+    python:
+      preferred_templates:
+        - pattern: ".*python.*"
+          score: 25
+          reason: "Python development tools"
+        - pattern: ".*django.*"
+          score: 20
+          reason: "Django framework support"
+
+  # Experience level adjustments
+  experience_adjustments:
+    junior:
+      preferences:
+        - condition: "agents_count <= 3"
+          score_bonus: 10
+          reason: "Estrutura simples para iniciantes"
+        - condition: "template_complexity == 'basic'"
+          score_bonus: 15
+          reason: "Templates básicos são ideais para começar"
+    
+    mid:
+      preferences:
+        - condition: "agents_count >= 3 AND agents_count <= 6"
+          score_bonus: 10
+          reason: "Balanceamento ideal para nível intermediário"
+    
+    senior:
+      preferences:
+        - condition: "agents_count >= 4"
+          score_bonus: 10
+          reason: "Template completo para experiência avançada"
+        - condition: "template_complexity == 'advanced'"
+          score_bonus: 5
+          reason: "Ferramentas avançadas apropriadas"
+
+  # Team size considerations
+  team_size_matching:
+    solo:
+      preferences:
+        - condition: "agents_count <= 4"
+          score_bonus: 5
+          reason: "Adequado para trabalho individual"
+        - condition: "template_focus == 'productivity'"
+          score_bonus: 8
+          reason: "Foco em produtividade individual"
+    
+    team:
+      preferences:
+        - condition: "agents_count >= 3"
+          score_bonus: 5
+          reason: "Ideal para trabalho em equipe"
+        - condition: "template_focus == 'collaboration'"
+          score_bonus: 8
+          reason: "Ferramentas de colaboração incluídas"
+
+  # Project type considerations
+  project_type_matching:
+    new:
+      preferences:
+        - condition: "template_includes == 'scaffolding'"
+          score_bonus: 10
+          reason: "Scaffolding para projetos novos"
+        - condition: "template_includes == 'boilerplate'"
+          score_bonus: 8
+          reason: "Código base pré-configurado"
+    
+    existing:
+      preferences:
+        - condition: "template_includes == 'integration'"
+          score_bonus: 10
+          reason: "Facilita integração em projetos existentes"
+        - condition: "template_focus == 'enhancement'"
+          score_bonus: 8
+          reason: "Melhoria de projetos existentes"
+
+# Fallback rules when no good matches are found
+fallback_strategy:
+  default_template_patterns:
+    - ".*basic.*"
+    - ".*starter.*" 
+    - ".*simple.*"
+  
+  fallback_score: 10
+  fallback_reason: "Template versátil recomendado"
+  
+  minimum_confidence: 0.3
+
+# Template evaluation weights
+scoring_weights:
+  role_match: 1.0
+  language_match: 0.8
+  experience_adjustment: 0.6
+  team_size_match: 0.4
+  project_type_match: 0.3
+
+# Maximum suggestions to return
+max_suggestions: 3
+
+# Confidence calculation
+confidence_calculation:
+  max_possible_score: 100
+  normalization_factor: 0.01
+  minimum_confidence: 0.2
+  maximum_confidence: 1.0

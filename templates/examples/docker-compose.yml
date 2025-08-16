@@ -1,0 +1,29 @@
+# Hello World from Conductor {{team_name}}
+version: '3.8'
+
+services:
+  hello-conductor:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./hello.html:/usr/share/nginx/html/index.html:ro
+    environment:
+      - CONDUCTOR_STATUS=ACTIVE
+      - CONDUCTOR_TEAM={{team_name}}
+      - CONDUCTOR_PROJECT={{project_name}}
+      - CONDUCTOR_ENVIRONMENT={{environment}}
+    labels:
+      - "conductor.team={{team_id}}"
+      - "conductor.status=ready"
+      - "conductor.project={{project_name}}"
+    
+  health-check:
+    image: alpine:latest
+    command: >
+      sh -c "echo '🎼 Conductor {{team_name}} Health Check' &&
+             echo 'Status: ✅ Active' &&
+             echo 'Team: {{team_name}}' &&
+             echo 'Project: {{project_name}}' &&
+             echo 'Environment: {{environment}}' &&
+             echo 'Agents: Configured Successfully'"
