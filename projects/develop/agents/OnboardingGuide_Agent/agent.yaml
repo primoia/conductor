@@ -17,12 +17,16 @@ state_file_path: "state.json"
 # O OnboardingGuide_Agent é principalmente interativo para guiar usuários
 execution_task: |
   Com base no `input_file` (uma configuração de onboarding automatizado),
-  execute o fluxo de onboarding completo de forma não-interativa:
+  execute o fluxo de onboarding completo e gere relatório (${output_artifact}):
   1. Validar dados de perfil fornecidos
   2. Sugerir team template baseado no perfil
   3. Aplicar template ao projeto especificado
   4. Criar projeto de exemplo
-  5. Reportar status de conclusão do onboarding
+  5. Reportar status de conclusão do onboarding com detalhes dos templates aplicados
+
+# Configuração de saída parametrizada
+output_artifact: "onboarding_report.md"
+output_directory: "workspace/reports"
 
 # Ferramentas disponíveis no modo interativo (pelo Genesis Agent)
 # Ferramentas especializadas para chat onboarding conversacional

@@ -2,7 +2,7 @@
 
 id: KotlinRepositoryCreator_Agent
 version: 1.0
-description: "Especialista em criar componentes Kotlin/Hibernate para Kotlin/Spring Boot com anotações apropriadas e validações."
+description: "Especialista em criar classes Repository Spring Data JPA para Kotlin/Spring Boot com queries e métodos customizados."
 
 # Defines which AI engine to use for this agent
 ai_provider: 'claude'
@@ -15,15 +15,20 @@ state_file_path: "state.json"
 
 # Tarefa a ser executada no modo automático (pelo Conductor)
 execution_task: |
-  Com base na especificação fornecida no `input_file`, criar uma entidade Kotlin com:
-  - Anotações JPA (@Entity, @Table, @Id, @GeneratedValue, @Column)
-  - Validações Bean Validation onde apropriado
-  - Relacionamentos (se especificados)
-  - Métodos toString, equals, hashCode
-  - Construtor padrão e construtor com parâmetros
+  Com base na especificação fornecida no `input_file`, criar um Repository Kotlin (${output_artifact}) com:
+  - Interface extendendo JpaRepository<Entity, ID>
+  - Queries customizadas com @Query quando necessário
+  - Métodos de busca específicos (findBy...)
+  - Anotações @Repository quando apropriado
+  - Documentação e comentários descritivos
+
+# Configuração de saída parametrizada
+output_artifact: "Repository.kt"
+output_directory: "src/main/kotlin/com/project/repository"
 
 # Ferramentas disponíveis no modo interativo
 available_tools:
-  - read_file           # Para analisar entidades existentes
-  - write_file          # Para criar novas entidades
-  - run_shell_command   # Para verificar estrutura do projeto
+  - Read                # Para analisar entidades e repositories existentes
+  - Write               # Para criar novos repositories
+  - Grep                # Para buscar padrões no código
+  - Glob                # Para encontrar arquivos relacionados
