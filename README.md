@@ -20,6 +20,9 @@ Este repositório contém uma arquitetura de dois componentes principais que tra
 - 🤖 **Multi-Provedor de IA:** Suporte para Claude e Gemini, configurável por agente.
 - 📂 **Suporte Multi-Projeto e Multi-Ambiente:** Gerencie e opere em múltiplos projetos de forma segura e contextualizada.
 - 🛠️ **Sistema de Ferramentas (Poderes Especiais):** Agentes podem ler arquivos, executar comandos e interagir com o sistema de forma segura.
+- 🆕 **Framework de Agentes v2.1:** Sistema padronizado com comandos help, preview e versionamento incremental.
+- 📋 **Saída Parametrizada:** Configuração flexível de arquivos gerados por cada agente.
+- 🔄 **Versionamento Incremental:** Mesclagem automática de conversas com preservação de contexto.
 - 🧬 **Metaprogramação:** Capacidade de criar novos agentes usando o `AgentCreator_Agent`.
 - 📋 **Execução Baseada em Planos:** Orquestração automatizada de tarefas de codificação a partir de um plano YAML.
 - 🧠 **Aprendizado Contínuo e Conhecimento Negativo:** Agentes aprendem com o sucesso e o fracasso, evitando repetir erros passados.
@@ -71,6 +74,7 @@ Nossa arquitetura é projetada para ser robusta, escalável e segura. Para enten
 - **[🚀 Design Técnico do Genesis](docs/GENESIS_TECHNICAL_DESIGN.md)**: Arquitetura detalhada do motor interativo.
 - **[Guia de Onboarding de Projetos](docs/ONBOARDING_NEW_PROJECT.md)**: Guia para integrar um novo projeto.
 - **[Guia de Design de Agentes](docs/AGENT_DESIGN_PATTERNS.md)**: Melhores práticas para criar novos agentes.
+- **[Framework de Agentes v2.1](project-management/agent-framework-patterns/)**: Documentação do sistema padronizado de agentes.
 
 ## 🔧 Configuração de Agentes
 
@@ -85,8 +89,31 @@ description: "Descrição da responsabilidade do agente."
 ai_provider: 'claude' # 'claude' ou 'gemini'
 persona_prompt_path: "persona.md"
 state_file_path: "state.json"
-available_tools: ["read_file", "write_file"]
-execution_task: "Instrução para o modo automático..."
+available_tools: ["Read", "Write", "Grep", "Glob"]
+execution_task: "Gere um documento (${output_artifact}) com..."
+
+# Configuração de saída parametrizada
+output_artifact: "output.md"
+output_directory: "workspace/output"
+```
+
+### 🆕 Sistema de Comandos Interativos
+
+Todos os agentes agora suportam comandos padronizados:
+
+- **Help**: `help`, `ajuda`, `comandos`, `?` - Mostra comandos disponíveis
+- **Preview**: `preview` - Visualiza documento sem salvar  
+- **Geração**: `gerar documento` - Salva com versionamento incremental (v1.0 → v1.1...)
+
+**Exemplo de uso:**
+```bash
+# Modo interativo
+python scripts/genesis_agent.py --embody ProblemRefiner_Agent --repl
+
+# No chat do agente:
+help                    # Ver comandos disponíveis
+preview                 # Visualizar documento
+gerar documento         # Salvar com versionamento
 ```
 
 ## 📊 Métricas e Performance
