@@ -2345,7 +2345,7 @@ class GenesisAgent:
             
             # Load agent persona
             persona_path = os.path.join(agent_dir, self.agent_config.get("persona_prompt_path", "persona.md"))
-            if not self._load_agent_persona(persona_path):
+            if not self._load_agent_persona(persona_path, agent_name):
                 return False
             
             # Store paths for future state saving
@@ -2407,12 +2407,13 @@ class GenesisAgent:
             if hasattr(self.llm_client, 'conversation_history'):
                 self.llm_client.conversation_history = []
     
-    def _load_agent_persona(self, persona_path: str) -> bool:
+    def _load_agent_persona(self, persona_path: str, agent_name: str = None) -> bool:
         """
-        Load agent persona from persona.md file.
+        Load agent persona from persona.md file and resolve placeholders.
         
         Args:
             persona_path: Path to the persona.md file
+            agent_name: Name of the agent (for placeholder resolution)
             
         Returns:
             True if successful, False otherwise
@@ -2420,13 +2421,16 @@ class GenesisAgent:
         try:
             if os.path.exists(persona_path):
                 with open(persona_path, 'r', encoding='utf-8') as f:
-                    self.agent_persona = f.read()
+                    persona_content = f.read()
+                
+                # Resolve placeholders in persona content
+                self.agent_persona = self._resolve_persona_placeholders(persona_content, agent_name)
                 
                 # Pass persona to LLM client if it supports it
                 if hasattr(self.llm_client, 'set_agent_persona'):
                     self.llm_client.set_agent_persona(self.agent_persona)
                 
-                logger.debug(f"Loaded persona from {persona_path}")
+                logger.debug(f"Loaded and processed persona from {persona_path}")
                 return True
             else:
                 logger.error(f"Persona file not found: {persona_path}")
@@ -2435,6 +2439,70 @@ class GenesisAgent:
         except Exception as e:
             logger.error(f"Error loading agent persona: {e}")
             return False
+    
+    def _resolve_persona_placeholders(self, persona_content: str, agent_name: str = None) -> str:
+        """
+        Resolve placeholders in persona content with actual agent values.
+        
+        Args:
+            persona_content: Raw persona content with placeholders
+            agent_name: Name of the agent (overrides self.current_agent)
+            
+        Returns:
+            Processed persona content with resolved placeholders
+        """
+        processed_content = persona_content
+        
+        # Get agent information for placeholder resolution
+        agent_id = agent_name or getattr(self, 'current_agent', 'Unknown_Agent')
+        agent_config = getattr(self, 'agent_config', {})
+        
+        # Extract friendly name from persona title if available
+        friendly_name = self._extract_persona_title(persona_content) or agent_id
+        
+        # Ensure we have valid string values for replacements
+        agent_id = agent_id if agent_id else 'Unknown_Agent'
+        agent_description = agent_config.get('description', f'{agent_id} specialized agent')
+        agent_description = agent_description if agent_description else f'{agent_id} specialized agent'
+        
+        # Define common placeholder mappings
+        placeholders = {
+            'Contexto': friendly_name,  # Replace "Contexto" with friendly name
+            '{{agent_id}}': agent_id,
+            '{{agent_name}}': friendly_name,
+            '{{agent_description}}': agent_description,
+        }
+        
+        # Apply placeholder replacements only with valid strings
+        for placeholder, replacement in placeholders.items():
+            if replacement and isinstance(replacement, str):
+                processed_content = processed_content.replace(placeholder, replacement)
+        
+        logger.debug(f"Resolved placeholders in persona for agent: {agent_id} (friendly: {friendly_name})")
+        return processed_content
+    
+    def _extract_persona_title(self, persona_content: str) -> str:
+        """
+        Extract friendly name from persona title.
+        
+        Args:
+            persona_content: Raw persona content
+            
+        Returns:
+            Extracted friendly name or None
+        """
+        import re
+        
+        # Look for "# Persona: [Title]" pattern
+        title_match = re.search(r'^#\s*Persona:\s*(.+)$', persona_content, re.MULTILINE)
+        if title_match:
+            title = title_match.group(1).strip()
+            # Clean up common patterns
+            title = re.sub(r'Agent$', '', title)  # Remove trailing "Agent"
+            title = title.strip()
+            return title
+        
+        return None
     
     def _save_agent_state(self):
         """
