@@ -2069,9 +2069,43 @@ class ClaudeCLIClient(LLMClient):
         self.claude_command = "claude"
         logger.debug("ClaudeCLIClient initialized")
     
+    def _build_contextual_prompt(self, new_prompt: str) -> str:
+        """
+        Build a prompt that includes conversation history for context.
+        
+        Args:
+            new_prompt: The new user prompt
+            
+        Returns:
+            Full prompt including conversation context
+        """
+        if not self.conversation_history:
+            return new_prompt
+        
+        # Build context from conversation history
+        context_parts = ["Previous conversation context:"]
+        
+        # Include last N messages for context (limit to prevent token overflow)
+        max_context_messages = 10
+        recent_history = self.conversation_history[-max_context_messages:]
+        
+        for entry in recent_history:
+            user_msg = entry.get('prompt', '').strip()
+            assistant_msg = entry.get('response', '').strip()
+            
+            if user_msg:
+                context_parts.append(f"User: {user_msg}")
+            if assistant_msg:
+                context_parts.append(f"Assistant: {assistant_msg}")
+        
+        context_parts.append("\nCurrent message:")
+        context_parts.append(f"User: {new_prompt}")
+        
+        return "\n".join(context_parts)
+    
     def _invoke_subprocess(self, prompt: str) -> Optional[str]:
         """
-        Invoke Claude CLI with the given prompt.
+        Invoke Claude CLI with the given prompt including conversation context.
         
         Args:
             prompt: The prompt to send to Claude
@@ -2080,8 +2114,11 @@ class ClaudeCLIClient(LLMClient):
             Claude's response or None if failed
         """
         try:
+            # Build full prompt with conversation context
+            full_prompt = self._build_contextual_prompt(prompt)
+            
             # Build command with proper arguments
-            cmd = [self.claude_command, "--print", prompt]
+            cmd = [self.claude_command, "--print", full_prompt]
             
             # Execute Claude CLI with timeout
             result = subprocess.run(
@@ -2242,7 +2279,7 @@ class GenesisAgent:
     
     def embody_agent(self, agent_name: str) -> bool:
         """
-        Embody a specific agent by loading its configuration.
+        Embody a specific agent by loading its configuration and state.
         
         Args:
             agent_name: Name of the agent to embody
@@ -2251,15 +2288,106 @@ class GenesisAgent:
             True if successful, False otherwise
         """
         try:
-            # Logic to load and embody the specified agent
-            # This would include loading agent configurations, specializations, etc.
+            # Construct agent directory path
+            agent_dir = os.path.join(AGENTS_BASE_PATH, agent_name)
+            if not os.path.exists(agent_dir):
+                logger.error(f"Agent directory not found: {agent_dir}")
+                return False
+            
+            # Load agent configuration
+            agent_yaml_path = os.path.join(agent_dir, "agent.yaml")
+            if not os.path.exists(agent_yaml_path):
+                logger.error(f"Agent configuration not found: {agent_yaml_path}")
+                return False
+                
+            import yaml
+            with open(agent_yaml_path, 'r') as f:
+                self.agent_config = yaml.safe_load(f)
+            
+            # Load agent state and conversation history
+            state_file_path = os.path.join(agent_dir, self.agent_config.get("state_file_path", "state.json"))
+            self._load_agent_state(state_file_path)
+            
+            # Store paths for future state saving
+            self.agent_dir = agent_dir
+            self.state_file_path = state_file_path
+            
+            # Set current agent and mark as embodied
             self.current_agent = agent_name
             self.embodied = True
+            
             logger.info(f"Successfully embodied agent: {agent_name}")
             return True
+            
         except Exception as e:
             logger.error(f"Failed to embody agent {agent_name}: {e}")
             return False
+    
+    def _load_agent_state(self, state_file_path: str):
+        """
+        Load agent state from state.json file.
+        
+        Args:
+            state_file_path: Path to the state.json file
+        """
+        try:
+            if os.path.exists(state_file_path):
+                with open(state_file_path, 'r') as f:
+                    state_data = json.load(f)
+                
+                # Load conversation history into LLM client
+                conversation_history = state_data.get("conversation_history", [])
+                if hasattr(self.llm_client, 'conversation_history'):
+                    self.llm_client.conversation_history = conversation_history
+                    logger.debug(f"Loaded {len(conversation_history)} conversation entries from state")
+                
+                # Store full state data for future reference
+                self.agent_state = state_data
+                
+            else:
+                logger.info(f"State file not found: {state_file_path}, initializing with empty state")
+                self.agent_state = {
+                    "version": "1.0",
+                    "agent_id": self.current_agent,
+                    "conversation_history": [],
+                    "last_updated": datetime.now().isoformat()
+                }
+                if hasattr(self.llm_client, 'conversation_history'):
+                    self.llm_client.conversation_history = []
+                    
+        except Exception as e:
+            logger.error(f"Error loading agent state: {e}")
+            # Initialize with empty state on error
+            self.agent_state = {
+                "version": "1.0", 
+                "agent_id": getattr(self, 'current_agent', 'unknown'),
+                "conversation_history": [],
+                "last_updated": datetime.now().isoformat()
+            }
+            if hasattr(self.llm_client, 'conversation_history'):
+                self.llm_client.conversation_history = []
+    
+    def _save_agent_state(self):
+        """
+        Save current agent state to state.json file.
+        """
+        try:
+            if hasattr(self, 'state_file_path') and hasattr(self, 'agent_state'):
+                # Update conversation history from LLM client
+                if hasattr(self.llm_client, 'conversation_history'):
+                    self.agent_state["conversation_history"] = self.llm_client.conversation_history
+                
+                # Update timestamp
+                self.agent_state["last_updated"] = datetime.now().isoformat()
+                
+                # Write to file
+                with open(self.state_file_path, 'w') as f:
+                    json.dump(self.agent_state, f, indent=2)
+                
+                logger.debug(f"Agent state saved to {self.state_file_path}")
+                
+        except Exception as e:
+            logger.error(f"Error saving agent state: {e}")
     
     def chat(self, message: str) -> str:
         """
@@ -2276,6 +2404,10 @@ class GenesisAgent:
         
         try:
             response = self.llm_client._invoke_subprocess(message)
+            
+            # Save state after each interaction to persist conversation history
+            self._save_agent_state()
+            
             return response or "No response from agent."
         except Exception as e:
             logger.error(f"Chat failed: {e}")
