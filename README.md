@@ -23,6 +23,8 @@ Este repositório contém uma arquitetura de dois componentes principais que tra
 - 🧬 **Metaprogramação:** Capacidade de criar novos agentes usando o `AgentCreator_Agent`.
 - 📋 **Execução Baseada em Planos:** Orquestração automatizada de tarefas de codificação a partir de um plano YAML.
 - 🧠 **Aprendizado Contínuo e Conhecimento Negativo:** Agentes aprendem com o sucesso e o fracasso, evitando repetir erros passados.
+- 🔒 **Segurança e Confiabilidade de Nível Empresarial:** Validação robusta de templates, rollback automático e gerenciamento seguro de comandos shell.
+- ⚙️ **Flexibilidade Avançada com Deep Merge:** Personalização de configurações de agentes através de fusão profunda de templates.
 
 ## 📁 Estrutura de Diretórios
 
@@ -86,6 +88,12 @@ state_file_path: "state.json"
 available_tools: ["read_file", "write_file"]
 execution_task: "Instrução para o modo automático..."
 ```
+
+## 📊 Métricas e Performance
+
+- ⚡ **Execução Otimizada**: Tempo de execução e sucesso otimizados pela seleção dinâmica de IA.
+- 🔒 **Robustez Comprovada**: Sistema resiliente a falhas e seguro contra entradas maliciosas.
+- 🔄 **Paralelização**: Suporte para execução paralela de tarefas.
 
 ## 🙏 Agradecimentos
 
