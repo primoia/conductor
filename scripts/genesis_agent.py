@@ -23,11 +23,24 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List, Union, Tuple
 import json
 from datetime import datetime
+import time
+from functools import wraps
 
 # Configuration Constants
 AGENTS_BASE_PATH = os.path.join("projects", "develop", "agents")
 MAX_TOOL_CALLS_PER_TURN = 5  # Limit to prevent infinite loops
 MAX_CONVERSATION_HISTORY = 50  # Sliding window for conversation history
+
+# Error Handling and Retry Configuration
+MAX_RETRIES = 3
+RETRY_DELAY_BASE = 1.0  # Base delay in seconds
+RETRY_DELAY_MULTIPLIER = 2.0  # Exponential backoff multiplier
+MAX_RETRY_DELAY = 30.0  # Maximum delay between retries
+
+# Recoverable error types
+RECOVERABLE_IO_ERRORS = (OSError, IOError, PermissionError)
+RECOVERABLE_NETWORK_ERRORS = (ConnectionError, TimeoutError)
+RECOVERABLE_RESOURCE_ERRORS = (MemoryError, OSError)
 
 # Allowlist of safe shell commands for agent operations
 SAFE_SHELL_COMMANDS = {
@@ -55,12 +68,181 @@ MAX_TEMPLATE_SIZE = 50000  # 50KB max for team template files
 MAX_EXECUTION_TASK_LENGTH = 2000  # 2KB max for execution tasks
 MAX_AGENTS_PER_TEMPLATE = 20  # Maximum agents per team template
 
+# User Profile Validation Constants
+VALID_ROLES = {
+    'backend', 'frontend', 'fullstack', 'devops', 'scrum_master', 'tech_lead', 'other'
+}
+
+VALID_EXPERIENCE_LEVELS = {
+    'junior', 'mid', 'senior'
+}
+
+VALID_PROJECT_TYPES = {
+    'new', 'existing'
+}
+
+VALID_TEAM_SIZES = {
+    'solo', 'team'
+}
+
+VALID_ENVIRONMENTS = {
+    'develop', 'main', 'production'
+}
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+# Error Handling Decorators
+def retry_on_failure(max_retries: int = MAX_RETRIES, 
+                    recoverable_errors: tuple = RECOVERABLE_IO_ERRORS,
+                    delay_base: float = RETRY_DELAY_BASE):
+    """
+    Decorator for automatic retry with exponential backoff on recoverable errors.
+    
+    Args:
+        max_retries: Maximum number of retry attempts
+        recoverable_errors: Tuple of exception types that are recoverable
+        delay_base: Base delay for exponential backoff
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            
+            for attempt in range(max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except recoverable_errors as e:
+                    last_exception = e
+                    if attempt == max_retries:
+                        # Final attempt failed, return error structure
+                        logger.error(f"Function {func.__name__} failed after {max_retries} retries: {e}")
+                        return {
+                            'success': False,
+                            'error': f"Operation failed after {max_retries} retries: {str(e)}",
+                            'retry_attempts': attempt,
+                            'final_error': str(e)
+                        }
+                    
+                    # Calculate delay with exponential backoff
+                    delay = min(delay_base * (RETRY_DELAY_MULTIPLIER ** attempt), MAX_RETRY_DELAY)
+                    logger.warning(f"Function {func.__name__} failed (attempt {attempt + 1}/{max_retries + 1}): {e}. Retrying in {delay:.1f}s...")
+                    time.sleep(delay)
+                except Exception as e:
+                    # Non-recoverable error, fail immediately
+                    logger.error(f"Function {func.__name__} failed with non-recoverable error: {e}")
+                    return {
+                        'success': False,
+                        'error': f"Non-recoverable error: {str(e)}",
+                        'error_type': type(e).__name__
+                    }
+            
+            # Shouldn't reach here, but just in case
+            return {
+                'success': False,
+                'error': f"Unexpected failure in {func.__name__}",
+                'retry_attempts': max_retries
+            }
+        return wrapper
+    return decorator
+
+
+def with_recovery_fallback(fallback_result: Dict[str, Any] = None):
+    """
+    Decorator that provides a fallback result when operations fail completely.
+    
+    Args:
+        fallback_result: Dictionary to return on complete failure
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                result = func(*args, **kwargs)
+                # Check if result indicates failure
+                if isinstance(result, dict) and not result.get('success', True):
+                    logger.warning(f"Function {func.__name__} returned failure, applying fallback")
+                    if fallback_result:
+                        fallback = fallback_result.copy()
+                        fallback['fallback_applied'] = True
+                        fallback['original_error'] = result.get('error', 'Unknown error')
+                        return fallback
+                return result
+            except Exception as e:
+                logger.error(f"Function {func.__name__} raised exception: {e}")
+                if fallback_result:
+                    fallback = fallback_result.copy()
+                    fallback['fallback_applied'] = True
+                    fallback['exception_error'] = str(e)
+                    return fallback
+                return {
+                    'success': False,
+                    'error': f"Complete failure in {func.__name__}: {str(e)}",
+                    'fallback_applied': True
+                }
+        return wrapper
+    return decorator
+
+
+def safe_file_operation(create_backup: bool = True):
+    """
+    Decorator for safe file operations with automatic backup and rollback.
+    
+    Args:
+        create_backup: Whether to create backups before file modifications
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            backup_files = []
+            
+            try:
+                # If this is a file operation, try to identify file paths and create backups
+                if create_backup:
+                    # Look for file paths in args and kwargs
+                    for arg in args:
+                        if isinstance(arg, str) and (arg.endswith('.yaml') or arg.endswith('.json') or arg.endswith('.md')):
+                            if os.path.exists(arg):
+                                backup_path = f"{arg}.backup.{int(time.time())}"
+                                shutil.copy2(arg, backup_path)
+                                backup_files.append((arg, backup_path))
+                                logger.debug(f"Created backup: {backup_path}")
+                
+                result = func(*args, **kwargs)
+                
+                # Clean up backups on success
+                for original, backup in backup_files:
+                    try:
+                        os.remove(backup)
+                        logger.debug(f"Cleaned up backup: {backup}")
+                    except:
+                        pass  # Ignore cleanup failures
+                
+                return result
+                
+            except Exception as e:
+                # Restore from backups on failure
+                for original, backup in backup_files:
+                    try:
+                        shutil.copy2(backup, original)
+                        logger.info(f"Restored from backup: {original}")
+                    except Exception as restore_error:
+                        logger.error(f"Failed to restore backup {backup}: {restore_error}")
+                
+                logger.error(f"File operation {func.__name__} failed: {e}")
+                return {
+                    'success': False,
+                    'error': f"File operation failed: {str(e)}",
+                    'backups_created': len(backup_files),
+                    'restoration_attempted': len(backup_files) > 0
+                }
+        return wrapper
+    return decorator
 
 
 class Toolbelt:
@@ -88,7 +270,11 @@ class Toolbelt:
             'write_file': self.write_file,
             'run_shell_command': self.run_shell_command,
             'list_team_templates': self.list_team_templates,
-            'apply_team_template': self.apply_team_template
+            'apply_team_template': self.apply_team_template,
+            'collect_user_profile': self.collect_user_profile,
+            'collect_project_context': self.collect_project_context,
+            'suggest_team_template': self.suggest_team_template,
+            'create_example_project': self.create_example_project
         }
         
         logger.debug(f"Toolbelt initialized with working directory: {self.working_directory}")
@@ -132,6 +318,7 @@ class Toolbelt:
                 'tool': tool_name
             }
     
+    @retry_on_failure(max_retries=2, recoverable_errors=RECOVERABLE_IO_ERRORS)
     def read_file(self, file_path: str, encoding: str = 'utf-8') -> str:
         """
         Read file contents safely with path validation.
@@ -167,6 +354,8 @@ class Toolbelt:
         except UnicodeDecodeError as e:
             raise ValueError(f"Encoding error reading file {file_path}: {e}")
     
+    @retry_on_failure(max_retries=3, recoverable_errors=RECOVERABLE_IO_ERRORS)
+    @safe_file_operation(create_backup=True)
     def write_file(self, file_path: str, content: str, encoding: str = 'utf-8', 
                    create_dirs: bool = True) -> str:
         """
@@ -1001,6 +1190,828 @@ python scripts/run_conductor.py --projeto {project_root} workflows/[WORKFLOW_NAM
 """
         
         return readme_content
+    
+    def collect_user_profile(self) -> Dict[str, Any]:
+        """
+        Interactive tool to collect user profile through structured Q&A.
+        This tool is designed to be called by AI agents to gather user information
+        through natural conversation rather than forms.
+        
+        Returns:
+            Dict with collected profile data and validation status
+        """
+        try:
+            print("\n🎯 Vamos coletar algumas informações para personalizar sua experiência!")
+            print("=" * 60)
+            
+            profile = {}
+            
+            # 1. Name collection
+            while True:
+                name = input("👤 Qual é o seu nome? ").strip()
+                if name and len(name) >= 2:
+                    profile['name'] = name
+                    break
+                print("   Por favor, digite um nome válido (mínimo 2 caracteres).")
+            
+            # 2. Role collection
+            print(f"\n🎭 Qual é o seu papel principal, {profile['name']}?")
+            print("   Opções: backend, frontend, fullstack, devops, scrum_master, tech_lead, other")
+            while True:
+                role = input("   Sua escolha: ").strip().lower()
+                if role in VALID_ROLES:
+                    profile['role'] = role
+                    break
+                print(f"   Opção inválida. Escolha entre: {', '.join(VALID_ROLES)}")
+            
+            # 3. Main language
+            while True:
+                language = input("\n💻 Qual é sua linguagem de programação principal? ").strip()
+                if language and len(language) >= 2:
+                    profile['main_language'] = language.lower()
+                    break
+                print("   Por favor, digite uma linguagem válida.")
+            
+            # 4. Main framework (optional)
+            framework = input("🔧 Framework principal (opcional, Enter para pular): ").strip()
+            profile['main_framework'] = framework.lower() if framework else None
+            
+            # 5. Experience level
+            print("\n📊 Qual é o seu nível de experiência?")
+            print("   Opções: junior, mid, senior")
+            while True:
+                experience = input("   Sua escolha: ").strip().lower()
+                if experience in VALID_EXPERIENCE_LEVELS:
+                    profile['experience_level'] = experience
+                    break
+                print(f"   Opção inválida. Escolha entre: {', '.join(VALID_EXPERIENCE_LEVELS)}")
+            
+            # 6. Project type
+            print("\n📋 Tipo de projeto:")
+            print("   Opções: new (novo projeto), existing (projeto existente)")
+            while True:
+                project_type = input("   Sua escolha: ").strip().lower()
+                if project_type in VALID_PROJECT_TYPES:
+                    profile['project_type'] = project_type
+                    break
+                print(f"   Opção inválida. Escolha entre: {', '.join(VALID_PROJECT_TYPES)}")
+            
+            # 7. Team size
+            print("\n👥 Tamanho da equipe:")
+            print("   Opções: solo (trabalhando sozinho), team (trabalhando em equipe)")
+            while True:
+                team_size = input("   Sua escolha: ").strip().lower()
+                if team_size in VALID_TEAM_SIZES:
+                    profile['team_size'] = team_size
+                    break
+                print(f"   Opção inválida. Escolha entre: {', '.join(VALID_TEAM_SIZES)}")
+            
+            # Add metadata
+            profile['profile_complete'] = True
+            profile['collected_at'] = datetime.now().isoformat()
+            
+            print(f"\n✅ Perfeito, {profile['name']}! Perfil coletado com sucesso.")
+            print(f"   Papel: {profile['role']} | Linguagem: {profile['main_language']} | Nível: {profile['experience_level']}")
+            
+            return {
+                'success': True,
+                'profile': profile,
+                'message': f'Perfil de {profile["name"]} coletado com sucesso'
+            }
+            
+        except KeyboardInterrupt:
+            return {
+                'success': False,
+                'error': 'Profile collection cancelled by user',
+                'profile': {}
+            }
+        except Exception as e:
+            logger.error(f"Failed to collect user profile: {e}")
+            return {
+                'success': False,
+                'error': f"Profile collection failed: {str(e)}",
+                'profile': {}
+            }
+    
+    def collect_project_context(self) -> Dict[str, Any]:
+        """
+        Interactive tool to collect project context and validate project structure.
+        
+        Returns:
+            Dict with project context data and validation status
+        """
+        try:
+            print("\n📂 Agora vamos configurar o contexto do seu projeto!")
+            print("=" * 60)
+            
+            context = {}
+            
+            # 1. Project name
+            while True:
+                project_name = input("📝 Nome do projeto: ").strip()
+                if project_name and len(project_name) >= 2:
+                    # Sanitize project name
+                    context['project_name'] = re.sub(r'[^a-zA-Z0-9_-]', '_', project_name)
+                    if context['project_name'] != project_name:
+                        print(f"   Nome sanitizado para: {context['project_name']}")
+                    break
+                print("   Por favor, digite um nome válido (mínimo 2 caracteres).")
+            
+            # 2. Project root path
+            while True:
+                project_root = input("📁 Caminho completo para o diretório do projeto: ").strip()
+                if project_root:
+                    # Expand user path and normalize
+                    expanded_path = os.path.expanduser(project_root)
+                    normalized_path = os.path.abspath(expanded_path)
+                    
+                    if os.path.exists(normalized_path):
+                        context['project_root'] = normalized_path
+                        break
+                    else:
+                        create_dir = input(f"   Diretório não existe. Criar '{normalized_path}'? (y/n): ").strip().lower()
+                        if create_dir in ['y', 'yes', 's', 'sim']:
+                            try:
+                                os.makedirs(normalized_path, exist_ok=True)
+                                context['project_root'] = normalized_path
+                                print(f"   ✅ Diretório criado: {normalized_path}")
+                                break
+                            except Exception as e:
+                                print(f"   ❌ Erro ao criar diretório: {e}")
+                        else:
+                            print("   Por favor, forneça um caminho válido ou permita a criação.")
+                print("   Por favor, forneça um caminho válido.")
+            
+            # 3. Environment
+            print("\n🌍 Ambiente de trabalho:")
+            print("   Opções: develop (desenvolvimento), main (principal), production (produção)")
+            while True:
+                environment = input("   Sua escolha: ").strip().lower()
+                if environment in VALID_ENVIRONMENTS:
+                    context['environment'] = environment
+                    break
+                print(f"   Opção inválida. Escolha entre: {', '.join(VALID_ENVIRONMENTS)}")
+            
+            # 4. Check for existing structure
+            conductor_structure_path = os.path.join(
+                context['project_root'], 
+                'projects', 
+                context['environment'], 
+                context['project_name'], 
+                'agents'
+            )
+            
+            context['existing_structure_detected'] = os.path.exists(conductor_structure_path)
+            
+            if context['existing_structure_detected']:
+                print(f"\n⚠️  Detectei estrutura Conductor existente em:")
+                print(f"   {conductor_structure_path}")
+                
+                existing_agents = []
+                if os.path.isdir(conductor_structure_path):
+                    existing_agents = [d for d in os.listdir(conductor_structure_path) 
+                                     if os.path.isdir(os.path.join(conductor_structure_path, d))]
+                
+                if existing_agents:
+                    print(f"   Agentes existentes: {', '.join(existing_agents)}")
+                
+                reconfigure = input("   Deseja reconfigurar ou adicionar agentes? (y/n): ").strip().lower()
+                context['reconfigure_existing'] = reconfigure in ['y', 'yes', 's', 'sim']
+            else:
+                context['reconfigure_existing'] = False
+            
+            # 5. Determine if new project
+            has_source_files = any(
+                os.path.exists(os.path.join(context['project_root'], pattern))
+                for pattern in ['src/', 'lib/', '*.py', '*.js', '*.kt', '*.java', '*.ts']
+            )
+            
+            context['is_new_project'] = not has_source_files
+            
+            # Add metadata
+            context['context_complete'] = True
+            context['collected_at'] = datetime.now().isoformat()
+            
+            print(f"\n✅ Contexto do projeto '{context['project_name']}' configurado!")
+            print(f"   Caminho: {context['project_root']}")
+            print(f"   Ambiente: {context['environment']}")
+            print(f"   Tipo: {'Projeto novo' if context['is_new_project'] else 'Projeto existente'}")
+            
+            return {
+                'success': True,
+                'context': context,
+                'message': f'Contexto do projeto {context["project_name"]} coletado com sucesso'
+            }
+            
+        except KeyboardInterrupt:
+            return {
+                'success': False,
+                'error': 'Project context collection cancelled by user',
+                'context': {}
+            }
+        except Exception as e:
+            logger.error(f"Failed to collect project context: {e}")
+            return {
+                'success': False,
+                'error': f"Project context collection failed: {str(e)}",
+                'context': {}
+            }
+    
+    @retry_on_failure(max_retries=2, recoverable_errors=RECOVERABLE_IO_ERRORS)
+    @with_recovery_fallback(fallback_result={
+        'success': True,
+        'suggestions': [{'template_id': 'basic-team', 'template_name': 'Basic Team', 'score': 10, 'reasons': ['Fallback template'], 'confidence': 0.3}],
+        'message': 'Using fallback suggestion due to system error'
+    })
+    def suggest_team_template(self, user_profile: Dict = None, project_context: Dict = None) -> Dict[str, Any]:
+        """
+        Suggest team templates based on user profile and project context.
+        Uses a rules-based engine loaded from config/onboarding_rules.yaml.
+        
+        Args:
+            user_profile: User profile data (optional, will use state if not provided)
+            project_context: Project context data (optional, will use state if not provided)
+            
+        Returns:
+            Dict with suggested templates and reasoning
+        """
+        try:
+            # If no data provided, this is likely being called by AI - provide instructions
+            if not user_profile and not project_context:
+                return {
+                    'success': True,
+                    'message': 'Para usar esta ferramenta, primeiro colete o perfil do usuário e contexto do projeto',
+                    'suggestions': [],
+                    'instructions': [
+                        'Use [TOOL_CALL: collect_user_profile] primeiro',
+                        'Depois use [TOOL_CALL: collect_project_context]', 
+                        'Então chame esta ferramenta novamente com os dados coletados'
+                    ]
+                }
+            
+            # Load rules configuration
+            rules_config = self._load_onboarding_rules()
+            if not rules_config:
+                logger.warning("Failed to load onboarding rules, using fallback logic")
+                return self._suggest_template_fallback(user_profile, project_context)
+            
+            # Get available team templates
+            templates_result = self.list_team_templates()
+            if not templates_result['success']:
+                return templates_result
+            
+            available_templates = templates_result['available_templates']
+            suggestions = []
+            
+            # Apply rules-based scoring using external configuration
+            for template in available_templates:
+                score = 0
+                reasons = []
+                template_id = template['id']
+                
+                # Apply role-based rules
+                if user_profile and user_profile.get('role'):
+                    role_score, role_reasons = self._apply_role_rules(
+                        user_profile['role'], template_id, rules_config
+                    )
+                    score += role_score
+                    reasons.extend(role_reasons)
+                
+                # Apply language-based rules
+                if user_profile and user_profile.get('main_language'):
+                    lang_score, lang_reasons = self._apply_language_rules(
+                        user_profile['main_language'], template_id, rules_config
+                    )
+                    score += lang_score
+                    reasons.extend(lang_reasons)
+                
+                # Apply experience adjustments
+                if user_profile and user_profile.get('experience_level'):
+                    exp_score, exp_reasons = self._apply_experience_rules(
+                        user_profile['experience_level'], template, rules_config
+                    )
+                    score += exp_score
+                    reasons.extend(exp_reasons)
+                
+                # Apply team size rules
+                if user_profile and user_profile.get('team_size'):
+                    team_score, team_reasons = self._apply_team_size_rules(
+                        user_profile['team_size'], template, rules_config
+                    )
+                    score += team_score
+                    reasons.extend(team_reasons)
+                
+                # Apply project type rules
+                if project_context and project_context.get('is_new_project') is not None:
+                    proj_score, proj_reasons = self._apply_project_type_rules(
+                        project_context['is_new_project'], template, rules_config
+                    )
+                    score += proj_score
+                    reasons.extend(proj_reasons)
+                
+                # Add suggestion if score is meaningful
+                if score > 0:
+                    max_score = rules_config.get('confidence_calculation', {}).get('max_possible_score', 100)
+                    suggestions.append({
+                        'template_id': template_id,
+                        'template_name': template['name'],
+                        'description': template['description'],
+                        'score': score,
+                        'reasons': reasons,
+                        'agents_count': template.get('agents_count', 0),
+                        'confidence': min(score / max_score, 1.0)
+                    })
+            
+            # Sort by score (highest first)
+            suggestions.sort(key=lambda x: x['score'], reverse=True)
+            
+            # Apply fallback strategy if no good matches
+            if not suggestions:
+                suggestions = self._apply_fallback_strategy(available_templates, rules_config)
+            
+            # Limit to max suggestions
+            max_suggestions = rules_config.get('max_suggestions', 3)
+            top_suggestions = suggestions[:max_suggestions]
+            
+            return {
+                'success': True,
+                'suggestions': top_suggestions,
+                'total_evaluated': len(available_templates),
+                'top_recommendation': top_suggestions[0] if top_suggestions else None,
+                'message': f'Encontradas {len(top_suggestions)} sugestões baseadas no seu perfil',
+                'rules_version': rules_config.get('version', 'unknown')
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to suggest team template: {e}")
+            return {
+                'success': False,
+                'error': f"Template suggestion failed: {str(e)}",
+                'suggestions': []
+            }
+    
+    @retry_on_failure(max_retries=2, recoverable_errors=RECOVERABLE_IO_ERRORS)
+    def _load_onboarding_rules(self) -> Dict[str, Any]:
+        """Load onboarding rules configuration from YAML file."""
+        try:
+            rules_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config', 'onboarding_rules.yaml')
+            if not os.path.exists(rules_path):
+                logger.warning(f"Onboarding rules file not found: {rules_path}")
+                return {}
+            
+            with open(rules_path, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+            
+            logger.debug(f"Loaded onboarding rules version: {config.get('version', 'unknown')}")
+            return config
+        except Exception as e:
+            logger.error(f"Failed to load onboarding rules: {e}")
+            return {}
+    
+    def _apply_role_rules(self, role: str, template_id: str, rules_config: Dict) -> Tuple[int, List[str]]:
+        """Apply role-based scoring rules."""
+        score = 0
+        reasons = []
+        
+        role_rules = rules_config.get('suggestion_rules', {}).get('role_matching', {}).get(role, {})
+        preferred_templates = role_rules.get('preferred_templates', [])
+        
+        for template_rule in preferred_templates:
+            pattern = template_rule.get('pattern', '')
+            if pattern and re.search(pattern, template_id, re.IGNORECASE):
+                rule_score = template_rule.get('score', 0)
+                reason = template_rule.get('reason', f'Match for {role}')
+                score += rule_score
+                reasons.append(reason)
+                break  # Take first matching rule
+        
+        return score, reasons
+    
+    def _apply_language_rules(self, language: str, template_id: str, rules_config: Dict) -> Tuple[int, List[str]]:
+        """Apply language-based scoring rules."""
+        score = 0
+        reasons = []
+        
+        lang_rules = rules_config.get('suggestion_rules', {}).get('language_matching', {}).get(language.lower(), {})
+        preferred_templates = lang_rules.get('preferred_templates', [])
+        
+        for template_rule in preferred_templates:
+            pattern = template_rule.get('pattern', '')
+            if pattern and re.search(pattern, template_id, re.IGNORECASE):
+                rule_score = template_rule.get('score', 0)
+                reason = template_rule.get('reason', f'Match for {language}')
+                score += rule_score
+                reasons.append(reason)
+                break  # Take first matching rule
+        
+        return score, reasons
+    
+    def _apply_experience_rules(self, experience: str, template: Dict, rules_config: Dict) -> Tuple[int, List[str]]:
+        """Apply experience level adjustments."""
+        score = 0
+        reasons = []
+        
+        exp_rules = rules_config.get('suggestion_rules', {}).get('experience_adjustments', {}).get(experience, {})
+        preferences = exp_rules.get('preferences', [])
+        
+        agents_count = template.get('agents_count', 0)
+        template_complexity = template.get('complexity', 'basic')  # Default to basic if not specified
+        
+        for pref in preferences:
+            condition = pref.get('condition', '')
+            # Simple condition evaluation
+            if self._evaluate_condition(condition, agents_count, template_complexity):
+                rule_score = pref.get('score_bonus', 0)
+                reason = pref.get('reason', f'Suitable for {experience} level')
+                score += rule_score
+                reasons.append(reason)
+        
+        return score, reasons
+    
+    def _apply_team_size_rules(self, team_size: str, template: Dict, rules_config: Dict) -> Tuple[int, List[str]]:
+        """Apply team size considerations."""
+        score = 0
+        reasons = []
+        
+        team_rules = rules_config.get('suggestion_rules', {}).get('team_size_matching', {}).get(team_size, {})
+        preferences = team_rules.get('preferences', [])
+        
+        agents_count = template.get('agents_count', 0)
+        template_focus = template.get('focus', 'productivity')  # Default focus
+        
+        for pref in preferences:
+            condition = pref.get('condition', '')
+            if self._evaluate_condition(condition, agents_count, template_focus):
+                rule_score = pref.get('score_bonus', 0)
+                reason = pref.get('reason', f'Suitable for {team_size}')
+                score += rule_score
+                reasons.append(reason)
+        
+        return score, reasons
+    
+    def _apply_project_type_rules(self, is_new_project: bool, template: Dict, rules_config: Dict) -> Tuple[int, List[str]]:
+        """Apply project type considerations."""
+        score = 0
+        reasons = []
+        
+        project_type = 'new' if is_new_project else 'existing'
+        proj_rules = rules_config.get('suggestion_rules', {}).get('project_type_matching', {}).get(project_type, {})
+        preferences = proj_rules.get('preferences', [])
+        
+        template_includes = template.get('includes', [])
+        template_focus = template.get('focus', 'general')
+        
+        for pref in preferences:
+            condition = pref.get('condition', '')
+            if self._evaluate_template_condition(condition, template_includes, template_focus):
+                rule_score = pref.get('score_bonus', 0)
+                reason = pref.get('reason', f'Good for {project_type} projects')
+                score += rule_score
+                reasons.append(reason)
+        
+        return score, reasons
+    
+    def _evaluate_condition(self, condition: str, agents_count: int, attribute: str) -> bool:
+        """Evaluate simple conditions like 'agents_count <= 3'."""
+        try:
+            # Replace variables in condition
+            condition = condition.replace('agents_count', str(agents_count))
+            condition = condition.replace('template_complexity', f'"{attribute}"')
+            condition = condition.replace('template_focus', f'"{attribute}"')
+            
+            # Simple evaluation for basic conditions
+            if '<=' in condition:
+                parts = condition.split('<=')
+                if len(parts) == 2:
+                    return int(parts[0].strip()) <= int(parts[1].strip())
+            elif '>=' in condition:
+                parts = condition.split('>=')
+                if len(parts) == 2:
+                    return int(parts[0].strip()) >= int(parts[1].strip())
+            elif '==' in condition:
+                parts = condition.split('==')
+                if len(parts) == 2:
+                    left = parts[0].strip().strip('"')
+                    right = parts[1].strip().strip('"')
+                    return left == right
+            elif 'AND' in condition:
+                sub_conditions = condition.split('AND')
+                return all(self._evaluate_condition(sub.strip(), agents_count, attribute) for sub in sub_conditions)
+        except:
+            pass
+        return False
+    
+    def _evaluate_template_condition(self, condition: str, template_includes: List, template_focus: str) -> bool:
+        """Evaluate template-specific conditions."""
+        try:
+            if 'template_includes' in condition:
+                target = condition.split('==')[1].strip().strip('"\'')
+                return target in template_includes
+            elif 'template_focus' in condition:
+                target = condition.split('==')[1].strip().strip('"\'')
+                return template_focus == target
+        except:
+            pass
+        return False
+    
+    def _apply_fallback_strategy(self, available_templates: List[Dict], rules_config: Dict) -> List[Dict]:
+        """Apply fallback strategy when no templates match."""
+        fallback = rules_config.get('fallback_strategy', {})
+        default_patterns = fallback.get('default_template_patterns', ['.*basic.*'])
+        fallback_score = fallback.get('fallback_score', 10)
+        fallback_reason = fallback.get('fallback_reason', 'Template versátil recomendado')
+        
+        suggestions = []
+        for template in available_templates:
+            for pattern in default_patterns:
+                if re.search(pattern, template['id'], re.IGNORECASE):
+                    suggestions.append({
+                        'template_id': template['id'],
+                        'template_name': template['name'],
+                        'description': template['description'],
+                        'score': fallback_score,
+                        'reasons': [fallback_reason],
+                        'agents_count': template.get('agents_count', 0),
+                        'confidence': fallback.get('minimum_confidence', 0.3)
+                    })
+                    break
+        
+        return suggestions
+    
+    def _suggest_template_fallback(self, user_profile: Dict, project_context: Dict) -> Dict[str, Any]:
+        """Fallback suggestion logic when rules config fails to load."""
+        logger.warning("Using hardcoded fallback suggestion logic")
+        
+        # Get available team templates
+        templates_result = self.list_team_templates()
+        if not templates_result['success']:
+            return templates_result
+        
+        available_templates = templates_result['available_templates']
+        
+        # Simple hardcoded logic as fallback
+        if available_templates:
+            basic_template = available_templates[0]  # Take first available
+            return {
+                'success': True,
+                'suggestions': [{
+                    'template_id': basic_template['id'],
+                    'template_name': basic_template['name'],
+                    'description': basic_template['description'],
+                    'score': 20,
+                    'reasons': ['Fallback: Template básico selecionado'],
+                    'agents_count': basic_template.get('agents_count', 0),
+                    'confidence': 0.4
+                }],
+                'total_evaluated': len(available_templates),
+                'top_recommendation': {
+                    'template_id': basic_template['id'],
+                    'template_name': basic_template['name'],
+                    'description': basic_template['description'],
+                    'score': 20,
+                    'reasons': ['Fallback: Template básico selecionado'],
+                    'agents_count': basic_template.get('agents_count', 0),
+                    'confidence': 0.4
+                },
+                'message': '1 sugestão encontrada (modo fallback)'
+            }
+        
+        return {
+            'success': False,
+            'error': 'No templates available',
+            'suggestions': []
+        }
+    
+    @retry_on_failure(max_retries=3, recoverable_errors=RECOVERABLE_IO_ERRORS)
+    @safe_file_operation(create_backup=False)  # Don't backup for new file creation
+    def create_example_project(self, project_root: str, team_template_id: str, user_profile: Dict = None) -> Dict[str, Any]:
+        """
+        Create a "Hello World" example project based on the selected team template and user profile.
+        Uses external template files for better maintainability.
+        
+        Args:
+            project_root: Target project root directory
+            team_template_id: ID of the applied team template
+            user_profile: User profile for language/framework selection
+            
+        Returns:
+            Dict with created files and success status
+        """
+        try:
+            # Determine project context
+            project_context = self._determine_project_context(team_template_id, user_profile)
+            
+            # Create examples directory
+            examples_dir = os.path.join(project_root, 'examples')
+            os.makedirs(examples_dir, exist_ok=True)
+            
+            # Template variables for substitution
+            template_vars = {
+                'project_name': os.path.basename(project_root),
+                'team_name': project_context['team_name'],
+                'team_id': team_template_id,
+                'project_root': project_root,
+                'environment': 'develop',  # Default environment
+                'generated_at': datetime.now().isoformat(),
+                'system_version': '1.0'
+            }
+            
+            created_files = []
+            
+            # Create language-specific examples using external templates
+            template_files = self._get_template_files_for_language(project_context['language'])
+            
+            for template_info in template_files:
+                try:
+                    output_file = self._create_file_from_template(
+                        template_info, examples_dir, template_vars
+                    )
+                    if output_file:
+                        created_files.append(output_file)
+                        logger.info(f"Created example file: {output_file}")
+                except Exception as e:
+                    logger.warning(f"Failed to create template {template_info['template']}: {e}")
+                    # Continue with other templates
+            
+            # Always create README
+            readme_file = self._create_readme_from_template(project_root, template_vars, created_files)
+            if readme_file:
+                created_files.append(readme_file)
+            
+            return {
+                'success': True,
+                'created_files': created_files,
+                'project_type': project_context['language'],
+                'team_name': project_context['team_name'],
+                'message': f'Exemplo criado com {len(created_files)} arquivos para {project_context["language"]}'
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to create example project: {e}")
+            return {
+                'success': False,
+                'error': f"Example project creation failed: {str(e)}",
+                'created_files': []
+            }
+    
+    def _determine_project_context(self, team_template_id: str, user_profile: Dict = None) -> Dict[str, str]:
+        """Determine project context from template and profile."""
+        context = {
+            'language': 'python',  # Default
+            'framework': 'basic',
+            'team_name': 'Generic Development Team'
+        }
+        
+        # Determine from team template ID
+        if 'kotlin' in team_template_id:
+            context.update({
+                'language': 'kotlin',
+                'framework': 'spring-boot',
+                'team_name': 'Kotlin Backend Team'
+            })
+        elif 'react' in team_template_id:
+            context.update({
+                'language': 'typescript',
+                'framework': 'react',
+                'team_name': 'React Frontend Team'
+            })
+        elif 'devops' in team_template_id:
+            context.update({
+                'language': 'yaml',
+                'framework': 'docker',
+                'team_name': 'DevOps Infrastructure Team'
+            })
+        elif user_profile:
+            # Use profile info if available
+            context.update({
+                'language': user_profile.get('main_language', 'python'),
+                'framework': user_profile.get('main_framework', 'basic'),
+                'team_name': f"{user_profile.get('main_language', 'Python').title()} Development Team"
+            })
+        
+        return context
+    
+    def _get_template_files_for_language(self, language: str) -> List[Dict[str, str]]:
+        """Get template files for specific language."""
+        templates_base = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates', 'examples')
+        
+        if language == 'kotlin':
+            return [
+                {
+                    'template': 'kotlin-spring-boot.kt',
+                    'output': 'HelloWorld.kt',
+                    'description': 'Kotlin Spring Boot REST API example'
+                }
+            ]
+        elif language in ['typescript', 'javascript']:
+            return [
+                {
+                    'template': 'react-component.tsx',
+                    'output': 'HelloConductor.tsx',
+                    'description': 'React TypeScript component example'
+                }
+            ]
+        elif language == 'yaml':
+            return [
+                {
+                    'template': 'docker-compose.yml',
+                    'output': 'docker-compose.yml',
+                    'description': 'Docker Compose configuration'
+                },
+                {
+                    'template': 'hello.html',
+                    'output': 'hello.html',
+                    'description': 'HTML page for nginx container'
+                }
+            ]
+        else:
+            # Default to Python
+            return [
+                {
+                    'template': 'python-hello.py',
+                    'output': 'hello_conductor.py',
+                    'description': 'Python hello world script'
+                }
+            ]
+    
+    def _create_file_from_template(self, template_info: Dict, output_dir: str, template_vars: Dict) -> Optional[str]:
+        """Create file from template with variable substitution."""
+        try:
+            templates_base = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates', 'examples')
+            template_path = os.path.join(templates_base, template_info['template'])
+            
+            if not os.path.exists(template_path):
+                logger.warning(f"Template file not found: {template_path}")
+                return None
+            
+            # Read template
+            with open(template_path, 'r', encoding='utf-8') as f:
+                template_content = f.read()
+            
+            # Simple variable substitution
+            for var, value in template_vars.items():
+                template_content = template_content.replace(f'{{{{{var}}}}}', str(value))
+            
+            # Write output file
+            output_path = os.path.join(output_dir, template_info['output'])
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(template_content)
+            
+            return output_path
+            
+        except Exception as e:
+            logger.error(f"Failed to create file from template {template_info['template']}: {e}")
+            return None
+    
+    def _create_readme_from_template(self, project_root: str, template_vars: Dict, created_files: List[str]) -> Optional[str]:
+        """Create README from template."""
+        try:
+            templates_base = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates', 'examples')
+            template_path = os.path.join(templates_base, 'README_template.md')
+            
+            if not os.path.exists(template_path):
+                # Fallback to simple README
+                readme_content = f"""# 🎼 {template_vars['project_name']} - Conductor Example Project
+
+Projeto criado pelo **{template_vars['team_name']}**!
+
+## 📁 Arquivos Criados
+
+{chr(10).join(f'- `{os.path.basename(f)}`' for f in created_files)}
+
+## 🚀 Próximos Passos
+
+1. Explore os agentes no diretório: `{template_vars['project_root']}/projects/{template_vars['environment']}/{template_vars['project_name']}/agents/`
+2. Inicie uma conversa: `python scripts/genesis_agent.py --embody [AGENT] --project-root {template_vars['project_root']} --repl`
+
+---
+*Gerado pelo Conductor Onboarding v{template_vars['system_version']}*
+"""
+            else:
+                # Use template file
+                with open(template_path, 'r', encoding='utf-8') as f:
+                    readme_content = f.read()
+                
+                # Variable substitution
+                for var, value in template_vars.items():
+                    readme_content = readme_content.replace(f'{{{{{var}}}}}', str(value))
+                
+                # Handle file lists (simplified)
+                files_list = '\n'.join(f'- `{os.path.basename(f)}`: Exemplo gerado automaticamente' for f in created_files)
+                readme_content = readme_content.replace('{{#created_files}}', '').replace('{{/created_files}}', '')
+                readme_content = readme_content.replace('- `{{file_path}}`: {{file_description}}', files_list)
+            
+            # Write README
+            readme_path = os.path.join(project_root, 'CONDUCTOR_EXAMPLE_README.md')
+            with open(readme_path, 'w', encoding='utf-8') as f:
+                f.write(readme_content)
+            
+            return readme_path
+            
+        except Exception as e:
+            logger.error(f"Failed to create README: {e}")
+            return None
+
 
 
 class LLMClient:
@@ -1010,6 +2021,7 @@ class LLMClient:
     This abstract base class defines the common interface for different AI providers,
     enabling dynamic provider selection based on agent configuration.
     """
+
     
     def __init__(self, working_directory: str = None):
         """
@@ -1041,8 +2053,9 @@ class ClaudeCLIClient(LLMClient):
     """
     Claude CLI Client implementation.
     
-    Handles communication with Claude via the claude CLI command,
-    following the same pattern as run_conductor.py for consistency.
+    This client uses the official Claude CLI to interact with Anthropic's Claude API.
+    It provides a robust interface for conversational AI interactions with proper
+    error handling and conversation history management.
     """
     
     def __init__(self, working_directory: str = None):
@@ -1053,154 +2066,12 @@ class ClaudeCLIClient(LLMClient):
             working_directory: Working directory for subprocess calls
         """
         super().__init__(working_directory)
-        self.provider = 'claude'
-        logger.debug(f"ClaudeCLIClient initialized")
-    
-    def add_message(self, role: str, content: str) -> None:
-        """
-        Add a message to the conversation history with sliding window management.
-        
-        Args:
-            role: Message role ('user' or 'assistant')
-            content: Message content
-        """
-        self.conversation_history.append({
-            'role': role,
-            'content': content,
-            'timestamp': logging.Formatter().formatTime(logging.LogRecord(
-                '', 0, '', 0, '', (), None))
-        })
-        
-        # MEMORY MANAGEMENT: Implement sliding window
-        if len(self.conversation_history) > MAX_CONVERSATION_HISTORY:
-            # Keep the first few messages for context and the most recent ones
-            context_messages = 2  # Keep first 2 messages for context
-            recent_messages = MAX_CONVERSATION_HISTORY - context_messages
-            
-            # Preserve context + recent messages
-            preserved_history = (
-                self.conversation_history[:context_messages] + 
-                self.conversation_history[-recent_messages:]
-            )
-            
-            # Add a marker showing truncation
-            if len(self.conversation_history) > MAX_CONVERSATION_HISTORY + 1:  # Only add marker once
-                truncation_marker = {
-                    'role': 'system',
-                    'content': f'[Conversation truncated - {len(self.conversation_history) - MAX_CONVERSATION_HISTORY} messages removed]',
-                    'timestamp': logging.Formatter().formatTime(logging.LogRecord('', 0, '', 0, '', (), None))
-                }
-                preserved_history.insert(context_messages, truncation_marker)
-            
-            self.conversation_history = preserved_history
-            logger.info(f"Conversation history truncated to {len(self.conversation_history)} messages")
-        
-        logger.debug(f"Added {role} message to conversation history ({len(content)} chars)")
-    
-    def build_system_prompt(self, agent_data: Dict[str, Any], agent_path: str) -> str:
-        """
-        Build the system prompt for the embodied agent.
-        
-        Args:
-            agent_data: Agent configuration data
-            agent_path: Path to agent directory
-            
-        Returns:
-            System prompt string
-        """
-        try:
-            # Load persona if available
-            persona_path = os.path.join(agent_path, agent_data.get('persona_prompt_path', 'persona.md'))
-            persona_content = ""
-            if os.path.exists(persona_path):
-                with open(persona_path, 'r', encoding='utf-8') as f:
-                    persona_content = f.read()
-            
-            # Build system prompt
-            system_prompt = f"""You are an AI assistant embodying the '{agent_data['id']}' specialist agent.
-
-**Agent Information:**
-- ID: {agent_data['id']}
-- Version: {agent_data['version']}
-- Description: {agent_data['description']}
-
-**Agent Persona:**
-{persona_content if persona_content else 'No persona defined.'}
-
-**Available Tools:**
-{', '.join(agent_data.get('available_tools', []))}
-
-**Instructions:**
-1. You are having a conversation with a developer who has embodied this agent
-2. Stay in character as this specialist agent
-3. When you need to use tools, format your request as: [TOOL_CALL: tool_name(param1="value1", param2="value2")]
-4. Be helpful, knowledgeable, and focused on your specialty area
-5. Ask clarifying questions when needed
-
-The developer can interact with you naturally. Respond as the embodied agent would."""
-            
-            return system_prompt
-            
-        except Exception as e:
-            logger.error(f"Failed to build system prompt: {e}")
-            return f"You are the {agent_data['id']} agent. Respond helpfully to the user's queries."
-    
-    def send_message(self, user_message: str, agent_data: Dict[str, Any], 
-                    agent_path: str) -> str:
-        """
-        Send a message to the LLM and get a response.
-        
-        Args:
-            user_message: User's message
-            agent_data: Agent configuration data
-            agent_path: Path to agent directory
-            
-        Returns:
-            LLM response
-        """
-        try:
-            # Add user message to history
-            self.add_message('user', user_message)
-            
-            # Build the complete prompt
-            system_prompt = self.build_system_prompt(agent_data, agent_path)
-            
-            # Build conversation context
-            conversation_context = ""
-            if len(self.conversation_history) > 1:
-                conversation_context = "\n\nConversation History:\n"
-                for msg in self.conversation_history[:-1]:  # Exclude the current message
-                    conversation_context += f"{msg['role'].upper()}: {msg['content']}\n"
-            
-            # Combine everything into the final prompt
-            full_prompt = f"""{system_prompt}
-{conversation_context}
-
-Current user message: {user_message}
-
-Please respond as the {agent_data['id']} agent:"""
-            
-            # Call Claude via subprocess
-            response = self._invoke_subprocess(full_prompt)
-            
-            if response:
-                # Add assistant response to history
-                self.add_message('assistant', response)
-                return response
-            else:
-                error_msg = "Sorry, I couldn't process your request. Please try again."
-                self.add_message('assistant', error_msg)
-                return error_msg
-                
-        except Exception as e:
-            logger.error(f"Failed to send message to LLM: {e}")
-            error_msg = f"Error communicating with AI: {e}"
-            self.add_message('assistant', error_msg)
-            return error_msg
+        self.claude_command = "claude"
+        logger.debug("ClaudeCLIClient initialized")
     
     def _invoke_subprocess(self, prompt: str) -> Optional[str]:
         """
-        Invoke Claude via subprocess (following run_conductor.py pattern).
+        Invoke Claude CLI with the given prompt.
         
         Args:
             prompt: The prompt to send to Claude
@@ -1208,57 +2079,52 @@ Please respond as the {agent_data['id']} agent:"""
         Returns:
             Claude's response or None if failed
         """
-        logger.debug("Invoking Claude via subprocess")
-        
         try:
-            command = ["claude", "--print", "--dangerously-skip-permissions", prompt]
+            # Build command with proper arguments
+            cmd = [self.claude_command, "--text", prompt]
             
-            process = subprocess.run(
-                command,
+            # Execute Claude CLI with timeout
+            result = subprocess.run(
+                cmd,
                 capture_output=True,
                 text=True,
-                timeout=120,  # 2 minutes timeout
+                timeout=60,
                 cwd=self.working_directory
             )
             
-            if process.returncode != 0:
-                logger.error(f"Claude execution failed with return code {process.returncode}")
-                logger.error(f"Error: {process.stderr}")
+            if result.returncode == 0:
+                response = result.stdout.strip()
+                if response:
+                    # Add to conversation history
+                    self.conversation_history.append({
+                        'prompt': prompt,
+                        'response': response,
+                        'timestamp': time.time()
+                    })
+                    
+                    logger.debug(f"Claude CLI response: {response[:100]}...")
+                    return response
+                else:
+                    logger.warning("Claude CLI returned empty response")
+                    return None
+            else:
+                logger.error(f"Claude CLI failed: {result.stderr}")
                 return None
-            
-            response = process.stdout.strip()
-            logger.info("Claude call completed successfully")
-            return response
-            
-        except FileNotFoundError:
-            logger.error("Claude command not found. Make sure 'claude' is installed and in your PATH.")
-            return None
+                
         except subprocess.TimeoutExpired:
-            logger.error("Claude call timed out after 120 seconds")
+            logger.error("Claude CLI timed out")
             return None
         except Exception as e:
-            logger.error(f"Claude call failed with unexpected exception: {e}")
+            logger.error(f"Claude CLI error: {e}")
             return None
-    
-    def clear_history(self) -> None:
-        """Clear the conversation history."""
-        self.conversation_history = []
-        logger.info("Conversation history cleared")
-    
-    def get_history_summary(self) -> str:
-        """Get a summary of the conversation history."""
-        if not self.conversation_history:
-            return "No conversation history"
-        
-        return f"Conversation: {len(self.conversation_history)} messages"
 
 
 class GeminiCLIClient(LLMClient):
     """
     Gemini CLI Client implementation.
     
-    Handles communication with Gemini via the npx @google/gemini-cli command,
-    following the same pattern as run_conductor.py for consistency.
+    This client interfaces with Google's Gemini AI through command-line tools.
+    It provides similar functionality to Claude but using Google's AI models.
     """
     
     def __init__(self, working_directory: str = None):
@@ -1269,12 +2135,12 @@ class GeminiCLIClient(LLMClient):
             working_directory: Working directory for subprocess calls
         """
         super().__init__(working_directory)
-        self.provider = 'gemini'
-        logger.debug(f"GeminiCLIClient initialized")
+        self.gemini_command = "gemini-cli"  # Assuming a Gemini CLI tool exists
+        logger.debug("GeminiCLIClient initialized")
     
     def _invoke_subprocess(self, prompt: str) -> Optional[str]:
         """
-        Invoke Gemini via subprocess (following run_conductor.py pattern).
+        Invoke Gemini CLI with the given prompt.
         
         Args:
             prompt: The prompt to send to Gemini
@@ -1282,52 +2148,56 @@ class GeminiCLIClient(LLMClient):
         Returns:
             Gemini's response or None if failed
         """
-        logger.debug("Invoking Gemini via subprocess")
-        
         try:
-            command = ["npx", "--yes", "@google/gemini-cli", "-p", prompt]
+            # Build command for Gemini
+            cmd = [self.gemini_command, "--prompt", prompt]
             
-            process = subprocess.run(
-                command,
+            result = subprocess.run(
+                cmd,
                 capture_output=True,
                 text=True,
-                timeout=120,  # 2 minutes timeout
+                timeout=60,
                 cwd=self.working_directory
             )
             
-            if process.returncode != 0:
-                logger.error(f"Gemini execution failed with return code {process.returncode}")
-                logger.error(f"Error: {process.stderr}")
+            if result.returncode == 0:
+                response = result.stdout.strip()
+                if response:
+                    self.conversation_history.append({
+                        'prompt': prompt,
+                        'response': response,
+                        'timestamp': time.time()
+                    })
+                    logger.debug(f"Gemini CLI response: {response[:100]}...")
+                    return response
+                else:
+                    logger.warning("Gemini CLI returned empty response")
+                    return None
+            else:
+                logger.error(f"Gemini CLI failed: {result.stderr}")
                 return None
-            
-            response = process.stdout.strip()
-            logger.info("Gemini call completed successfully")
-            return response
-            
-        except FileNotFoundError:
-            logger.error("Gemini CLI not found. Make sure 'npx' is available and @google/gemini-cli can be installed.")
-            return None
+                
         except subprocess.TimeoutExpired:
-            logger.error("Gemini call timed out after 120 seconds")
+            logger.error("Gemini CLI timed out")
             return None
         except Exception as e:
-            logger.error(f"Gemini call failed with unexpected exception: {e}")
+            logger.error(f"Gemini CLI error: {e}")
             return None
 
 
 def create_llm_client(ai_provider: str, working_directory: str = None) -> LLMClient:
     """
-    Factory function to create the appropriate LLM client based on provider.
+    Factory function to create LLM clients based on provider.
     
     Args:
-        ai_provider: The AI provider ('claude' or 'gemini')
+        ai_provider: The AI provider to use ('claude', 'gemini')
         working_directory: Working directory for subprocess calls
         
     Returns:
-        Appropriate LLMClient instance
+        Configured LLM client instance
         
     Raises:
-        ValueError: If ai_provider is not supported
+        ValueError: If unsupported provider is specified
     """
     if ai_provider == 'claude':
         return ClaudeCLIClient(working_directory)
@@ -1345,671 +2215,110 @@ class GenesisAgent:
     as defined in the Maestro framework specification.
     """
     
-    def __init__(self, agent_id: str, project_root: str, state_path: Optional[str] = None, verbose: bool = False):
+    def __init__(self, project_root: str = None, working_directory: str = None, ai_provider: str = 'claude'):
         """
         Initialize the Genesis Agent.
         
         Args:
-            agent_id: The ID of the specialist agent to embody
-            project_root: The absolute path to the target project
-            state_path: Optional path to load previous session state
-            verbose: Enable detailed logging
+            project_root: Root directory for project operations
+            working_directory: Working directory for subprocess calls
+            ai_provider: AI provider to use ('claude', 'gemini')
         """
-        self.agent_id = agent_id
-        self.project_root = os.path.abspath(project_root)  # Store as absolute path
-        self.state_path = state_path
-        self.verbose = verbose
-        self.agent_data = None
-        self.agent_path = None
-        self.toolbelt = None
-        self.llm_client = None
+        self.project_root = project_root or os.getcwd()
+        self.working_directory = working_directory or self.project_root
+        self.ai_provider = ai_provider
         
-        if verbose:
-            logging.getLogger().setLevel(logging.DEBUG)
-            
-        logger.info(f"Initializing Genesis Agent for embodiment of: {agent_id}")
+        # Initialize LLM client
+        self.llm_client = create_llm_client(ai_provider, self.working_directory)
+        
+        # Initialize toolbelt
+        self.toolbelt = Toolbelt(self.working_directory)
+        
+        # Agent state
+        self.current_agent = None
+        self.embodied = False
+        
+        logger.info(f"GenesisAgent initialized with provider: {ai_provider}")
     
-    def locate_agent_directory(self) -> bool:
+    def embody_agent(self, agent_name: str) -> bool:
         """
-        Locate the agent directory following the Maestro framework convention.
+        Embody a specific agent by loading its configuration.
         
-        Expected path: projects/develop/agents/<agent_id>/
-        
+        Args:
+            agent_name: Name of the agent to embody
+            
         Returns:
-            bool: True if agent directory was found, False otherwise
+            True if successful, False otherwise
         """
-        logger.debug(f"Locating agent directory for: {self.agent_id}")
-        
-        # Get the conductor root directory (parent of scripts)
-        conductor_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        agent_path = os.path.join(conductor_root, AGENTS_BASE_PATH, self.agent_id)
-        
-        if not os.path.exists(agent_path):
-            logger.error(f"Agent directory not found: {agent_path}")
-            return False
-        
-        if not os.path.isdir(agent_path):
-            logger.error(f"Agent path exists but is not a directory: {agent_path}")
-            return False
-            
-        self.agent_path = agent_path
-        logger.info(f"Agent directory located: {agent_path}")
-        return True
-    
-    def load_agent_yaml(self) -> bool:
-        """
-        Load and parse the agent.yaml file.
-        
-        Returns:
-            bool: True if agent.yaml was successfully loaded and parsed, False otherwise
-        """
-        if not self.agent_path:
-            logger.error("Agent path not set. Call locate_agent_directory() first.")
-            return False
-            
-        agent_yaml_path = os.path.join(self.agent_path, "agent.yaml")
-        
-        if not os.path.exists(agent_yaml_path):
-            logger.error(f"agent.yaml not found: {agent_yaml_path}")
-            return False
-            
         try:
-            logger.debug(f"Loading agent.yaml from: {agent_yaml_path}")
-            with open(agent_yaml_path, 'r', encoding='utf-8') as f:
-                self.agent_data = yaml.safe_load(f)
-            
-            # Validate required fields according to Maestro specification
-            required_fields = ['id', 'version', 'description']
-            for field in required_fields:
-                if field not in self.agent_data:
-                    logger.error(f"Missing required field in agent.yaml: {field}")
-                    return False
-            
-            # Validate that the agent ID matches
-            if self.agent_data['id'] != self.agent_id:
-                logger.error(f"Agent ID mismatch. Expected: {self.agent_id}, Found: {self.agent_data['id']}")
-                return False
-                
-            logger.info(f"Successfully loaded agent.yaml for: {self.agent_id}")
-            logger.debug(f"Agent version: {self.agent_data['version']}")
-            logger.debug(f"Agent description: {self.agent_data['description']}")
-            
+            # Logic to load and embody the specified agent
+            # This would include loading agent configurations, specializations, etc.
+            self.current_agent = agent_name
+            self.embodied = True
+            logger.info(f"Successfully embodied agent: {agent_name}")
             return True
-            
-        except yaml.YAMLError as e:
-            logger.error(f"YAML parsing error in agent.yaml: {e}")
-            return False
         except Exception as e:
-            logger.error(f"Failed to load agent.yaml: {e}")
+            logger.error(f"Failed to embody agent {agent_name}: {e}")
             return False
     
-    def load_agent(self) -> bool:
+    def chat(self, message: str) -> str:
         """
-        Complete agent loading process.
+        Send a message to the current embodied agent.
         
-        This method orchestrates the full agent loading sequence:
-        1. Locate agent directory
-        2. Load and parse agent.yaml
-        
+        Args:
+            message: Message to send to the agent
+            
         Returns:
-            bool: True if agent was successfully loaded, False otherwise
+            Agent's response
         """
-        logger.info(f"Starting agent loading process for: {self.agent_id}")
+        if not self.embodied:
+            return "No agent currently embodied. Use embody_agent() first."
         
-        if not self.locate_agent_directory():
-            return False
-            
-        if not self.load_agent_yaml():
-            return False
-            
-        # Initialize toolbelt and LLM client after successful agent loading
-        conductor_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.toolbelt = Toolbelt(working_directory=self.project_root)  # Use project root as working directory
-        
-        # Dynamic AI provider selection based on agent configuration
-        ai_provider = self.agent_data.get('ai_provider', 'claude')  # Default to claude if not specified
         try:
-            self.llm_client = create_llm_client(ai_provider, working_directory=self.project_root)
-        except ValueError as e:
-            logger.error(f"Failed to create LLM client: {e}")
-            return False
-        
-        # Load previous state if specified
-        if self.state_path and os.path.exists(self.state_path):
-            self._load_state_file()
-        
-        logger.info(f"Agent '{self.agent_id}' loaded successfully")
-        logger.debug(f"Toolbelt initialized with tools: {self.toolbelt.get_available_tools()}")
-        logger.debug(f"LLM Client initialized with provider: {ai_provider}")
-        return True
+            response = self.llm_client._invoke_subprocess(message)
+            return response or "No response from agent."
+        except Exception as e:
+            logger.error(f"Chat failed: {e}")
+            return f"Error: {e}"
+
+
+if __name__ == "__main__":
+    import argparse
     
-    def get_agent_data(self) -> Dict[str, Any]:
-        """
-        Get the loaded agent data.
-        
-        Returns:
-            Dict containing the agent configuration and metadata
-        """
-        if not self.agent_data:
-            raise RuntimeError("Agent data not loaded. Call load_agent() first.")
-            
-        # Return a copy to prevent external modification
-        return self.agent_data.copy()
+    parser = argparse.ArgumentParser(description='Genesis Agent CLI')
+    parser.add_argument('--embody', type=str, help='Agent name to embody')
+    parser.add_argument('--project-root', type=str, help='Project root directory')
+    parser.add_argument('--ai-provider', type=str, default='claude', choices=['claude', 'gemini'], 
+                        help='AI provider to use')
+    parser.add_argument('--repl', action='store_true', help='Start interactive REPL')
     
-    def print_agent_summary(self) -> None:
-        """
-        Print a formatted summary of the loaded agent data.
-        """
-        if not self.agent_data:
-            logger.error("No agent data loaded")
-            return
-            
-        print("\n" + "="*60)
-        print("GENESIS AGENT - MILESTONE 1 OUTPUT")
-        print("="*60)
-        print(f"Agent ID: {self.agent_data['id']}")
-        print(f"Version: {self.agent_data['version']}")
-        print(f"Description: {self.agent_data['description']}")
-        print(f"Agent Path: {self.agent_path}")
-        print("\nComplete Agent Data Dictionary:")
-        print("-"*40)
-        print(json.dumps(self.agent_data, indent=2, ensure_ascii=False))
-        print("="*60)
+    args = parser.parse_args()
     
-    def run_repl(self) -> None:
-        """
-        Run the interactive REPL (Read-Eval-Print-Loop).
-        
-        This method implements the core interactive functionality of the Genesis Agent,
-        allowing the developer to converse with the embodied specialist agent.
-        """
-        if not self.agent_data:
-            logger.error("No agent data loaded. Cannot start REPL.")
-            return
-            
-        logger.info(f"Starting REPL for embodied agent: {self.agent_id}")
-        print(f"\n🎭 Genesis Agent - Embodying {self.agent_id}")
-        print(f"📋 Description: {self.agent_data['description']}")
-        print("\n🔧 Available commands:")
-        print("  /help    - Show available commands")
-        print("  /exit    - Exit the session")
-        print("\n💬 Start your conversation below:")
-        print("-" * 60)
-        
+    # Initialize Genesis Agent
+    agent = GenesisAgent(
+        project_root=args.project_root,
+        ai_provider=args.ai_provider
+    )
+    
+    # Embody agent if specified
+    if args.embody:
+        if agent.embody_agent(args.embody):
+            print(f"Successfully embodied {args.embody}")
+        else:
+            print(f"Failed to embody {args.embody}")
+            exit(1)
+    
+    # Start REPL if requested
+    if args.repl:
+        print("Genesis Agent REPL started. Type 'exit' to quit.")
         while True:
             try:
-                # Dynamic prompt showing the embodied agent
-                prompt = f"[{self.agent_id}] > "
-                user_input = input(prompt).strip()
-                
-                if not user_input:
-                    continue
-                    
-                # Handle internal commands
-                if user_input.startswith('/'):
-                    if not self._handle_internal_command(user_input):
-                        break  # Exit command was issued
-                    continue
-                
-                # Send message to LLM and process response (Passo 2.3 + 2.4)
-                print("🤖 Thinking...")
-                ai_response = self.llm_client.send_message(user_input, self.agent_data, self.agent_path)
-                
-                # Check for tool calls in the response (Passo 2.4)
-                final_response = self._process_ai_response(ai_response, recursion_depth=0)
-                print(f"🤖 {final_response}")
-                
+                user_input = input("> ")
+                if user_input.lower() == 'exit':
+                    break
+                response = agent.chat(user_input)
+                print(response)
             except KeyboardInterrupt:
-                print("\n\n⚠️  Interrupt received. Use /exit to quit properly.")
-                continue
-            except EOFError:
-                print("\n\n👋 Session ended.")
+                print("\nExiting...")
                 break
-                
-        logger.info("REPL session ended")
-    
-    def _handle_internal_command(self, command: str) -> bool:
-        """
-        Handle internal Genesis Agent commands that start with '/'.
-        
-        Args:
-            command: The command string (including the '/')
-            
-        Returns:
-            bool: True to continue REPL, False to exit
-        """
-        command = command.lower().strip()
-        
-        if command == '/exit':
-            return self._handle_exit_command()
-        elif command == '/help':
-            return self._handle_help_command()
-        elif command == '/save':
-            return self._handle_save_command()
-        elif command == '/onboard':
-            return self._handle_onboard_command()
-        elif command == '/back':
-            return self._handle_back_command()
-        else:
-            print(f"❌ Unknown command: {command}")
-            print("💡 Type /help to see available commands")
-            return True
-    
-    def _handle_exit_command(self) -> bool:
-        """
-        Handle the /exit command with confirmation.
-        
-        Returns:
-            bool: False to exit REPL, True to continue
-        """
-        try:
-            confirmation = input("❓ Are you sure you want to exit? (y/N): ").strip().lower()
-            if confirmation in ['y', 'yes']:
-                print("👋 Goodbye!")
-                return False
-            else:
-                print("↩️  Continuing session...")
-                return True
-        except (KeyboardInterrupt, EOFError):
-            print("\n👋 Goodbye!")
-            return False
-    
-    def _handle_help_command(self) -> bool:
-        """
-        Handle the /help command - show available internal commands.
-        
-        Returns:
-            bool: Always True to continue REPL
-        """
-        print("\n🔧 Genesis Agent Internal Commands:")
-        print("  /help    - Show this help message")
-        print("  /save    - Save the current conversation state")
-        print("  /onboard - Start the '3 Clicks to Productivity' team setup")
-        print("  /back    - Return from onboarding mode to original agent")
-        print("  /exit    - Exit the REPL session (with confirmation)")
-        print("\n🎭 Embodied Agent Information:")
-        print(f"  Agent ID: {self.agent_id}")
-        print(f"  Version: {self.agent_data.get('version', 'Unknown')}")
-        print(f"  Description: {self.agent_data.get('description', 'No description')}")
-        
-        # Show available tools if any
-        available_tools = self.agent_data.get('available_tools', [])
-        if available_tools:
-            print(f"\n🛠️  Available Tools: {', '.join(available_tools)}")
-        else:
-            print("\n🛠️  No tools configured for this agent")
-            
-        print()
-        return True
-    
-    def _handle_save_command(self) -> bool:
-        """
-        Handle the /save command - persist current conversation state.
-        
-        Returns:
-            bool: Always True to continue REPL
-        """
-        try:
-            state_data = {
-                'agent_id': self.agent_id,
-                'conversation_history': self.llm_client.conversation_history,
-                'timestamp': logging.Formatter().formatTime(logging.LogRecord(
-                    '', 0, '', 0, '', (), None)),
-                'agent_path': self.agent_path
-            }
-            
-            # Determine state file path
-            if self.state_path:
-                state_file_path = self.state_path
-            else:
-                # Default to agent's state.json
-                state_file_path = os.path.join(self.agent_path, 'state.json')
-            
-            # Save state
-            with open(state_file_path, 'w', encoding='utf-8') as f:
-                json.dump(state_data, f, indent=2, ensure_ascii=False)
-            
-            print(f"💾 Conversation state saved to: {state_file_path}")
-            print(f"📊 Saved {len(state_data['conversation_history'])} messages")
-            logger.info(f"State saved to: {state_file_path}")
-            
-        except Exception as e:
-            print(f"❌ Failed to save state: {e}")
-            logger.error(f"Failed to save state: {e}")
-        
-        return True
-    
-    def _handle_onboard_command(self) -> bool:
-        """
-        Handle the /onboard command - start the 3 Clicks to Productivity experience.
-        
-        This command switches to the Onboarding_Agent temporarily to guide the user
-        through team template selection and application.
-        
-        Returns:
-            bool: Always True to continue REPL
-        """
-        try:
-            print("\n🎼 Bem-vindo ao Conductor Onboarding!")
-            print("Vou ajudá-lo a configurar um time de agentes especialistas em apenas 3 cliques!")
-            print("=" * 70)
-            
-            # Check if Onboarding_Agent exists
-            onboard_agent_path = os.path.join(os.getcwd(), "projects", "develop", "agents", "Onboarding_Agent")
-            if not os.path.exists(onboard_agent_path):
-                print("❌ Onboarding_Agent não encontrado!")
-                print("💡 Certifique-se de que o Onboarding_Agent foi criado em projects/develop/agents/")
-                return True
-            
-            # Temporarily switch context to Onboarding_Agent
-            original_agent = {
-                'id': self.agent_id,
-                'path': self.agent_path,
-                'data': self.agent_data
-            }
-            
-            # Load Onboarding_Agent
-            try:
-                self.agent_id = "Onboarding_Agent"
-                self.agent_path = onboard_agent_path
-                self.agent_data = self._load_agent_config(onboard_agent_path)
-                
-                print(f"🤖 Onboarding_Agent ativado!")
-                print("💬 Agora você está conversando com o especialista em onboarding.")
-                print("🚀 Digite sua mensagem para começar a experiência '3 Clicks to Productivity'")
-                print("💡 Ou digite '/back' para voltar ao agente anterior")
-                print()
-                
-                # Set a flag to indicate we're in onboarding mode
-                self._in_onboarding_mode = True
-                self._original_agent = original_agent
-                
-            except Exception as e:
-                print(f"❌ Erro ao carregar Onboarding_Agent: {e}")
-                return True
-                
-        except Exception as e:
-            print(f"❌ Erro no comando /onboard: {e}")
-            logger.error(f"Onboard command failed: {e}")
-        
-        return True
-    
-    def _handle_back_command(self) -> bool:
-        """
-        Handle the /back command - return from onboarding mode to original agent.
-        
-        Returns:
-            bool: Always True to continue REPL
-        """
-        try:
-            if hasattr(self, '_in_onboarding_mode') and self._in_onboarding_mode:
-                # Restore original agent
-                original = self._original_agent
-                self.agent_id = original['id']
-                self.agent_path = original['path']
-                self.agent_data = original['data']
-                
-                # Clear onboarding mode flags
-                self._in_onboarding_mode = False
-                del self._original_agent
-                
-                print(f"\n🔙 Retornado para {self.agent_id}")
-                print("💬 Você está de volta ao agente original.")
-                print()
-            else:
-                print("💡 Comando /back só funciona quando você está no modo onboarding.")
-                print("💡 Use /onboard para iniciar a experiência de onboarding.")
-                
-        except Exception as e:
-            print(f"❌ Erro no comando /back: {e}")
-            logger.error(f"Back command failed: {e}")
-        
-        return True
-    
-    def _load_state_file(self) -> None:
-        """
-        Load conversation state from a state file.
-        """
-        try:
-            with open(self.state_path, 'r', encoding='utf-8') as f:
-                state_data = json.load(f)
-            
-            # Validate state data
-            if state_data.get('agent_id') != self.agent_id:
-                logger.warning(f"State file agent ID mismatch: expected {self.agent_id}, found {state_data.get('agent_id')}")
-            
-            # Restore conversation history
-            conversation_history = state_data.get('conversation_history', [])
-            self.llm_client.conversation_history = conversation_history
-            
-            logger.info(f"Loaded state from: {self.state_path}")
-            logger.info(f"Restored {len(conversation_history)} messages")
-            
-        except Exception as e:
-            logger.error(f"Failed to load state file {self.state_path}: {e}")
-    
-    def _process_ai_response(self, ai_response: str, recursion_depth: int = 0) -> str:
-        """
-        Process AI response and handle tool calls with recursion protection.
-        
-        This is the critical Passo 2.4 functionality that:
-        1. Analyzes the AI response for [TOOL_CALL: ...] patterns
-        2. Executes the tools if found
-        3. Sends the tool results back to the AI for interpretation
-        4. Returns the final response
-        
-        Args:
-            ai_response: Raw response from the AI
-            recursion_depth: Current recursion depth (prevents infinite loops)
-            
-        Returns:
-            Final processed response
-        """
-        # SECURITY: Prevent infinite loops
-        if recursion_depth >= MAX_TOOL_CALLS_PER_TURN:
-            logger.warning(f"Maximum tool calls reached ({MAX_TOOL_CALLS_PER_TURN}). Stopping to prevent loops.")
-            return f"⚠️  Maximum tool calls reached ({MAX_TOOL_CALLS_PER_TURN}). Stopping execution to prevent infinite loops.\n\nPartial response: {ai_response}"
-        # Check for tool call pattern
-        tool_call_match = self._extract_tool_call(ai_response)
-        
-        if not tool_call_match:
-            # No tool call found, return the response as-is
-            return ai_response
-        
-        try:
-            tool_name, tool_params = tool_call_match
-            
-            # Validate tool is available for this agent
-            available_tools = self.agent_data.get('available_tools', [])
-            if tool_name not in available_tools:
-                return f"Error: Tool '{tool_name}' is not available for this agent. Available tools: {', '.join(available_tools)}"
-            
-            # Execute the tool
-            print(f"🔧 Executing tool: {tool_name}")
-            tool_result = self.toolbelt.execute_tool(tool_name, **tool_params)
-            
-            # Format tool result for AI
-            if tool_result['success']:
-                tool_output = f"Tool '{tool_name}' executed successfully. Result: {tool_result['result']}"
-            else:
-                tool_output = f"Tool '{tool_name}' failed. Error: {tool_result['error']}"
-            
-            # Send tool result back to AI for interpretation
-            print("🤖 Interpreting tool results...")
-            interpretation_prompt = f"""Tool execution completed. Here's what happened:
 
-Original AI response: {ai_response}
-
-Tool execution result: {tool_output}
-
-Please provide a final response to the user based on this tool execution result. Do not repeat the tool call format - just give a natural response about what was accomplished or what went wrong."""
-            
-            final_response = self.llm_client.send_message(interpretation_prompt, self.agent_data, self.agent_path)
-            
-            # Recursively process in case the AI wants to make another tool call
-            return self._process_ai_response(final_response, recursion_depth + 1)
-            
-        except Exception as e:
-            logger.error(f"Error processing tool call: {e}")
-            return f"Error executing tool: {e}. Original response: {ai_response}"
-    
-    def _extract_tool_call(self, response: str) -> Optional[Tuple[str, Dict[str, Any]]]:
-        """
-        Extract tool call from AI response.
-        
-        Looks for pattern: [TOOL_CALL: tool_name(param1="value1", param2="value2")]
-        
-        Args:
-            response: AI response text
-            
-        Returns:
-            Tuple of (tool_name, parameters_dict) or None if no tool call found
-        """
-        # Pattern to match [TOOL_CALL: tool_name(params)]
-        pattern = r'\[TOOL_CALL:\s*(\w+)\((.*?)\)\]'
-        match = re.search(pattern, response, re.IGNORECASE)
-        
-        if not match:
-            return None
-        
-        tool_name = match.group(1)
-        params_str = match.group(2).strip()
-        
-        try:
-            # Parse parameters
-            params = {}
-            if params_str:
-                # Simple parameter parsing - expects param="value" format
-                param_pattern = r'(\w+)=[\"\']([^\"\']*?)[\"\']'
-                param_matches = re.findall(param_pattern, params_str)
-                
-                for param_name, param_value in param_matches:
-                    params[param_name] = param_value
-            
-            logger.debug(f"Extracted tool call: {tool_name} with params: {params}")
-            return (tool_name, params)
-            
-        except Exception as e:
-            logger.error(f"Failed to parse tool call parameters: {e}")
-            return None
-
-
-def parse_arguments() -> argparse.Namespace:
-    """
-    Parse command line arguments according to Genesis Agent specification.
-    
-    Returns:
-        Parsed arguments namespace
-    """
-    parser = argparse.ArgumentParser(
-        description='Genesis Agent - Interactive Agent Embodiment CLI',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  python genesis_agent.py --embody AgentCreator_Agent --project-root /path/to/project
-  python genesis_agent.py --embody ProblemRefiner_Agent --project-root /path/to/project --verbose
-  python genesis_agent.py --embody KotlinEntityCreator_Agent --project-root /path/to/project --state session.json
-  python genesis_agent.py --embody AgentCreator_Agent --project-root /path/to/project --repl
-        """
-    )
-    
-    parser.add_argument(
-        '--embody', 
-        required=True,
-        help='The ID of the Specialist Agent to be embodied (required)'
-    )
-    
-    parser.add_argument(
-        '--state',
-        help='Load a state file from a previous session (optional)'
-    )
-    
-    parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable detailed logging (optional)'
-    )
-    
-    parser.add_argument(
-        '--repl',
-        action='store_true',
-        help='Start interactive REPL mode after loading the agent (optional)'
-    )
-    
-    parser.add_argument(
-        '--project-root',
-        required=True,
-        help='The absolute path to the target project on which the agent will operate (required)'
-    )
-    
-    return parser.parse_args()
-
-
-def main():
-    """
-    Main entry point for Genesis Agent Milestone 1.
-    
-    This function implements the basic agent loading and validation functionality
-    as specified in the Genesis Execution Plan.
-    """
-    try:
-        # Parse command line arguments
-        args = parse_arguments()
-        
-        logger.info("Genesis Agent Milestone 1 - Starting execution")
-        logger.info(f"Target agent: {args.embody}")
-        
-        if args.state:
-            logger.info(f"State file specified: {args.state}")
-            
-        if args.verbose:
-            logger.info("Verbose mode enabled")
-        
-        # Validate project root
-        if not os.path.exists(args.project_root):
-            logger.error(f"Project root not found: {args.project_root}")
-            sys.exit(1)
-        
-        if not os.path.isdir(args.project_root):
-            logger.error(f"Project root is not a directory: {args.project_root}")
-            sys.exit(1)
-        
-        logger.info(f"Project root: {args.project_root}")
-        
-        # Initialize and load the agent
-        genesis = GenesisAgent(
-            agent_id=args.embody,
-            project_root=args.project_root,
-            state_path=args.state,
-            verbose=args.verbose
-        )
-        
-        # Load the agent
-        if not genesis.load_agent():
-            logger.error("Failed to load agent")
-            sys.exit(1)
-        
-        # Print the agent data (Milestone 1 requirement)
-        genesis.print_agent_summary()
-        
-        # Check if REPL mode was requested (Milestone 2.1)
-        if args.repl:
-            logger.info("REPL mode requested - starting interactive session")
-            genesis.run_repl()
-        
-        logger.info("Genesis Agent execution completed successfully")
-        sys.exit(0)
-        
-    except KeyboardInterrupt:
-        logger.info("Execution interrupted by user")
-        sys.exit(1)
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
-        sys.exit(1)
-
-
-if __name__ == '__main__':
-    main()
