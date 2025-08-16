@@ -1,0 +1,19 @@
+id: PythonDocumenter_Agent
+version: "1.0"
+description: "Analisa classes Python e gera documentação automática completa para elas"
+
+tools:
+  - read_file
+  - write_file
+  - search_file_content
+  - run_shell_command
+
+config:
+  output_format: "markdown"
+  documentation_style: "formal_detailed"
+
+metadata:
+  author: "AgentCreator_Agent"
+  created_date: "2025-08-16"
+  category: "documentation"
+  tags: ["python", "documentation", "markdown", "classes", "functions"]

@@ -23,6 +23,15 @@ import json
 
 # Configuration Constants
 AGENTS_BASE_PATH = os.path.join("projects", "develop", "agents")
+MAX_TOOL_CALLS_PER_TURN = 5  # Limit to prevent infinite loops
+MAX_CONVERSATION_HISTORY = 50  # Sliding window for conversation history
+
+# Allowlist of safe shell commands for agent operations
+SAFE_SHELL_COMMANDS = {
+    'ls', 'mkdir', 'cat', 'echo', 'pwd', 'find', 'grep', 'head', 'tail', 
+    'wc', 'sort', 'uniq', 'diff', 'tree', 'touch', 'cp', 'mv', 'python', 
+    'node', 'npm', 'git', 'which', 'type'
+}
 
 # Configure logging
 logging.basicConfig(
@@ -190,16 +199,30 @@ class Toolbelt:
             ValueError: If command is not allowed
             subprocess.TimeoutExpired: If command times out
         """
-        # Security: Check for potentially dangerous commands
+        # SECURITY: Multi-layer validation
+        
+        # 1. Extract the base command (first word)
+        base_command = command.strip().split()[0] if command.strip() else ""
+        
+        # 2. Check if base command is in allowlist
+        if base_command not in SAFE_SHELL_COMMANDS:
+            raise ValueError(f"Command '{base_command}' not in allowlist of safe commands. Allowed: {', '.join(sorted(SAFE_SHELL_COMMANDS))}")
+        
+        # 3. Check for dangerous patterns (additional layer)
         dangerous_patterns = [
             'rm -rf', 'sudo', 'su ', 'chmod +x', 'curl', 'wget', 
-            '>', '>>', '|', '&', ';', '$(', '`'
+            '>', '>>', '|', '&', ';', '$(', '`', 'rm ', '--force',
+            '/dev/', '/proc/', '/sys/', '~/', '../'
         ]
         
         command_lower = command.lower()
         for pattern in dangerous_patterns:
             if pattern in command_lower:
                 raise ValueError(f"Command contains potentially dangerous pattern '{pattern}': {command}")
+        
+        # 4. Additional safety: prevent path traversal attempts
+        if '..' in command or '~' in command:
+            raise ValueError(f"Command contains path traversal or home directory access: {command}")
         
         logger.debug(f"Executing shell command: {command}")
         
@@ -294,7 +317,7 @@ class LLMClient:
     
     def add_message(self, role: str, content: str) -> None:
         """
-        Add a message to the conversation history.
+        Add a message to the conversation history with sliding window management.
         
         Args:
             role: Message role ('user' or 'assistant')
@@ -306,6 +329,30 @@ class LLMClient:
             'timestamp': logging.Formatter().formatTime(logging.LogRecord(
                 '', 0, '', 0, '', (), None))
         })
+        
+        # MEMORY MANAGEMENT: Implement sliding window
+        if len(self.conversation_history) > MAX_CONVERSATION_HISTORY:
+            # Keep the first few messages for context and the most recent ones
+            context_messages = 2  # Keep first 2 messages for context
+            recent_messages = MAX_CONVERSATION_HISTORY - context_messages
+            
+            # Preserve context + recent messages
+            preserved_history = (
+                self.conversation_history[:context_messages] + 
+                self.conversation_history[-recent_messages:]
+            )
+            
+            # Add a marker showing truncation
+            if len(self.conversation_history) > MAX_CONVERSATION_HISTORY + 1:  # Only add marker once
+                truncation_marker = {
+                    'role': 'system',
+                    'content': f'[Conversation truncated - {len(self.conversation_history) - MAX_CONVERSATION_HISTORY} messages removed]',
+                    'timestamp': logging.Formatter().formatTime(logging.LogRecord('', 0, '', 0, '', (), None))
+                }
+                preserved_history.insert(context_messages, truncation_marker)
+            
+            self.conversation_history = preserved_history
+            logger.info(f"Conversation history truncated to {len(self.conversation_history)} messages")
         
         logger.debug(f"Added {role} message to conversation history ({len(content)} chars)")
     
@@ -679,7 +726,7 @@ class GenesisAgent:
                 ai_response = self.llm_client.send_message(user_input, self.agent_data, self.agent_path)
                 
                 # Check for tool calls in the response (Passo 2.4)
-                final_response = self._process_ai_response(ai_response)
+                final_response = self._process_ai_response(ai_response, recursion_depth=0)
                 print(f"🤖 {final_response}")
                 
             except KeyboardInterrupt:
@@ -818,9 +865,9 @@ class GenesisAgent:
         except Exception as e:
             logger.error(f"Failed to load state file {self.state_path}: {e}")
     
-    def _process_ai_response(self, ai_response: str) -> str:
+    def _process_ai_response(self, ai_response: str, recursion_depth: int = 0) -> str:
         """
-        Process AI response and handle tool calls.
+        Process AI response and handle tool calls with recursion protection.
         
         This is the critical Passo 2.4 functionality that:
         1. Analyzes the AI response for [TOOL_CALL: ...] patterns
@@ -830,10 +877,15 @@ class GenesisAgent:
         
         Args:
             ai_response: Raw response from the AI
+            recursion_depth: Current recursion depth (prevents infinite loops)
             
         Returns:
             Final processed response
         """
+        # SECURITY: Prevent infinite loops
+        if recursion_depth >= MAX_TOOL_CALLS_PER_TURN:
+            logger.warning(f"Maximum tool calls reached ({MAX_TOOL_CALLS_PER_TURN}). Stopping to prevent loops.")
+            return f"⚠️  Maximum tool calls reached ({MAX_TOOL_CALLS_PER_TURN}). Stopping execution to prevent infinite loops.\n\nPartial response: {ai_response}"
         # Check for tool call pattern
         tool_call_match = self._extract_tool_call(ai_response)
         
@@ -872,7 +924,7 @@ Please provide a final response to the user based on this tool execution result.
             final_response = self.llm_client.send_message(interpretation_prompt, self.agent_data, self.agent_path)
             
             # Recursively process in case the AI wants to make another tool call
-            return self._process_ai_response(final_response)
+            return self._process_ai_response(final_response, recursion_depth + 1)
             
         except Exception as e:
             logger.error(f"Error processing tool call: {e}")
