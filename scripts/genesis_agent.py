@@ -2081,7 +2081,7 @@ class ClaudeCLIClient(LLMClient):
         """
         try:
             # Build command with proper arguments
-            cmd = [self.claude_command, "--text", prompt]
+            cmd = [self.claude_command, "--print", prompt]
             
             # Execute Claude CLI with timeout
             result = subprocess.run(

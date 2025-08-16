@@ -68,7 +68,7 @@ python scripts/run_conductor.py --projeto /path/to/your/project implementation_p
 Nossa arquitetura é projetada para ser robusta, escalável e segura. Para entender completamente o design e as melhores práticas, consulte nossos documentos principais:
 
 - **[📖 Especificação Arquitetural "Maestro"](docs/GEMINI_ARCH_SPEC.md)**: O blueprint da nossa arquitetura de agentes.
-- **[🚀 Plano de Execução do Gênesis](docs/GENESIS_EXECUTION_PLAN.md)**: O design técnico detalhado do motor interativo.
+- **[🚀 Design Técnico do Genesis](docs/GENESIS_TECHNICAL_DESIGN.md)**: Arquitetura detalhada do motor interativo.
 - **[Guia de Onboarding de Projetos](docs/ONBOARDING_NEW_PROJECT.md)**: Guia para integrar um novo projeto.
 - **[Guia de Design de Agentes](docs/AGENT_DESIGN_PATTERNS.md)**: Melhores práticas para criar novos agentes.
 
