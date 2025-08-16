@@ -295,25 +295,56 @@ class Toolbelt:
 
 class LLMClient:
     """
-    LLM Client for communicating with Claude via subprocess.
+    Base LLM Client interface for multi-provider support.
     
-    This class wraps the Claude CLI calls and manages conversation history,
-    following the same pattern as run_conductor.py for consistency.
+    This abstract base class defines the common interface for different AI providers,
+    enabling dynamic provider selection based on agent configuration.
     """
     
-    def __init__(self, provider: str = 'claude', working_directory: str = None):
+    def __init__(self, working_directory: str = None):
         """
-        Initialize the LLM Client.
+        Initialize the base LLM Client.
         
         Args:
-            provider: AI provider (currently only 'claude' supported)
             working_directory: Working directory for subprocess calls
         """
-        self.provider = provider
         self.working_directory = working_directory or os.getcwd()
         self.conversation_history = []
         
-        logger.debug(f"LLMClient initialized with provider: {provider}")
+        logger.debug(f"LLMClient base initialized with working directory: {self.working_directory}")
+    
+    def _invoke_subprocess(self, prompt: str) -> Optional[str]:
+        """
+        Abstract method for invoking AI via subprocess.
+        Must be implemented by provider-specific subclasses.
+        
+        Args:
+            prompt: The prompt to send to the AI provider
+            
+        Returns:
+            AI response or None if failed
+        """
+        raise NotImplementedError("Provider-specific subclasses must implement _invoke_subprocess")
+
+
+class ClaudeCLIClient(LLMClient):
+    """
+    Claude CLI Client implementation.
+    
+    Handles communication with Claude via the claude CLI command,
+    following the same pattern as run_conductor.py for consistency.
+    """
+    
+    def __init__(self, working_directory: str = None):
+        """
+        Initialize the Claude CLI Client.
+        
+        Args:
+            working_directory: Working directory for subprocess calls
+        """
+        super().__init__(working_directory)
+        self.provider = 'claude'
+        logger.debug(f"ClaudeCLIClient initialized")
     
     def add_message(self, role: str, content: str) -> None:
         """
@@ -440,7 +471,7 @@ Current user message: {user_message}
 Please respond as the {agent_data['id']} agent:"""
             
             # Call Claude via subprocess
-            response = self._invoke_claude_subprocess(full_prompt)
+            response = self._invoke_subprocess(full_prompt)
             
             if response:
                 # Add assistant response to history
@@ -457,7 +488,7 @@ Please respond as the {agent_data['id']} agent:"""
             self.add_message('assistant', error_msg)
             return error_msg
     
-    def _invoke_claude_subprocess(self, prompt: str) -> Optional[str]:
+    def _invoke_subprocess(self, prompt: str) -> Optional[str]:
         """
         Invoke Claude via subprocess (following run_conductor.py pattern).
         
@@ -470,11 +501,7 @@ Please respond as the {agent_data['id']} agent:"""
         logger.debug("Invoking Claude via subprocess")
         
         try:
-            if self.provider == 'claude':
-                command = ["claude", "--print", "--dangerously-skip-permissions", prompt]
-            else:
-                logger.error(f"Unsupported provider: {self.provider}")
-                return None
+            command = ["claude", "--print", "--dangerously-skip-permissions", prompt]
             
             process = subprocess.run(
                 command,
@@ -516,6 +543,90 @@ Please respond as the {agent_data['id']} agent:"""
         return f"Conversation: {len(self.conversation_history)} messages"
 
 
+class GeminiCLIClient(LLMClient):
+    """
+    Gemini CLI Client implementation.
+    
+    Handles communication with Gemini via the npx @google/gemini-cli command,
+    following the same pattern as run_conductor.py for consistency.
+    """
+    
+    def __init__(self, working_directory: str = None):
+        """
+        Initialize the Gemini CLI Client.
+        
+        Args:
+            working_directory: Working directory for subprocess calls
+        """
+        super().__init__(working_directory)
+        self.provider = 'gemini'
+        logger.debug(f"GeminiCLIClient initialized")
+    
+    def _invoke_subprocess(self, prompt: str) -> Optional[str]:
+        """
+        Invoke Gemini via subprocess (following run_conductor.py pattern).
+        
+        Args:
+            prompt: The prompt to send to Gemini
+            
+        Returns:
+            Gemini's response or None if failed
+        """
+        logger.debug("Invoking Gemini via subprocess")
+        
+        try:
+            command = ["npx", "--yes", "@google/gemini-cli", "-p", prompt]
+            
+            process = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=120,  # 2 minutes timeout
+                cwd=self.working_directory
+            )
+            
+            if process.returncode != 0:
+                logger.error(f"Gemini execution failed with return code {process.returncode}")
+                logger.error(f"Error: {process.stderr}")
+                return None
+            
+            response = process.stdout.strip()
+            logger.info("Gemini call completed successfully")
+            return response
+            
+        except FileNotFoundError:
+            logger.error("Gemini CLI not found. Make sure 'npx' is available and @google/gemini-cli can be installed.")
+            return None
+        except subprocess.TimeoutExpired:
+            logger.error("Gemini call timed out after 120 seconds")
+            return None
+        except Exception as e:
+            logger.error(f"Gemini call failed with unexpected exception: {e}")
+            return None
+
+
+def create_llm_client(ai_provider: str, working_directory: str = None) -> LLMClient:
+    """
+    Factory function to create the appropriate LLM client based on provider.
+    
+    Args:
+        ai_provider: The AI provider ('claude' or 'gemini')
+        working_directory: Working directory for subprocess calls
+        
+    Returns:
+        Appropriate LLMClient instance
+        
+    Raises:
+        ValueError: If ai_provider is not supported
+    """
+    if ai_provider == 'claude':
+        return ClaudeCLIClient(working_directory)
+    elif ai_provider == 'gemini':
+        return GeminiCLIClient(working_directory)
+    else:
+        raise ValueError(f"Unsupported AI provider: {ai_provider}. Supported providers: 'claude', 'gemini'")
+
+
 class GenesisAgent:
     """
     Main Genesis Agent class implementing the "embodiment" functionality.
@@ -524,16 +635,18 @@ class GenesisAgent:
     as defined in the Maestro framework specification.
     """
     
-    def __init__(self, agent_id: str, state_path: Optional[str] = None, verbose: bool = False):
+    def __init__(self, agent_id: str, project_root: str, state_path: Optional[str] = None, verbose: bool = False):
         """
         Initialize the Genesis Agent.
         
         Args:
             agent_id: The ID of the specialist agent to embody
+            project_root: The absolute path to the target project
             state_path: Optional path to load previous session state
             verbose: Enable detailed logging
         """
         self.agent_id = agent_id
+        self.project_root = os.path.abspath(project_root)  # Store as absolute path
         self.state_path = state_path
         self.verbose = verbose
         self.agent_data = None
@@ -641,8 +754,15 @@ class GenesisAgent:
             
         # Initialize toolbelt and LLM client after successful agent loading
         conductor_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.toolbelt = Toolbelt(working_directory=conductor_root)
-        self.llm_client = LLMClient(provider='claude', working_directory=conductor_root)
+        self.toolbelt = Toolbelt(working_directory=self.project_root)  # Use project root as working directory
+        
+        # Dynamic AI provider selection based on agent configuration
+        ai_provider = self.agent_data.get('ai_provider', 'claude')  # Default to claude if not specified
+        try:
+            self.llm_client = create_llm_client(ai_provider, working_directory=self.project_root)
+        except ValueError as e:
+            logger.error(f"Failed to create LLM client: {e}")
+            return False
         
         # Load previous state if specified
         if self.state_path and os.path.exists(self.state_path):
@@ -650,7 +770,7 @@ class GenesisAgent:
         
         logger.info(f"Agent '{self.agent_id}' loaded successfully")
         logger.debug(f"Toolbelt initialized with tools: {self.toolbelt.get_available_tools()}")
-        logger.debug(f"LLM Client initialized with provider: claude")
+        logger.debug(f"LLM Client initialized with provider: {ai_provider}")
         return True
     
     def get_agent_data(self) -> Dict[str, Any]:
@@ -983,10 +1103,10 @@ def parse_arguments() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python genesis_agent.py --embody AgentCreator_Agent
-  python genesis_agent.py --embody ProblemRefiner_Agent --verbose
-  python genesis_agent.py --embody KotlinEntityCreator_Agent --state session.json
-  python genesis_agent.py --embody AgentCreator_Agent --repl
+  python genesis_agent.py --embody AgentCreator_Agent --project-root /path/to/project
+  python genesis_agent.py --embody ProblemRefiner_Agent --project-root /path/to/project --verbose
+  python genesis_agent.py --embody KotlinEntityCreator_Agent --project-root /path/to/project --state session.json
+  python genesis_agent.py --embody AgentCreator_Agent --project-root /path/to/project --repl
         """
     )
     
@@ -1013,6 +1133,12 @@ Examples:
         help='Start interactive REPL mode after loading the agent (optional)'
     )
     
+    parser.add_argument(
+        '--project-root',
+        required=True,
+        help='The absolute path to the target project on which the agent will operate (required)'
+    )
+    
     return parser.parse_args()
 
 
@@ -1036,9 +1162,21 @@ def main():
         if args.verbose:
             logger.info("Verbose mode enabled")
         
+        # Validate project root
+        if not os.path.exists(args.project_root):
+            logger.error(f"Project root not found: {args.project_root}")
+            sys.exit(1)
+        
+        if not os.path.isdir(args.project_root):
+            logger.error(f"Project root is not a directory: {args.project_root}")
+            sys.exit(1)
+        
+        logger.info(f"Project root: {args.project_root}")
+        
         # Initialize and load the agent
         genesis = GenesisAgent(
             agent_id=args.embody,
+            project_root=args.project_root,
             state_path=args.state,
             verbose=args.verbose
         )

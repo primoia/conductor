@@ -4,6 +4,9 @@ id: AgentCreator_Agent
 version: 1.0
 description: "Um agente especialista em projetar e criar novos Agentes Especialistas para o framework Maestro."
 
+# NEW MANDATORY KEY - Defines which AI engine to use for this agent
+ai_provider: 'claude'
+
 # Caminho para o prompt que define a personalidade e o comportamento
 persona_prompt_path: "persona.md"
 
