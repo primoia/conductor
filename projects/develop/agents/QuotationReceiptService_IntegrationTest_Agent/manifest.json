@@ -1,8 +1,0 @@
-{
-  "uuid": "QuotationReceiptService_IntegrationTest_Agent",
-  "human_name": "Mantenedor do Teste de Integração para QuotationReceiptService",
-  "agent_type": "TestAgent",
-  "domain_ownership": "/mnt/ramdisk/develop/nex-web-backend/src/test/kotlin/br/com/nextar/web/service/receipt/QuotationReceiptServiceIntegrationTest.kt",
-  "version": "1.0",
-  "tags": ["kotlin", "test", "integration", "quotation", "testcontainers", "mongodb"]
-}
