@@ -17,9 +17,12 @@ import logging
 import subprocess
 import tempfile
 import re
+import copy
+import shutil
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union, Tuple
 import json
+from datetime import datetime
 
 # Configuration Constants
 AGENTS_BASE_PATH = os.path.join("projects", "develop", "agents")
@@ -32,6 +35,25 @@ SAFE_SHELL_COMMANDS = {
     'wc', 'sort', 'uniq', 'diff', 'tree', 'touch', 'cp', 'mv', 'python', 
     'node', 'npm', 'git', 'which', 'type'
 }
+
+# Security Configuration for Team Templates
+ALLOWED_AGENT_FIELDS = {
+    'id', 'version', 'description', 'ai_provider', 'persona_prompt_path', 
+    'state_file_path', 'execution_task', 'available_tools', 'test_framework'
+}
+
+# Dangerous patterns in execution_task and other fields
+DANGEROUS_PATTERNS = [
+    r'rm\s+-rf?\s+/', r'sudo\s+', r'chmod\s+777', r'>/dev/', r'\|\s*sh\b',
+    r'eval\s*\(', r'exec\s*\(', r'system\s*\(', r'`[^`]*`', r'\$\([^)]*\)',
+    r'__import__', r'open\s*\(.*["\']w', r'delete\s+from', r'drop\s+table',
+    r'truncate\s+table', r'alter\s+table', r'create\s+user', r'grant\s+all'
+]
+
+# Maximum sizes and limits for security
+MAX_TEMPLATE_SIZE = 50000  # 50KB max for team template files
+MAX_EXECUTION_TASK_LENGTH = 2000  # 2KB max for execution tasks
+MAX_AGENTS_PER_TEMPLATE = 20  # Maximum agents per team template
 
 # Configure logging
 logging.basicConfig(
@@ -344,32 +366,186 @@ class Toolbelt:
                 'available_templates': []
             }
     
-    def apply_team_template(self, team_id: str, project_root: str, env: str, project_name: str = None) -> Dict[str, Any]:
+    def _validate_template_security(self, template_data: Dict, template_path: str) -> Dict[str, Any]:
         """
-        Apply a team template to a specific project.
+        Comprehensive security validation for team templates.
         
         Args:
-            team_id: ID of the team template to apply
-            project_root: Absolute path to the target project
-            env: Environment (develop, main, production)
-            project_name: Name of the project (auto-inferred if not provided)
+            template_data: Parsed team template YAML data
+            template_path: Path to the template file for size checking
             
         Returns:
-            Dict containing success status, created agents, and operation details
+            Dict with success status and detailed error information
         """
         try:
-            # Validate inputs
+            # 1. File size validation
+            if os.path.exists(template_path):
+                file_size = os.path.getsize(template_path)
+                if file_size > MAX_TEMPLATE_SIZE:
+                    return {
+                        'success': False,
+                        'error': f'Template file too large: {file_size} bytes (max: {MAX_TEMPLATE_SIZE})',
+                        'security_issue': 'file_size_exceeded'
+                    }
+            
+            # 2. Template structure validation
+            if not isinstance(template_data, dict):
+                return {
+                    'success': False,
+                    'error': 'Template must be a valid YAML dictionary',
+                    'security_issue': 'invalid_structure'
+                }
+            
+            # 3. Required fields validation
+            required_fields = ['id', 'name', 'description', 'agents']
+            for field in required_fields:
+                if field not in template_data:
+                    return {
+                        'success': False,
+                        'error': f'Missing required field: {field}',
+                        'security_issue': 'missing_required_field'
+                    }
+            
+            # 4. Agents list validation
+            agents = template_data.get('agents', [])
+            if not isinstance(agents, list):
+                return {
+                    'success': False,
+                    'error': 'Agents field must be a list',
+                    'security_issue': 'invalid_agents_structure'
+                }
+            
+            if len(agents) > MAX_AGENTS_PER_TEMPLATE:
+                return {
+                    'success': False,
+                    'error': f'Too many agents: {len(agents)} (max: {MAX_AGENTS_PER_TEMPLATE})',
+                    'security_issue': 'too_many_agents'
+                }
+            
+            # 5. Individual agent validation
+            for i, agent_config in enumerate(agents):
+                if not isinstance(agent_config, dict):
+                    return {
+                        'success': False,
+                        'error': f'Agent {i} must be a dictionary',
+                        'security_issue': 'invalid_agent_structure'
+                    }
+                
+                if 'id' not in agent_config:
+                    return {
+                        'success': False,
+                        'error': f'Agent {i} missing required id field',
+                        'security_issue': 'missing_agent_id'
+                    }
+                
+                # Validate config_overrides
+                overrides = agent_config.get('config_overrides', {})
+                if not isinstance(overrides, dict):
+                    return {
+                        'success': False,
+                        'error': f'Agent {agent_config["id"]} config_overrides must be a dictionary',
+                        'security_issue': 'invalid_overrides_structure'
+                    }
+                
+                # Check for dangerous fields in overrides
+                for key, value in overrides.items():
+                    if key not in ALLOWED_AGENT_FIELDS:
+                        return {
+                            'success': False,
+                            'error': f'Dangerous field in config_overrides: {key}',
+                            'security_issue': 'dangerous_override_field'
+                        }
+                    
+                    # Special validation for execution_task
+                    if key == 'execution_task' and isinstance(value, str):
+                        if len(value) > MAX_EXECUTION_TASK_LENGTH:
+                            return {
+                                'success': False,
+                                'error': f'Execution task too long: {len(value)} chars (max: {MAX_EXECUTION_TASK_LENGTH})',
+                                'security_issue': 'execution_task_too_long'
+                            }
+                        
+                        # Check for dangerous patterns
+                        for pattern in DANGEROUS_PATTERNS:
+                            if re.search(pattern, value, re.IGNORECASE):
+                                return {
+                                    'success': False,
+                                    'error': f'Dangerous pattern detected in execution_task: {pattern}',
+                                    'security_issue': 'dangerous_execution_pattern'
+                                }
+            
+            # 6. Workflows validation
+            workflows = template_data.get('workflows', [])
+            if workflows and not isinstance(workflows, list):
+                return {
+                    'success': False,
+                    'error': 'Workflows field must be a list',
+                    'security_issue': 'invalid_workflows_structure'
+                }
+            
+            for workflow in workflows:
+                if not isinstance(workflow, dict) or 'id' not in workflow or 'path' not in workflow:
+                    return {
+                        'success': False,
+                        'error': 'Invalid workflow configuration',
+                        'security_issue': 'invalid_workflow_structure'
+                    }
+                
+                # Validate workflow path
+                workflow_path = workflow['path']
+                if '..' in workflow_path or workflow_path.startswith('/'):
+                    return {
+                        'success': False,
+                        'error': f'Dangerous workflow path: {workflow_path}',
+                        'security_issue': 'dangerous_workflow_path'
+                    }
+            
+            return {'success': True}
+            
+        except Exception as e:
+            logger.error(f"Security validation failed: {e}")
+            return {
+                'success': False,
+                'error': f"Security validation error: {str(e)}",
+                'security_issue': 'validation_exception'
+            }
+    
+    def _validate_pre_application(self, team_id: str, project_root: str, env: str, project_name: str) -> Dict[str, Any]:
+        """
+        Pre-application validation to ensure operation can complete successfully.
+        
+        Args:
+            team_id: ID of the team template
+            project_root: Target project root directory
+            env: Environment name
+            project_name: Project name
+            
+        Returns:
+            Dict with validation results and agent availability info
+        """
+        try:
+            validation_result = {
+                'success': True,
+                'available_agents': [],
+                'missing_agents': [],
+                'existing_agents': [],
+                'warnings': []
+            }
+            
+            # 1. Validate project root
             if not os.path.exists(project_root):
                 return {
                     'success': False,
                     'error': f'Project root does not exist: {project_root}'
                 }
             
-            # Auto-infer project name if not provided
-            if not project_name:
-                project_name = os.path.basename(project_root.rstrip('/'))
+            if not os.access(project_root, os.W_OK):
+                return {
+                    'success': False,
+                    'error': f'No write permission to project root: {project_root}'
+                }
             
-            # Load team template
+            # 2. Load and validate team template
             teams_dir = os.path.join(os.getcwd(), "config", "teams")
             template_path = os.path.join(teams_dir, f"{team_id}.yaml")
             
@@ -382,108 +558,360 @@ class Toolbelt:
             with open(template_path, 'r', encoding='utf-8') as f:
                 template_data = yaml.safe_load(f)
             
-            # Create target directory structure
+            # 3. Security validation
+            security_result = self._validate_template_security(template_data, template_path)
+            if not security_result['success']:
+                return security_result
+            
+            # 4. Check agent availability
+            target_agents_dir = os.path.join(project_root, "projects", env, project_name, "agents")
+            
+            for agent_config in template_data.get('agents', []):
+                agent_id = agent_config['id']
+                
+                # Check if source agent exists
+                source_agent_path = os.path.join(os.getcwd(), "projects", "develop", "agents", agent_id, "agent.yaml")
+                if os.path.exists(source_agent_path):
+                    validation_result['available_agents'].append(agent_id)
+                else:
+                    validation_result['missing_agents'].append(agent_id)
+                
+                # Check if target agent already exists
+                target_agent_dir = os.path.join(target_agents_dir, agent_id)
+                if os.path.exists(target_agent_dir):
+                    validation_result['existing_agents'].append(agent_id)
+                    validation_result['warnings'].append(f'Agent {agent_id} already exists and will be skipped')
+            
+            # 5. Final validation
+            if validation_result['missing_agents']:
+                return {
+                    'success': False,
+                    'error': f'Missing source agents: {", ".join(validation_result["missing_agents"])}',
+                    'missing_agents': validation_result['missing_agents']
+                }
+            
+            return validation_result
+            
+        except Exception as e:
+            logger.error(f"Pre-application validation failed: {e}")
+            return {
+                'success': False,
+                'error': f"Pre-application validation error: {str(e)}"
+            }
+    
+    def _deep_merge_dict(self, base: Dict, override: Dict) -> Dict:
+        """
+        Recursively merge two dictionaries with intelligent conflict resolution.
+        
+        Args:
+            base: Base dictionary
+            override: Override dictionary
+            
+        Returns:
+            Merged dictionary
+        """
+        merged = copy.deepcopy(base)
+        
+        for key, value in override.items():
+            if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+                merged[key] = self._deep_merge_dict(merged[key], value)
+            elif key in merged and isinstance(merged[key], list) and isinstance(value, list):
+                # For lists, append without duplicates for tools, replace for others
+                if key == 'available_tools':
+                    merged[key] = list(set(merged[key] + value))
+                else:
+                    merged[key] = value
+            else:
+                merged[key] = value
+        
+        return merged
+    
+    def _apply_config_overrides(self, base_config: Dict, overrides: Dict) -> Dict:
+        """
+        Apply config overrides with deep merge and security validation.
+        
+        Args:
+            base_config: Base agent configuration
+            overrides: Configuration overrides to apply
+            
+        Returns:
+            Merged configuration
+        """
+        # Validate override fields
+        for key in overrides.keys():
+            if key not in ALLOWED_AGENT_FIELDS:
+                logger.warning(f"Skipping unsafe override field: {key}")
+                continue
+        
+        # Filter out unsafe overrides
+        safe_overrides = {k: v for k, v in overrides.items() if k in ALLOWED_AGENT_FIELDS}
+        
+        return self._deep_merge_dict(base_config, safe_overrides)
+    
+    def _create_backup_snapshot(self, project_root: str, env: str, project_name: str) -> str:
+        """
+        Create a backup snapshot before applying template.
+        
+        Args:
+            project_root: Project root directory
+            env: Environment name
+            project_name: Project name
+            
+        Returns:
+            Backup ID for rollback
+        """
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_id = f"template_backup_{timestamp}"
+            
+            target_dir = os.path.join(project_root, "projects", env, project_name)
+            if os.path.exists(target_dir):
+                backup_dir = os.path.join(project_root, ".conductor_backups", backup_id)
+                os.makedirs(backup_dir, exist_ok=True)
+                shutil.copytree(target_dir, os.path.join(backup_dir, "agents"), dirs_exist_ok=True)
+                
+                logger.info(f"Created backup snapshot: {backup_id}")
+            
+            return backup_id
+            
+        except Exception as e:
+            logger.error(f"Failed to create backup snapshot: {e}")
+            return ""
+    
+    def _rollback_to_snapshot(self, project_root: str, env: str, project_name: str, backup_id: str) -> bool:
+        """
+        Rollback to a previous backup snapshot.
+        
+        Args:
+            project_root: Project root directory
+            env: Environment name
+            project_name: Project name
+            backup_id: Backup ID to restore
+            
+        Returns:
+            True if rollback successful, False otherwise
+        """
+        try:
+            backup_dir = os.path.join(project_root, ".conductor_backups", backup_id)
+            if not os.path.exists(backup_dir):
+                logger.error(f"Backup not found: {backup_id}")
+                return False
+            
+            target_dir = os.path.join(project_root, "projects", env, project_name)
+            if os.path.exists(target_dir):
+                shutil.rmtree(target_dir)
+            
+            shutil.copytree(os.path.join(backup_dir, "agents"), target_dir)
+            logger.info(f"Rollback completed: {backup_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Rollback failed: {e}")
+            return False
+    
+    def apply_team_template(self, team_id: str, project_root: str, env: str, project_name: str = None) -> Dict[str, Any]:
+        """
+        Apply a team template to a specific project with comprehensive validation and rollback support.
+        
+        Args:
+            team_id: ID of the team template to apply
+            project_root: Absolute path to the target project
+            env: Environment (develop, main, production)
+            project_name: Name of the project (auto-inferred if not provided)
+            
+        Returns:
+            Dict containing success status, created agents, rollback info, and operation details
+        """
+        backup_id = ""
+        
+        try:
+            # Auto-infer project name if not provided
+            if not project_name:
+                project_name = os.path.basename(project_root.rstrip('/'))
+            
+            # 1. COMPREHENSIVE PRE-APPLICATION VALIDATION
+            logger.info(f"Starting pre-application validation for team: {team_id}")
+            validation_result = self._validate_pre_application(team_id, project_root, env, project_name)
+            
+            if not validation_result['success']:
+                return validation_result
+            
+            # Log validation warnings
+            for warning in validation_result.get('warnings', []):
+                logger.warning(warning)
+            
+            # 2. CREATE BACKUP SNAPSHOT
+            logger.info("Creating backup snapshot before template application")
+            backup_id = self._create_backup_snapshot(project_root, env, project_name)
+            
+            # 3. LOAD TEAM TEMPLATE (already validated in pre-validation)
+            teams_dir = os.path.join(os.getcwd(), "config", "teams")
+            template_path = os.path.join(teams_dir, f"{team_id}.yaml")
+            
+            with open(template_path, 'r', encoding='utf-8') as f:
+                template_data = yaml.safe_load(f)
+            
+            # 4. CREATE TARGET DIRECTORY STRUCTURE
             target_agents_dir = os.path.join(project_root, "projects", env, project_name, "agents")
             os.makedirs(target_agents_dir, exist_ok=True)
             
             created_agents = []
             skipped_agents = []
+            operation_log = []
             
-            # Process each agent in the template
+            # 5. ATOMIC AGENT CREATION PROCESS
+            logger.info(f"Starting atomic agent creation for {len(template_data.get('agents', []))} agents")
+            
             for agent_config in template_data.get('agents', []):
                 agent_id = agent_config['id']
                 config_overrides = agent_config.get('config_overrides', {})
                 
-                # Check if source agent exists
-                source_agent_path = os.path.join(os.getcwd(), "projects", "develop", "agents", agent_id, "agent.yaml")
-                if not os.path.exists(source_agent_path):
-                    logger.warning(f"Source agent not found: {agent_id}, skipping...")
-                    skipped_agents.append({
-                        'id': agent_id,
-                        'reason': 'Source agent definition not found'
-                    })
-                    continue
-                
-                # Create agent directory
-                agent_dir = os.path.join(target_agents_dir, agent_id)
-                
-                # Check if agent already exists
-                if os.path.exists(agent_dir):
-                    skipped_agents.append({
-                        'id': agent_id,
-                        'reason': 'Agent already exists in target project'
-                    })
-                    continue
-                
-                os.makedirs(agent_dir, exist_ok=True)
-                
-                # Load source agent.yaml
-                with open(source_agent_path, 'r', encoding='utf-8') as f:
-                    source_agent_data = yaml.safe_load(f)
-                
-                # Apply config overrides
-                for key, value in config_overrides.items():
-                    source_agent_data[key] = value
-                
-                # Write customized agent.yaml
-                target_agent_yaml = os.path.join(agent_dir, "agent.yaml")
-                with open(target_agent_yaml, 'w', encoding='utf-8') as f:
-                    yaml.dump(source_agent_data, f, default_flow_style=False, allow_unicode=True)
-                
-                # Copy persona.md
-                source_persona = os.path.join(os.getcwd(), "projects", "develop", "agents", agent_id, "persona.md")
-                if os.path.exists(source_persona):
-                    target_persona = os.path.join(agent_dir, "persona.md")
-                    with open(source_persona, 'r', encoding='utf-8') as src:
-                        with open(target_persona, 'w', encoding='utf-8') as dst:
-                            dst.write(src.read())
-                
-                # Create initial state.json
-                initial_state = {
-                    "conversation_history": [],
-                    "project_context": {
-                        "project_root": project_root,
-                        "project_name": project_name,
-                        "environment": env
-                    },
-                    "version": "1.0",
-                    "created_from_template": team_id,
-                    "last_updated": "2025-01-16T00:00:00Z"
-                }
-                
-                target_state = os.path.join(agent_dir, "state.json")
-                with open(target_state, 'w', encoding='utf-8') as f:
-                    json.dump(initial_state, f, indent=2)
-                
-                created_agents.append({
-                    'id': agent_id,
-                    'path': agent_dir,
-                    'overrides_applied': list(config_overrides.keys())
-                })
-            
-            # Copy workflows if any
-            workflows_copied = []
-            if 'workflows' in template_data:
-                workflows_dir = os.path.join(project_root, "workflows")
-                os.makedirs(workflows_dir, exist_ok=True)
-                
-                for workflow_config in template_data['workflows']:
-                    workflow_id = workflow_config['id']
-                    workflow_path = workflow_config['path']
-                    source_workflow = os.path.join(os.getcwd(), "config", "workflows", workflow_path)
+                try:
+                    # Check if source agent exists (should be validated already)
+                    source_agent_path = os.path.join(os.getcwd(), "projects", "develop", "agents", agent_id, "agent.yaml")
+                    if not os.path.exists(source_agent_path):
+                        logger.warning(f"Source agent not found: {agent_id}, skipping...")
+                        skipped_agents.append({
+                            'id': agent_id,
+                            'reason': 'Source agent definition not found'
+                        })
+                        continue
                     
-                    if os.path.exists(source_workflow):
-                        target_workflow = os.path.join(workflows_dir, f"{workflow_id}.yaml")
-                        with open(source_workflow, 'r', encoding='utf-8') as src:
-                            with open(target_workflow, 'w', encoding='utf-8') as dst:
+                    # Create agent directory
+                    agent_dir = os.path.join(target_agents_dir, agent_id)
+                    
+                    # Check if agent already exists
+                    if os.path.exists(agent_dir):
+                        skipped_agents.append({
+                            'id': agent_id,
+                            'reason': 'Agent already exists in target project'
+                        })
+                        continue
+                    
+                    os.makedirs(agent_dir, exist_ok=True)
+                    operation_log.append(f"Created directory: {agent_dir}")
+                    
+                    # Load source agent.yaml
+                    with open(source_agent_path, 'r', encoding='utf-8') as f:
+                        source_agent_data = yaml.safe_load(f)
+                    
+                    # Apply config overrides with deep merge and security validation
+                    final_agent_data = self._apply_config_overrides(source_agent_data, config_overrides)
+                    
+                    # Write customized agent.yaml
+                    target_agent_yaml = os.path.join(agent_dir, "agent.yaml")
+                    with open(target_agent_yaml, 'w', encoding='utf-8') as f:
+                        yaml.dump(final_agent_data, f, default_flow_style=False, allow_unicode=True)
+                    operation_log.append(f"Created agent.yaml: {target_agent_yaml}")
+                    
+                    # Copy persona.md
+                    source_persona = os.path.join(os.getcwd(), "projects", "develop", "agents", agent_id, "persona.md")
+                    if os.path.exists(source_persona):
+                        target_persona = os.path.join(agent_dir, "persona.md")
+                        with open(source_persona, 'r', encoding='utf-8') as src:
+                            with open(target_persona, 'w', encoding='utf-8') as dst:
                                 dst.write(src.read())
-                        workflows_copied.append(workflow_id)
+                        operation_log.append(f"Copied persona.md: {target_persona}")
+                    
+                    # Create initial state.json with enhanced context
+                    initial_state = {
+                        "conversation_history": [],
+                        "project_context": {
+                            "project_root": project_root,
+                            "project_name": project_name,
+                            "environment": env,
+                            "created_from_template": team_id,
+                            "applied_overrides": list(config_overrides.keys()),
+                            "backup_id": backup_id
+                        },
+                        "version": "1.0",
+                        "created_timestamp": datetime.now().isoformat(),
+                        "last_updated": datetime.now().isoformat()
+                    }
+                    
+                    target_state = os.path.join(agent_dir, "state.json")
+                    with open(target_state, 'w', encoding='utf-8') as f:
+                        json.dump(initial_state, f, indent=2)
+                    operation_log.append(f"Created state.json: {target_state}")
+                    
+                    created_agents.append({
+                        'id': agent_id,
+                        'path': agent_dir,
+                        'overrides_applied': list(config_overrides.keys()),
+                        'backup_id': backup_id
+                    })
+                    
+                    logger.info(f"Successfully created agent: {agent_id}")
+                    
+                except Exception as e:
+                    # Log the error and add to skipped agents
+                    error_msg = f"Failed to create agent {agent_id}: {str(e)}"
+                    logger.error(error_msg)
+                    skipped_agents.append({
+                        'id': agent_id,
+                        'reason': error_msg
+                    })
+                    
+                    # Clean up partially created agent directory
+                    agent_dir = os.path.join(target_agents_dir, agent_id)
+                    if os.path.exists(agent_dir):
+                        try:
+                            shutil.rmtree(agent_dir)
+                            operation_log.append(f"Cleaned up failed agent directory: {agent_dir}")
+                        except Exception as cleanup_error:
+                            logger.error(f"Failed to cleanup agent directory {agent_dir}: {cleanup_error}")
+                    
+                    continue
             
-            # Generate project README with usage examples
-            readme_content = self._generate_project_readme(template_data, project_name, created_agents, project_root)
-            readme_path = os.path.join(project_root, "CONDUCTOR_TEAM_README.md")
-            with open(readme_path, 'w', encoding='utf-8') as f:
-                f.write(readme_content)
+            # 6. COPY WORKFLOWS WITH VALIDATION
+            workflows_copied = []
+            workflow_errors = []
+            
+            if 'workflows' in template_data:
+                try:
+                    workflows_dir = os.path.join(project_root, "workflows")
+                    os.makedirs(workflows_dir, exist_ok=True)
+                    operation_log.append(f"Created workflows directory: {workflows_dir}")
+                    
+                    for workflow_config in template_data['workflows']:
+                        try:
+                            workflow_id = workflow_config['id']
+                            workflow_path = workflow_config['path']
+                            source_workflow = os.path.join(os.getcwd(), "config", "workflows", workflow_path)
+                            
+                            if os.path.exists(source_workflow):
+                                target_workflow = os.path.join(workflows_dir, f"{workflow_id}.yaml")
+                                with open(source_workflow, 'r', encoding='utf-8') as src:
+                                    with open(target_workflow, 'w', encoding='utf-8') as dst:
+                                        dst.write(src.read())
+                                workflows_copied.append(workflow_id)
+                                operation_log.append(f"Copied workflow: {target_workflow}")
+                            else:
+                                workflow_errors.append(f"Workflow source not found: {workflow_path}")
+                                logger.warning(f"Workflow source not found: {workflow_path}")
+                                
+                        except Exception as workflow_error:
+                            error_msg = f"Failed to copy workflow {workflow_config.get('id', 'unknown')}: {workflow_error}"
+                            workflow_errors.append(error_msg)
+                            logger.error(error_msg)
+                            
+                except Exception as e:
+                    logger.error(f"Failed to process workflows: {e}")
+                    workflow_errors.append(f"Workflows processing failed: {str(e)}")
+            
+            # 7. GENERATE PROJECT README
+            try:
+                readme_content = self._generate_project_readme(template_data, project_name, created_agents, project_root)
+                readme_path = os.path.join(project_root, "CONDUCTOR_TEAM_README.md")
+                with open(readme_path, 'w', encoding='utf-8') as f:
+                    f.write(readme_content)
+                operation_log.append(f"Generated README: {readme_path}")
+            except Exception as e:
+                logger.error(f"Failed to generate README: {e}")
+                readme_path = None
+            
+            # 8. SUCCESS RESPONSE WITH COMPREHENSIVE DETAILS
+            logger.info(f"Team template applied successfully: {len(created_agents)} agents created")
             
             return {
                 'success': True,
@@ -492,14 +920,42 @@ class Toolbelt:
                 'created_agents': created_agents,
                 'skipped_agents': skipped_agents,
                 'workflows_copied': workflows_copied,
-                'readme_created': readme_path
+                'workflow_errors': workflow_errors,
+                'readme_created': readme_path,
+                'backup_id': backup_id,
+                'operation_log': operation_log,
+                'validation_warnings': validation_result.get('warnings', [])
             }
             
         except Exception as e:
-            logger.error(f"Failed to apply team template: {e}")
+            # CRITICAL ERROR - PERFORM ROLLBACK
+            error_msg = f"Critical error during team template application: {str(e)}"
+            logger.error(error_msg)
+            
+            rollback_success = False
+            rollback_error = None
+            
+            # Attempt rollback if backup was created
+            if backup_id:
+                try:
+                    logger.info(f"Attempting rollback to backup: {backup_id}")
+                    rollback_success = self._rollback_to_snapshot(project_root, env, project_name, backup_id)
+                    if rollback_success:
+                        logger.info("Rollback completed successfully")
+                    else:
+                        logger.error("Rollback failed")
+                except Exception as rollback_exception:
+                    rollback_error = str(rollback_exception)
+                    logger.error(f"Rollback exception: {rollback_error}")
+            
             return {
                 'success': False,
-                'error': f"Failed to apply team template: {str(e)}"
+                'error': error_msg,
+                'backup_id': backup_id,
+                'rollback_attempted': bool(backup_id),
+                'rollback_success': rollback_success,
+                'rollback_error': rollback_error,
+                'operation_log': operation_log if 'operation_log' in locals() else []
             }
     
     def _generate_project_readme(self, template_data: Dict, project_name: str, created_agents: List, project_root: str) -> str:
