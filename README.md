@@ -20,18 +20,70 @@ Este repositório contém uma arquitetura de múltiplos executores que trabalham
 
 - 💬 **Sessões Interativas com Agentes:** Dialogue com IAs especialistas para refinar ideias.
 - 🤖 **Multi-Provedor de IA:** Suporte para Claude e Gemini, configurável por agente.
-- 📂 **Suporte Multi-Projeto e Multi-Ambiente:** Gerencie e opere em múltiplos projetos de forma segura e contextualizada.
-- 🛠️ **Sistema de Ferramentas (Poderes Especiais):** Agentes podem ler arquivos, executar comandos e interagir com o sistema de forma segura.
-- 🆕 **Framework de Agentes v2.1:** Sistema padronizado com comandos help, preview e versionamento incremental.
-- 📋 **Saída Parametrizada:** Configuração flexível de arquivos gerados por cada agente.
-- 🔄 **Versionamento Incremental:** Mesclagem automática de conversas com preservação de contexto.
-- 🧬 **Metaprogramação:** Capacidade de criar novos agentes usando o `AgentCreator_Agent`.
+- 📂 **Arquitetura Orientada a Ambientes:** Gerencie e opere de forma segura em múltiplos projetos e ambientes (`develop`, `main`, etc.), garantindo que um agente de desenvolvimento não acesse o ambiente de produção.
+- 🛠️ **Sistema de Ferramentas com Escopo de Escrita:** Agentes podem interagir com o sistema de arquivos, mas as operações de escrita são estritamente controladas pela configuração `output_scope` do agente, prevenindo modificações acidentais.
+- 🧬 **Metaprogramação:** Capacidade de criar e gerenciar agentes usando o `AgentCreator_Agent` através do executor `admin.py`.
 - 📋 **Execução Baseada em Planos:** Orquestração automatizada de tarefas de codificação a partir de um plano YAML.
-- 🧠 **Aprendizado Contínuo e Conhecimento Negativo:** Agentes aprendem com o sucesso e o fracasso, evitando repetir erros passados.
-- 🔒 **Segurança e Confiabilidade de Nível Empresarial:** Validação robusta de templates, rollback automático e gerenciamento seguro de comandos shell.
-- ⚙️ **Flexibilidade Avançada com Deep Merge:** Personalização de configurações de agentes através de fusão profunda de templates.
+- 🔒 **Segurança e Confiabilidade:** Confirmação humana para operações de escrita em modo interativo e políticas de segurança estritas para execução automatizada.
 
-## 📁 Estrutura de Diretórios (v2.0)
+## ⚙️ Configuração Inicial: Mapeando Seus Projetos
+
+Antes de usar o framework, você precisa informar onde os seus projetos residem. Isso é feito no arquivo `config/workspaces.yaml`. Este arquivo mapeia um nome de ambiente (como `develop`) para um caminho absoluto no seu sistema de arquivos, permitindo que o Conductor encontre e interaja com suas bases de código.
+
+**Exemplo de `config/workspaces.yaml`:**
+```yaml
+# config/workspaces.yaml
+workspaces:
+  # Mapeia o ambiente 'develop' para um diretório específico
+  develop: /home/user/projetos/desenvolvimento
+  
+  # Mapeia o ambiente 'main' para outro diretório
+  main: /home/user/projetos/producao
+```
+
+## Workflow Principal
+
+O uso do framework segue um fluxo lógico de criar, e depois executar os agentes.
+
+### Passo 1: Criar um Agente (`admin.py`)
+
+Para qualquer nova tarefa, o primeiro passo é criar um agente especialista para ela. Isso é feito usando o `AgentCreator_Agent` através do executor administrativo.
+
+**Sintaxe:**
+```bash
+# Inicia o criador de agentes em modo interativo para configurar um novo agente
+python scripts/admin.py --agent AgentCreator_Agent --repl
+```
+
+### Passo 2: Executar o Agente (`genesis_agent.py`)
+
+Uma vez que seu agente foi criado, você pode executá-lo para interagir com a base de código do seu projeto.
+
+**Sintaxe:**
+```bash
+python scripts/genesis_agent.py --environment <env> --project <proj> --agent <agent_id> [opções]
+```
+- `--environment`: **(Obrigatório)** O ambiente de destino (ex: `develop`), conforme definido em `config/workspaces.yaml`.
+- `--project`: **(Obrigatório)** O nome do projeto alvo (ex: `your-project-name`).
+- `--agent`: **(Obrigatório)** O ID do agente a ser executado.
+
+**Modos de Execução:**
+
+| Modo | Comando Adicional | Descrição | Caso de Uso |
+| :--- | :--- | :--- | :--- |
+| **Conversacional** | `--repl` | Inicia uma sessão de chat interativa com o agente. | Design, análise, depuração. |
+| **Comando Único** | `--input "<prompt>"` | Executa um único turno com o agente de forma não-interativa. | Scripting, consultas rápidas. |
+
+### (Avançado) Passo 3: Orquestrar Agentes (`run_conductor.py`)
+
+Para automação complexa, você pode usar o motor de orquestração para executar um plano (`.yaml`) que define uma sequência de tarefas para múltiplos agentes.
+
+**Sintaxe:**
+```bash
+python scripts/run_conductor.py --plan <caminho_para_o_plano.yaml>
+```
+
+## 📁 Estrutura de Diretórios
 
 ```
 conductor/
@@ -51,62 +103,6 @@ conductor/
 └── ...
 ```
 
-## 📁 Arquitetura de Execução (v2.0)
-
-A versão 2.0 introduz uma separação clara de responsabilidades entre os executores para aumentar a segurança e a clareza.
-
-### 1. Executando Agentes de Projeto (`genesis_agent.py`)
-
-Use este executor para interagir com agentes que leem ou modificam uma base de código externa.
-
-**Sintaxe:**
-```bash
-python scripts/genesis_agent.py --environment <env> --project <proj> --agent <agent_id> [opções]
-```
-- `--environment`: **(Obrigatório)** O ambiente de destino (ex: `develop`, `main`), conforme definido em `config/workspaces.yaml`.
-- `--project`: **(Obrigatório)** O nome do projeto alvo (ex: `your-project-name`).
-- `--agent`: **(Obrigatório)** O ID do agente a ser executado.
-
-**Modos de Execução:**
-
-| Modo | Comando Adicional | Descrição | Caso de Uso |
-| :--- | :--- | :--- | :--- |
-| **Conversacional** | `--repl` | Inicia uma sessão de chat interativa com o agente. | Design, análise, depuração. |
-| **Comando Único** | `--input "<prompt>"` | Executa um único turno com o agente de forma não-interativa. | Scripting, consultas rápidas. |
-
-### 2. Executando Agentes Administrativos (`admin.py`)
-
-Use este executor para tarefas de gerenciamento do próprio framework, como criar novos agentes.
-
-**Sintaxe:**
-```bash
-python scripts/admin.py --agent <meta_agent_id> [opções]
-```
-- `--agent`: **(Obrigatório)** O ID do meta-agente a ser executado (ex: `AgentCreator_Agent`).
-
-**Exemplo (Criando um novo agente):**
-```bash
-# Inicia o criador de agentes em modo interativo para configurar um novo agente
-python scripts/admin.py --agent AgentCreator_Agent --repl
-```
-
-### 3. Workflows Automatizados (`run_conductor.py`)
-
-Use este motor para execuções não-interativas de múltiplos agentes a partir de um plano.
-
-**Sintaxe:**
-```bash
-python scripts/run_conductor.py --plan <caminho_para_o_plano.yaml>
-```
-
-##  migrating-v1-agents-to-v2 Migração de Agentes (v1 -> v2)
-
-Para atualizar agentes legados para a nova estrutura, utilize o script de migração. Ele irá guiá-lo no processo de adicionar as configurações de `environment`, `project_key` e `output_scope`.
-
-```bash
-python scripts/migrate_agents_v2.py
-```
-
 ## 📚 Documentação Arquitetural
 
 Nossa arquitetura é projetada para ser robusta, escalável e segura. Para entender completamente o design e as melhores práticas, consulte nossos documentos principais:
@@ -115,20 +111,6 @@ Nossa arquitetura é projetada para ser robusta, escalável e segura. Para enten
 - **[🚀 Design Técnico do Genesis](docs/GENESIS_TECHNICAL_DESIGN.md)**: Arquitetura detalhada do motor interativo.
 - **[Guia de Onboarding de Projetos](docs/ONBOARDING_NEW_PROJECT.md)**: Guia para integrar um novo projeto.
 - **[Guia de Design de Agentes](docs/AGENT_DESIGN_PATTERNS.md)**: Melhores práticas para criar novos agentes.
-- **[Framework de Agentes v2.1](project-management/agent-framework-patterns/)**: Documentação do sistema padronizado de agentes.
-
-
-
-## 📊 Métricas e Performance
-
-- ⚡ **Execução Otimizada**: Tempo de execução e sucesso otimizados pela seleção dinâmica de IA.
-- 🔒 **Robustez Comprovada**: Sistema resiliente a falhas e seguro contra entradas maliciosas.
-- 🔄 **Paralelização**: Suporte para execução paralela de tarefas.
-
-## 🙏 Agradecimentos
-
-- **Comunidade de IA** pelas ferramentas e modelos incríveis.
-- **Inspiração:** O projeto `.bmad-core` serviu como inspiração inicial para a definição de agentes baseada em arquivos, que evoluiu para o Framework Maestro.
 
 ---
 
