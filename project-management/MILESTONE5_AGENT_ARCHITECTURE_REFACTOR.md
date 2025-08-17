@@ -1,17 +1,15 @@
 ### **Plano de Engenharia: Arquitetura de Agentes Orientada a Ambientes**
 
-**Versão:** 2.1
+**Versão:** 2.3 (Final)
 **Autor:** Gemini (Staff Engineer)
-**Status:** Proposta Final Revisada
+**Status:** Aprovado para Implementação
 **Data:** 16 de agosto de 2025
 
 #### **1. Resumo Executivo**
 
 Este documento detalha um plano de refatoração arquitetural para o Framework Maestro & Conductor. O objetivo é evoluir o sistema para resolver um desafio fundamental: permitir que agentes de IA operem de forma segura e eficaz em bases de código externas, que residem em árvores de diretórios separadas do próprio agente.
 
-A arquitetura atual, embora funcional, apresenta um conflito de "duplo contexto" que gera complexidade e riscos de segurança, especialmente em um cenário com múltiplos projetos e ambientes (desenvolvimento, produção). A solução proposta transformará o framework em um sistema profissional, elegante e seguro, introduzindo os conceitos de **Agentes Residentes em Projeto**, **Gestão de Ambientes** e **Escopo de Escrita Declarativo**.
-
-Esta refatoração simplificará drasticamente a experiência do usuário, aumentará a segurança e fornecerá uma base sólida para a escalabilidade futura do framework.
+A solução final adota uma arquitetura de **Agente Residente com Escopo de Escrita**, suportada por uma **gestão de múltiplos ambientes** e uma **separação clara de responsabilidades entre executores**, garantindo segurança, elegância e escalabilidade.
 
 #### **2. Problemática Atual e Justificativa Técnica**
 
@@ -29,61 +27,42 @@ A nova arquitetura se baseia em um modelo de **Agente Residente** (cujo diretór
 
 ##### **3.1. Estrutura de Diretórios e Gestão de Workspaces**
 
-Para garantir o isolamento entre ambientes, a estrutura de diretórios dos agentes será redefinida para espelhar uma hierarquia lógica.
-
--   **Nova Estrutura de Agentes:** O caminho para um agente será `conductor/projects/<environment>/<project_name>/agents/<agent_id>/`.
-    -   **Exemplo:** `conductor/projects/develop/nex-web-backend/agents/KotlinControllerAgent/`
--   **Arquivo de Configuração de Workspaces:** Para mapear os ambientes lógicos para os caminhos físicos na máquina do desenvolvedor, será criado um arquivo de configuração central.
-    -   **Local:** `conductor/config/workspaces.yaml`
-    -   **Conteúdo Exemplo:**
-        ```yaml
-        # Mapeia nomes de ambientes para seus diretórios raiz no sistema de arquivos.
-        # É o único arquivo que um novo dev precisa configurar.
-        workspaces:
-          develop: /mnt/ramdisk/develop
-          main: /mnt/ramdisk/main
-          primoia-main: /mnt/ramdisk/primoia-main
-        ```
+-   **Estrutura de Agentes:** O caminho para um agente de projeto será `conductor/projects/<environment>/<project_name>/agents/<agent_id>/`. Meta-agentes (de sistema) residirão em `conductor/projects/_common/agents/<agent_id>/`.
+-   **Arquivo de Configuração de Workspaces:** `conductor/config/workspaces.yaml` mapeará os ambientes lógicos para os caminhos físicos.
+    ```yaml
+    workspaces:
+      develop: /mnt/ramdisk/develop
+      main: /mnt/ramdisk/main
+      primoia-main: /mnt/ramdisk/primoia-main
+    ```
 
 ##### **3.2. O Manifesto do Agente Evoluído (`agent.yaml`)**
 
-Para eliminar parâmetros da linha de comando, a configuração de alvo e segurança será movida para dentro do `agent.yaml`, tornando o agente "autoconsciente".
-
--   **Nova Seção `target_context`:**
+-   Agentes de projeto (que operam em código externo) conterão a seção `target_context`:
     ```yaml
     id: KotlinControllerAgent
-    description: "Cria e modifica arquivos de Controller para a aplicação nex-web-backend."
-    version: 2.0 # Versão incrementada para refletir a nova arquitetura
-    execution_mode: project_resident # Modo padrão para agentes de codificação
-
+    version: 2.0
     target_context:
-      # Chave que referencia o nome do projeto no workspaces.yaml
       project_key: "nex-web-backend"
-      
-      # Política de segurança de escrita: declarativa e versionável.
-      output_scope: "src/main/kotlin/br/com/nextar/controller/*Controller.kt"
+      output_scope: "src/main/kotlin/**/*Controller.kt"
     ```
+-   Meta-agentes (como o `AgentCreator_Agent`) não conterão a seção `target_context`.
 
-##### **3.3. O Orquestrador Inteligente (`genesis_agent.py`)**
+##### **3.3. Separação de Executores: `genesis_agent.py` vs. `admin.py`**
 
-O orquestrador será o cérebro da operação, usando as novas configurações para criar uma experiência de usuário simples e segura.
+Para garantir o Princípio da Responsabilidade Única, teremos dois pontos de entrada:
 
--   **Comando Simplificado:** A invocação de um agente será reduzida a:
-    ```bash
-    python scripts/genesis_agent.py --environment develop --project nex-web-backend --agent KotlinControllerAgent
-    ```
--   **Lógica de Inicialização do Orquestrador:**
-    1.  Recebe os argumentos `environment`, `project`, `agent`.
-    2.  **Resolve o "Lar" do Agente:** Constrói o caminho `conductor/projects/develop/nex-web-backend/agents/KotlinControllerAgent/`.
-    3.  **Resolve o "Workspace" do Projeto Alvo:** Carrega `conductor/config/workspaces.yaml`, encontra a chave `develop` e obtém o caminho base `/mnt/ramdisk/develop`. Junta com o nome do projeto para obter o caminho final do projeto alvo.
-    4.  **Muda o Diretório de Trabalho:** Executa `os.chdir()` para o caminho do projeto alvo. O agente agora "vive" no projeto que irá modificar.
-    5.  **Carrega o Manifesto:** Lê o `agent.yaml` do "lar" do agente para obter o `output_scope` e outras configurações.
--   **Gestão de Estado Explícita:**
-    -   O orquestrador mantém o caminho absoluto para o `state.json` do agente em memória.
-    -   Após cada turno da conversa, ele salva o estado da sessão escrevendo diretamente no caminho absoluto, garantindo que o `state.json` seja sempre salvo no lugar certo, independentemente do CWD do processo.
--   **Aplicação do Escopo de Escrita:**
-    -   A ferramenta `Write` será interceptada. Antes de executar, ela validará o caminho do arquivo solicitado contra o padrão `glob` do `output_scope` carregado do `agent.yaml`.
-    -   Se a validação falhar, a operação é bloqueada. Se passar, o fluxo de confirmação do usuário (`diff/patch`) é acionado.
+-   **`scripts/genesis_agent.py` (Executor de Projeto):**
+    -   **Função:** Executar agentes que operam em projetos alvo.
+    -   **Comando:** `python scripts/genesis_agent.py --environment <env> --project <proj> --agent <id>`
+    -   **Lógica:** Seus parâmetros são sempre obrigatórios. Ele usará as informações para resolver os caminhos, fazer `os.chdir()` para o projeto alvo e aplicar as políticas de segurança `output_scope`.
+
+-   **`scripts/admin.py` (Executor de Administração):**
+    -   **Função:** Executar meta-agentes que gerenciam o próprio framework (ex: `AgentCreator_Agent`).
+    -   **Comando:** `python scripts/admin.py --agent <meta_agent_id>`
+    -   **Lógica:** Não requer contexto de projeto/ambiente. Opera nos diretórios do próprio Conductor, buscando agentes na pasta `projects/_common/agents/`.
+
+-   **Refatoração do Core:** A lógica comum de carregar um agente e rodar o loop de conversação será extraída para um módulo compartilhado para ser usada por ambos os executores.
 
 ##### **3.4. A Fábrica de Agentes Aprimorada (`AgentCreator_Agent`)**
 
@@ -155,25 +134,26 @@ A distinção entre os executores e seus modos é fundamental para o executor do
 | **Input** | Comandos do usuário (stdin) | Argumento de input (`--input`) | Arquivo de plano (`.yaml`) |
 | **Caso de Uso** | Debug, Design, Análise | Scripting, Consultas Rápidas | Automação, CI/CD |
 
-##### **4. Plano de Execução Faseado**
+#### **4. Plano de Execução Faseado**
 
-1.  **Fase 1 - Fundação (Baixo Risco):**
-    -   Implementar a nova estrutura de diretórios.
-    -   Criar o `workspaces.yaml` e a lógica de leitura no orquestrador.
-    -   Implementar a lógica de resolução de caminhos e o `os.chdir()`.
-    -   Implementar a gestão de estado explícita para o `state.json`.
-    -   *Meta:* Ao final desta fase, um agente já pode operar no diretório alvo, mas ainda sem a segurança de escrita.
-2.  **Fase 2 - Implementação da Segurança e Funcionalidade Principal (Médio Risco):**
-    -   Adicionar o campo `target_context` ao `agent.yaml`.
-    -   Implementar a lógica de `output_scope` na ferramenta `Write`.
+1.  **Fase 1 - Estruturação e Fundação:**
+    -   **Criar `scripts/admin.py`:** Implementar o novo executor para tarefas administrativas, com seu parser de argumentos simples.
+    -   **Refatorar `genesis_agent.py`:** Simplificar seu parser para que `--environment` e `--project` sejam sempre obrigatórios, removendo qualquer lógica condicional.
+    -   **Extrair Lógica Comum:** Criar o módulo compartilhado para o loop de sessão do agente.
+    -   **Criar `config/workspaces.yaml`:** Adicionar o arquivo com os caminhos dos ambientes.
+    -   **Criar Estrutura de Pastas:** Criar os diretórios base `projects/develop`, `projects/main`, `projects/primoia-main`, e `projects/_common/agents`.
+
+2.  **Fase 2 - Implementação do Core e Segurança:**
+    -   Implementar a lógica de resolução de caminhos e `os.chdir()` no `genesis_agent.py`.
+    -   Implementar a gestão de estado explícita com caminhos absolutos.
+    -   Implementar a validação de `output_scope` na ferramenta `Write`.
     -   Definir o comportamento para os modos de execução (`--repl` vs. automatizado) e as políticas de escrita.
-    -   Criar os testes de integração (`test_scoped_write_session.py`).
-    -   *Meta:* A arquitetura principal está completa e segura.
-3.  **Fase 3 - Ferramentas e Testes (Alto Valor):**
-    -   Atualizar o `AgentCreator_Agent` com o novo fluxo de diálogo.
-    -   Criar o script de migração (`scripts/migrate_agents_v2.py`).
-    -   Criar os testes restantes.
-    -   *Meta:* O projeto está pronto para ser usado por outros desenvolvedores com a nova arquitetura.
+
+3.  **Fase 3 - Migração, Testes e Ferramentas:**
+    -   **Atualizar `AgentCreator_Agent`:** Modificar seu diálogo para criar agentes v2.0 na estrutura correta.
+    -   **Criar Script de Migração:** Desenvolver `scripts/migrate_agents_v2.py`.
+    -   **Executar Migração:** Mover os agentes existentes para a nova estrutura, com o `AgentCreator_Agent` sendo movido para `projects/_common/agents/`.
+    -   **Implementar Testes TDD:** Criar toda a suíte de testes planejada.
 
 #### **5. Conclusão**
 
