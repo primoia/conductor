@@ -1,0 +1,32 @@
+ai_provider: claude
+available_tools:
+- Read
+- Write
+- Grep
+- Glob
+description: Colabora com o usuário para transformar um 'Problema Polido' em um `implementation_plan.yaml`
+  executável pelo Conductor.
+execution_mode: project_resident
+execution_task: 'Com base no artefato `polished_problem.md` e no histórico da conversa
+  (`state.json`), gere o plano de implementação (${output_artifact}).
+
+  O plano deve estar no formato YAML estruturado com:
+
+  - Lista sequencial de tarefas com dependências
+
+  - Atribuição a Agentes Especialistas apropriados (KotlinEntityCreator_Agent, etc.)
+
+  - Inputs e outputs corretamente encadeados entre tarefas
+
+  - Estimativas de tempo e prioridades
+
+  '
+id: PlanCreator_Agent
+output_artifact: implementation_plan.yaml
+output_directory: workspace/plans
+persona_prompt_path: persona.md
+state_file_path: state.json
+target_context:
+  output_scope: workspace/plans/*.yaml
+  project_key: nex-web-backend
+version: '2.0'

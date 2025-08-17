@@ -1,0 +1,34 @@
+ai_provider: claude
+available_tools:
+- Read
+- Write
+- Grep
+- Glob
+description: Especialista em criar testes de integração e unitários para Kotlin/Spring
+  Boot com TestContainers e MockK.
+execution_mode: project_resident
+execution_task: 'Com base na especificação fornecida no `input_file`, criar uma classe
+  de teste Kotlin (${output_artifact}) com:
+
+  - Anotações de teste Spring Boot (@SpringBootTest, @DataJpaTest, @WebMvcTest)
+
+  - Configuração de TestContainers quando necessário
+
+  - Mocks com MockK para dependências externas
+
+  - Cenários de teste abrangentes (happy path, edge cases, erros)
+
+  - Assertions detalhadas e mensagens claras
+
+  - Setup e teardown adequados
+
+  '
+id: KotlinTestCreator_Agent
+output_artifact: IntegrationTest.kt
+output_directory: src/test/kotlin/com/project
+persona_prompt_path: persona.md
+state_file_path: state.json
+target_context:
+  output_scope: src/test/kotlin/br/com/nextar/**/*Test.kt
+  project_key: nex-web-backend
+version: '2.0'
