@@ -142,6 +142,35 @@ class TestOnboardingAgentAsMetaAgent(unittest.TestCase):
 class TestMetaAgentResolutionGeneral(unittest.TestCase):
     """General tests for meta-agent resolution logic."""
     
+    def test_agent_creator_is_also_meta_agent(self):
+        """Test that AgentCreator_Agent is also recognized as meta-agent."""
+        test_dir = tempfile.mkdtemp(prefix="conductor_agent_creator_test_")
+        self.addCleanup(lambda: __import__('shutil').rmtree(test_dir, ignore_errors=True))
+        
+        mock_root = Path(test_dir) / "conductor"
+        mock_root.mkdir(parents=True)
+        
+        # Create AgentCreator_Agent in _common (should exist)
+        meta_agent_dir = (mock_root / "projects" / "_common" / "agents" / "AgentCreator_Agent")
+        meta_agent_dir.mkdir(parents=True)
+        
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(mock_root)
+            
+            agent_home, project_root = resolve_agent_paths(
+                environment="develop",
+                project="any-project", 
+                agent_id="AgentCreator_Agent"
+            )
+            
+            # Should resolve to meta-agent location
+            self.assertEqual(agent_home, meta_agent_dir.resolve())
+            self.assertEqual(project_root, mock_root)
+            
+        finally:
+            os.chdir(original_cwd)
+    
     def test_meta_agent_vs_project_agent_precedence(self):
         """Test that meta-agents in _common take precedence over project agents."""
         test_dir = tempfile.mkdtemp(prefix="conductor_precedence_test_")
