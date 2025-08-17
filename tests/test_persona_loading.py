@@ -34,6 +34,7 @@ class MockPersonaLLMClient(LLMClient):
         self.call_count = 0
         self.last_full_prompt = None  # Track the complete prompt sent
         self.agent_persona = None
+        self.ai_provider = 'claude'  # Set provider to match expected behavior
         
     def add_mock_response(self, response: str):
         """Add a predetermined response for testing."""
@@ -91,22 +92,43 @@ class TestPersonaLoading(unittest.TestCase):
     
     def setUp(self):
         """Set up test environment with agent and persona files."""
-        # Create temporary test directory structure
+        # Create temporary test directory structure for v2.0
         self.test_dir = tempfile.mkdtemp()
-        self.projects_dir = os.path.join(self.test_dir, "projects", "develop", "agents")
-        self.agent_dir = os.path.join(self.projects_dir, "SpecialistAgent")
+        
+        # Save original CWD to restore later
+        self.original_cwd = os.getcwd()
+        
+        # Workspace structure (where projects live)
+        self.workspace_dir = os.path.join(self.test_dir, "workspace")
+        self.project_workspace_dir = os.path.join(self.workspace_dir, "test-service")
+        os.makedirs(self.project_workspace_dir, exist_ok=True)
+        
+        # Conductor structure (where agent definitions live)
+        self.conductor_dir = os.path.join(self.test_dir, "conductor")
+        self.projects_dir = os.path.join(self.conductor_dir, "projects", "develop", "test-service")
+        self.agents_dir = os.path.join(self.projects_dir, "agents")
+        self.agent_dir = os.path.join(self.agents_dir, "SpecialistAgent")
         
         os.makedirs(self.agent_dir, exist_ok=True)
         
-        # Create test agent configuration
+        # Create config directory in conductor
+        self.config_dir = os.path.join(self.conductor_dir, "config")
+        os.makedirs(self.config_dir, exist_ok=True)
+        
+        # Create test agent configuration with v2.0 schema
         self.agent_yaml = {
             "id": "SpecialistAgent",
-            "version": "1.0",
+            "version": "2.0",
             "description": "Test agent with specialized persona",
             "ai_provider": "claude",
             "persona_prompt_path": "persona.md",
             "state_file_path": "state.json",
-            "available_tools": ["read_file", "write_file"]
+            "execution_mode": "project_resident",
+            "available_tools": ["Read", "Write"],
+            "target_context": {
+                "project_key": "test-service",
+                "output_scope": "workspace/analysis/*.md"
+            }
         }
         
         # Write agent.yaml
@@ -134,7 +156,7 @@ Your responses should be analytical, focused, and solution-oriented."""
             
         # Write initial state.json
         self.initial_state = {
-            "version": "1.0",
+            "version": "2.0",
             "agent_id": "SpecialistAgent",
             "status": "IDLE",
             "conversation_history": [],
@@ -144,20 +166,54 @@ Your responses should be analytical, focused, and solution-oriented."""
         with open(os.path.join(self.agent_dir, "state.json"), 'w') as f:
             json.dump(self.initial_state, f, indent=2)
             
+        # Create workspaces config
+        self.workspaces_config = {
+            "workspaces": {
+                "develop": self.workspace_dir
+            }
+        }
+        
+        with open(os.path.join(self.config_dir, "workspaces.yaml"), 'w') as f:
+            import yaml
+            yaml.dump(self.workspaces_config, f)
+            
+        # Create ai_providers config
+        self.ai_providers_config = {
+            "default_providers": {
+                "chat": "claude",
+                "generation": "claude"
+            },
+            "fallback_provider": "claude"
+        }
+        
+        with open(os.path.join(self.config_dir, "ai_providers.yaml"), 'w') as f:
+            import yaml
+            yaml.dump(self.ai_providers_config, f)
+            
     def tearDown(self):
         """Clean up test environment."""
+        # Restore original CWD before deleting test directory
+        try:
+            os.chdir(self.original_cwd)
+        except:
+            # If original CWD was also deleted, use a safe directory
+            os.chdir(str(Path.home()))
+        
         shutil.rmtree(self.test_dir)
         
     def test_persona_file_loading_on_embodiment(self):
         """Test: Agent loads persona.md file during embodiment."""
         # GIVEN: Agent with persona file
-        with patch('scripts.genesis_agent.AGENTS_BASE_PATH', self.projects_dir):
-            agent = GenesisAgent()
+        with patch('scripts.genesis_agent.load_workspaces_config', return_value=self.workspaces_config["workspaces"]), \
+             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')), \
+             patch('os.getcwd', return_value=self.test_dir):
+            
+            agent = GenesisAgent(environment="develop", project="test-service", ai_provider="claude")
             mock_client = MockPersonaLLMClient()
             agent.llm_client = mock_client
             
             # WHEN: Agent is embodied
-            success = agent.embody_agent("SpecialistAgent")
+            success = agent.embody_agent_v2("SpecialistAgent")
             
         # THEN: Agent should successfully embody
         self.assertTrue(success, "Agent should successfully embody")
@@ -170,32 +226,40 @@ Your responses should be analytical, focused, and solution-oriented."""
     def test_persona_integration_with_llm_client(self):
         """Test: Persona is passed to LLM client during embodiment."""
         # GIVEN: Agent with persona
-        with patch('scripts.genesis_agent.AGENTS_BASE_PATH', self.projects_dir):
-            agent = GenesisAgent()
+        with patch('scripts.genesis_agent.load_workspaces_config', return_value=self.workspaces_config["workspaces"]), \
+             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')), \
+             patch('scripts.genesis_agent.create_llm_client') as mock_create_client, \
+             patch('os.getcwd', return_value=self.test_dir):
+            
+            # Set up mock client
             mock_client = MockPersonaLLMClient()
-            agent.llm_client = mock_client
+            mock_create_client.return_value = mock_client
+            
+            agent = GenesisAgent(environment="develop", project="test-service", ai_provider="claude")
             
             # WHEN: Agent is embodied
-            agent.embody_agent("SpecialistAgent")
+            agent.embody_agent_v2("SpecialistAgent")
             
-        # THEN: LLM client should receive the persona
-        # This will fail until we implement persona integration
+        # THEN: LLM client should receive the persona automatically
         self.assertIsNotNone(mock_client.agent_persona, "LLM client should receive persona")
         self.assertIn("Problem Refiner Agent", mock_client.agent_persona, "LLM client should have correct persona")
         
     def test_persona_included_in_llm_prompts(self):
         """Test: Persona is included in prompts sent to LLM."""
         # GIVEN: Embodied agent with persona
-        with patch('scripts.genesis_agent.AGENTS_BASE_PATH', self.projects_dir):
-            agent = GenesisAgent()
+        with patch('scripts.genesis_agent.load_workspaces_config', return_value=self.workspaces_config["workspaces"]), \
+             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')), \
+             patch('scripts.genesis_agent.create_llm_client') as mock_create_client, \
+             patch('os.getcwd', return_value=self.test_dir):
+            
+            # Set up mock client
             mock_client = MockPersonaLLMClient()
-            agent.llm_client = mock_client
-            
-            # Manually set persona for testing (until auto-loading is implemented)
             mock_client.set_agent_persona(self.specialized_persona)
-            
-            agent.embody_agent("SpecialistAgent")
             mock_client.add_mock_response("I am Problem Refiner Agent, specialized in problem analysis.")
+            mock_create_client.return_value = mock_client
+            
+            agent = GenesisAgent(environment="develop", project="test-service", ai_provider="claude")
+            agent.embody_agent_v2("SpecialistAgent")
             
         # WHEN: User interacts with agent
         response = agent.chat("Hello, what is your role?")
@@ -209,17 +273,19 @@ Your responses should be analytical, focused, and solution-oriented."""
     def test_specialized_agent_behavior(self):
         """Test: Agent responds according to persona, not as generic Claude."""
         # GIVEN: Embodied specialist agent
-        with patch('scripts.genesis_agent.AGENTS_BASE_PATH', self.projects_dir):
-            agent = GenesisAgent()
+        with patch('scripts.genesis_agent.load_workspaces_config', return_value=self.workspaces_config["workspaces"]), \
+             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')), \
+             patch('scripts.genesis_agent.create_llm_client') as mock_create_client, \
+             patch('os.getcwd', return_value=self.test_dir):
+            
+            # Set up mock client
             mock_client = MockPersonaLLMClient()
-            agent.llm_client = mock_client
-            
-            # Simulate complete persona integration
             mock_client.set_agent_persona(self.specialized_persona)
-            agent.embody_agent("SpecialistAgent")
-            
-            # Mock response that shows persona-based behavior
             mock_client.add_mock_response("I am Problem Refiner Agent. I specialize in helping you define software problems clearly.")
+            mock_create_client.return_value = mock_client
+            
+            agent = GenesisAgent(environment="develop", project="test-service", ai_provider="claude")
+            agent.embody_agent_v2("SpecialistAgent")
             
         # WHEN: User asks for introduction
         response = agent.chat("Who are you?")
@@ -233,13 +299,16 @@ Your responses should be analytical, focused, and solution-oriented."""
         # GIVEN: Agent directory without persona.md
         os.remove(os.path.join(self.agent_dir, "persona.md"))
         
-        with patch('scripts.genesis_agent.AGENTS_BASE_PATH', self.projects_dir):
-            agent = GenesisAgent()
+        with patch('scripts.genesis_agent.load_workspaces_config', return_value=self.workspaces_config["workspaces"]), \
+             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')), \
+             patch('os.getcwd', return_value=self.test_dir):
+            
+            agent = GenesisAgent(environment="develop", project="test-service", ai_provider="claude")
             mock_client = MockPersonaLLMClient()
             agent.llm_client = mock_client
             
         # WHEN: Agent attempts embodiment
-        success = agent.embody_agent("SpecialistAgent")
+        success = agent.embody_agent_v2("SpecialistAgent")
         
         # THEN: Embodiment should fail gracefully
         # This will fail until we implement proper error handling
@@ -260,13 +329,16 @@ Your responses should be analytical, focused, and solution-oriented."""
             import yaml
             yaml.dump(self.agent_yaml, f)
         
-        with patch('scripts.genesis_agent.AGENTS_BASE_PATH', self.projects_dir):
-            agent = GenesisAgent()
+        with patch('scripts.genesis_agent.load_workspaces_config', return_value=self.workspaces_config["workspaces"]), \
+             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')), \
+             patch('os.getcwd', return_value=self.test_dir):
+            
+            agent = GenesisAgent(environment="develop", project="test-service", ai_provider="claude")
             mock_client = MockPersonaLLMClient()
             agent.llm_client = mock_client
             
             # WHEN: Agent is embodied
-            success = agent.embody_agent("SpecialistAgent")
+            success = agent.embody_agent_v2("SpecialistAgent")
         
         # THEN: Should load custom persona
         # This will fail until we implement custom path loading
@@ -277,15 +349,20 @@ Your responses should be analytical, focused, and solution-oriented."""
     def test_persona_persistence_across_conversations(self):
         """Test: Persona remains active throughout conversation session."""
         # GIVEN: Embodied agent with persona
-        with patch('scripts.genesis_agent.AGENTS_BASE_PATH', self.projects_dir):
-            agent = GenesisAgent()
-            mock_client = MockPersonaLLMClient()
-            agent.llm_client = mock_client
-            mock_client.set_agent_persona(self.specialized_persona)
+        with patch('scripts.genesis_agent.load_workspaces_config', return_value=self.workspaces_config["workspaces"]), \
+             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')), \
+             patch('scripts.genesis_agent.create_llm_client') as mock_create_client, \
+             patch('os.getcwd', return_value=self.test_dir):
             
-            agent.embody_agent("SpecialistAgent")
+            # Set up mock client
+            mock_client = MockPersonaLLMClient()
+            mock_client.set_agent_persona(self.specialized_persona)
             mock_client.add_mock_response("First response as Problem Refiner Agent")
             mock_client.add_mock_response("Second response, still as Problem Refiner Agent")
+            mock_create_client.return_value = mock_client
+            
+            agent = GenesisAgent(environment="develop", project="test-service", ai_provider="claude")
+            agent.embody_agent_v2("SpecialistAgent")
             
         # WHEN: Multiple conversations occur
         response1 = agent.chat("First question")

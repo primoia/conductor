@@ -28,6 +28,7 @@ from functools import wraps
 
 # Configuration Constants
 WORKSPACES_CONFIG_PATH = os.path.join("config", "workspaces.yaml")
+AI_PROVIDERS_CONFIG_PATH = os.path.join("config", "ai_providers.yaml")
 MAX_TOOL_CALLS_PER_TURN = 5  # Limit to prevent infinite loops
 MAX_CONVERSATION_HISTORY = 50  # Sliding window for conversation history
 
@@ -471,7 +472,7 @@ class Toolbelt:
         
         # v2.0 UX: Prompt user confirmation in REPL mode
         is_repl_mode = (self.genesis_agent and 
-                       hasattr(self.genesis_agent, 'ai_provider'))
+                       hasattr(self.genesis_agent, 'ai_providers_config'))
         
         if is_repl_mode:
             # Verifica se estamos em modo interativo (tem TTY)
@@ -2422,6 +2423,55 @@ def load_workspaces_config() -> Dict[str, str]:
         raise yaml.YAMLError(f"Erro ao fazer parse do workspaces.yaml: {e}")
 
 
+def load_ai_providers_config() -> Dict[str, Any]:
+    """
+    Carrega a configuração de provedores de IA do arquivo config/ai_providers.yaml.
+    
+    Returns:
+        Dict com configuração de provedores para chat e generation
+        
+    Raises:
+        FileNotFoundError: Se o arquivo de configuração não existir
+        yaml.YAMLError: Se houver erro de parsing do YAML
+    """
+    config_path = Path(__file__).parent.parent / AI_PROVIDERS_CONFIG_PATH
+    
+    if not config_path.exists():
+        # Return default configuration if file doesn't exist
+        logger.warning(f"AI providers config not found: {config_path}. Using defaults.")
+        return {
+            'default_providers': {
+                'chat': 'gemini',
+                'generation': 'claude'
+            },
+            'fallback_provider': 'claude'
+        }
+    
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        if not config or 'default_providers' not in config:
+            raise ValueError("Arquivo ai_providers.yaml deve conter uma seção 'default_providers'")
+        
+        # Validate and set defaults for missing fields
+        required_providers = ['chat', 'generation']
+        fallback = config.get('fallback_provider', 'claude')
+        
+        for provider_type in required_providers:
+            if provider_type not in config['default_providers']:
+                logger.warning(f"Provider '{provider_type}' not configured, using fallback: {fallback}")
+                config['default_providers'][provider_type] = fallback
+        
+        # Set fallback if not specified
+        if 'fallback_provider' not in config:
+            config['fallback_provider'] = 'claude'
+        
+        return config
+    except yaml.YAMLError as e:
+        raise yaml.YAMLError(f"Erro ao fazer parse do ai_providers.yaml: {e}")
+
+
 def resolve_agent_paths(environment: str, project: str, agent_id: str) -> Tuple[Path, Path]:
     """
     Resolve os caminhos do agente e do projeto alvo baseado na nova arquitetura v2.0.
@@ -2523,7 +2573,7 @@ class GenesisAgent:
     """
     
     def __init__(self, environment: str = None, project: str = None, agent_id: str = None, 
-                 ai_provider: str = 'claude'):
+                 ai_provider: str = None):
         """
         Initialize the Genesis Agent for v2.0 architecture.
         
@@ -2531,9 +2581,11 @@ class GenesisAgent:
             environment: Nome do ambiente (develop, main, etc.) - obrigatório para v2.0
             project: Nome do projeto alvo - obrigatório para v2.0
             agent_id: ID do agente para embodiment - opcional, pode ser feito depois
-            ai_provider: AI provider to use ('claude', 'gemini')
+            ai_provider: AI provider override - se não especificado, usa configuração dual por tarefa
         """
-        self.ai_provider = ai_provider
+        # Load AI providers configuration for dual provider logic
+        self.ai_providers_config = load_ai_providers_config()
+        self.ai_provider_override = ai_provider  # Agent-specific override if provided
         
         # Agent state
         self.current_agent = None
@@ -2541,7 +2593,14 @@ class GenesisAgent:
         self.agent_config = None
         self.agent_home_path = None
         self.project_root_path = None
-        self.original_cwd = os.getcwd()  # Salva CWD original para restaurar
+        
+        # Salva CWD original para restaurar, com fallback se diretório foi deletado
+        try:
+            self.original_cwd = os.getcwd()
+        except FileNotFoundError:
+            # Se CWD atual foi removido, use um diretório seguro
+            self.original_cwd = str(Path.home())
+            os.chdir(self.original_cwd)
         
         # v2.0 Architecture - Project Resident Mode
         if environment and project:
@@ -2581,13 +2640,56 @@ class GenesisAgent:
             self.project = project
             self.working_directory = os.getcwd()
         
-        # Initialize LLM client
-        self.llm_client = create_llm_client(ai_provider, self.working_directory)
+        # Initialize LLM client - will be set when agent is embodied
+        self.llm_client = None
         
         # Initialize toolbelt
         self.toolbelt = Toolbelt(self.working_directory, genesis_agent=self)
         
-        logger.info(f"GenesisAgent initialized (v2.0) with provider: {ai_provider}")
+        logger.info(f"GenesisAgent initialized (v2.0) with dual provider support")
+    
+    def resolve_provider_for_task(self, task_type: str) -> str:
+        """
+        Resolve qual provedor de IA usar baseado no tipo de tarefa.
+        
+        Args:
+            task_type: 'chat' para conversação ou 'generation' para geração de artefatos
+            
+        Returns:
+            Nome do provedor a ser usado
+        """
+        # 1. Agent-specific override has highest priority
+        if self.ai_provider_override:
+            logger.debug(f"Using agent override provider: {self.ai_provider_override}")
+            return self.ai_provider_override
+        
+        # 2. Agent config ai_provider has second priority
+        if hasattr(self, 'agent_config') and self.agent_config:
+            agent_provider = self.agent_config.get('ai_provider')
+            if agent_provider:
+                logger.debug(f"Using agent config provider: {agent_provider}")
+                return agent_provider
+        
+        # 3. Use task-specific default from ai_providers.yaml
+        default_providers = self.ai_providers_config.get('default_providers', {})
+        provider = default_providers.get(task_type)
+        
+        if provider:
+            logger.debug(f"Using task-specific provider for {task_type}: {provider}")
+            return provider
+        
+        # 4. Fallback to configured fallback provider
+        fallback = self.ai_providers_config.get('fallback_provider', 'claude')
+        logger.warning(f"No provider found for task {task_type}, using fallback: {fallback}")
+        return fallback
+    
+    def get_chat_provider(self) -> str:
+        """Resolve provedor para tarefas de chat/conversação."""
+        return self.resolve_provider_for_task('chat')
+    
+    def get_generation_provider(self) -> str:
+        """Resolve provedor para tarefas de geração de artefatos."""
+        return self.resolve_provider_for_task('generation')
     
     def embody_agent_v2(self, agent_id: str) -> bool:
         """
@@ -2611,6 +2713,11 @@ class GenesisAgent:
             # Carrega configuração do agente v2.0
             self.agent_config = load_agent_config_v2(self.agent_home_path)
             
+            # Initialize LLM client with chat provider (default for conversation)
+            chat_provider = self.get_chat_provider()
+            self.llm_client = create_llm_client(chat_provider, str(self.project_root_path))
+            logger.info(f"Initialized LLM client with chat provider: {chat_provider}")
+            
             # FUNDAMENTAL: Muda para o diretório do projeto alvo (Project Resident Mode)
             logger.info(f"Changing working directory to project: {self.project_root_path}")
             os.chdir(str(self.project_root_path))
@@ -2618,7 +2725,6 @@ class GenesisAgent:
             # Atualiza working directory de todos os componentes
             self.working_directory = str(self.project_root_path)
             self.toolbelt.working_directory = str(self.project_root_path)
-            self.llm_client.working_directory = str(self.project_root_path)
             
             # Carrega estado do agente (usando caminho absoluto)
             state_file_path = self.agent_home_path / self.agent_config.get("state_file_path", "state.json")
@@ -2842,7 +2948,7 @@ class GenesisAgent:
     
     def chat(self, message: str) -> str:
         """
-        Send a message to the current embodied agent.
+        Send a message to the current embodied agent using chat provider.
         
         Args:
             message: Message to send to the agent
@@ -2851,18 +2957,64 @@ class GenesisAgent:
             Agent's response
         """
         if not self.embodied:
-            return "No agent currently embodied. Use embody_agent() first."
+            return "No agent currently embodied. Use embody_agent_v2() first."
         
         try:
+            # Ensure we're using the chat provider
+            current_provider = self.get_chat_provider()
+            if not hasattr(self.llm_client, 'ai_provider') or self.llm_client.ai_provider != current_provider:
+                logger.info(f"Switching to chat provider: {current_provider}")
+                self.llm_client = create_llm_client(current_provider, self.working_directory)
+                # Restore conversation history
+                if hasattr(self, '_conversation_history'):
+                    self.llm_client.conversation_history = self._conversation_history
+            
             response = self.llm_client._invoke_subprocess(message)
             
-            # Save state after each interaction to persist conversation history
-            self._save_agent_state()
+            # Cache conversation history for provider switching
+            self._conversation_history = self.llm_client.conversation_history
+            
+            # Save state after each interaction
+            if hasattr(self, 'save_agent_state_v2'):
+                self.save_agent_state_v2()
             
             return response or "No response from agent."
         except Exception as e:
             logger.error(f"Chat failed: {e}")
             return f"Error: {e}"
+    
+    def generate_artifact(self, prompt: str) -> str:
+        """
+        Generate an artifact using the generation provider (typically Claude).
+        
+        Args:
+            prompt: Prompt for artifact generation, including conversation context
+            
+        Returns:
+            Generated artifact content
+        """
+        if not self.embodied:
+            return "No agent currently embodied. Use embody_agent_v2() first."
+        
+        try:
+            # Use generation provider for artifact creation
+            generation_provider = self.get_generation_provider()
+            logger.info(f"Using generation provider for artifact: {generation_provider}")
+            
+            # Create dedicated LLM client for generation
+            generation_client = create_llm_client(generation_provider, self.working_directory)
+            
+            # Transfer conversation history for context
+            if hasattr(self, '_conversation_history'):
+                generation_client.conversation_history = self._conversation_history.copy()
+            
+            # Generate artifact
+            response = generation_client._invoke_subprocess(prompt)
+            
+            return response or "No artifact generated."
+        except Exception as e:
+            logger.error(f"Artifact generation failed: {e}")
+            return f"Error generating artifact: {e}"
 
 
 if __name__ == "__main__":
@@ -2887,8 +3039,8 @@ Examples:
                         help='Agent ID to embody - Required for v2.0')
     
     # Common Arguments
-    parser.add_argument('--ai-provider', type=str, default='claude', choices=['claude', 'gemini'], 
-                        help='AI provider to use')
+    parser.add_argument('--ai-provider', type=str, default=None, choices=['claude', 'gemini'], 
+                        help='AI provider override (uses dual provider system by default)')
     parser.add_argument('--repl', action='store_true', 
                         help='Start interactive REPL')
     
@@ -2936,7 +3088,16 @@ Examples:
         print("\n" + "="*60)
         print("🎼 Genesis Agent REPL started")
         print("Commands: 'exit' to quit, 'save' to save state")
+        print("Generation: 'gerar documento', 'preview', 'consolidar' use generation provider")
         print("="*60)
+        
+        # Show dual provider info
+        if agent.embodied:
+            chat_provider = agent.get_chat_provider()
+            generation_provider = agent.get_generation_provider()
+            print(f"💬 Chat provider: {chat_provider}")
+            print(f"🏗️  Generation provider: {generation_provider}")
+            print("="*60)
         
         while True:
             try:
@@ -2952,16 +3113,36 @@ Examples:
                         print("⚠️  State saving not available")
                     continue
                 elif user_input.lower() in ['help', '?']:
-                    print("Commands: 'exit'=quit, 'save'=save state, 'help'=this message")
+                    chat_prov = agent.get_chat_provider() if agent.embodied else 'N/A'
+                    gen_prov = agent.get_generation_provider() if agent.embodied else 'N/A'
+                    print("Commands:")
+                    print("  'exit'/'quit' = quit session")
+                    print("  'save' = save agent state")
+                    print("  'help'/'?' = this message")
+                    print("  'gerar documento' = generate artifact with generation provider")
+                    print("  'preview' = preview artifact with generation provider")
+                    print("  'consolidar' = consolidate conversation with generation provider")
+                    print(f"  Current chat provider: {chat_prov}")
+                    print(f"  Current generation provider: {gen_prov}")
                     continue
                 
                 if not user_input.strip():
                     continue
                 
-                response = agent.chat(user_input)
+                # Check if this is a generation task
+                generation_commands = ['gerar documento', 'preview', 'consolidar', 'criar artefato', 'salvar documento']
+                is_generation_task = any(cmd in user_input.lower() for cmd in generation_commands)
+                
+                if is_generation_task:
+                    print(f"🏗️  Using generation provider for artifact creation...")
+                    response = agent.generate_artifact(user_input)
+                else:
+                    # Regular chat interaction
+                    response = agent.chat(user_input)
+                
                 print(response)
                 
-                # Auto-save state in v2.0 mode after each interaction
+                # Auto-save state after each interaction
                 if hasattr(agent, 'save_agent_state_v2'):
                     agent.save_agent_state_v2()
                 
