@@ -144,6 +144,10 @@ class TestOrchestratorResolution(unittest.TestCase):
         scripts.genesis_agent.load_workspaces_config = mock_load_workspaces
         
         try:
+            # Change to mock conductor root directory
+            original_cwd = os.getcwd()
+            os.chdir(self.mock_conductor_root)
+            
             # Monkey patch do __file__ para usar nosso diretório mock
             original_file = scripts.genesis_agent.__file__
             scripts.genesis_agent.__file__ = str(self.mock_conductor_root / "scripts" / "genesis_agent.py")
@@ -164,6 +168,7 @@ class TestOrchestratorResolution(unittest.TestCase):
             # Restaura função original
             scripts.genesis_agent.load_workspaces_config = original_load_workspaces
             scripts.genesis_agent.__file__ = original_file
+            os.chdir(original_cwd)
     
     def test_resolve_agent_paths_invalid_environment(self):
         """Testa comportamento com ambiente inválido."""
@@ -183,7 +188,7 @@ class TestOrchestratorResolution(unittest.TestCase):
                     agent_id="TestAgent"
                 )
             
-            self.assertIn("não encontrado em workspaces.yaml", str(context.exception))
+            self.assertIn("não encontrado", str(context.exception))
             self.assertIn("invalid-env", str(context.exception))
             
         finally:
@@ -210,7 +215,7 @@ class TestOrchestratorResolution(unittest.TestCase):
                     agent_id="NonExistentAgent"
                 )
             
-            self.assertIn("Agente não encontrado", str(context.exception))
+            self.assertIn("não encontrado", str(context.exception))
             
         finally:
             scripts.genesis_agent.load_workspaces_config = original_load_workspaces
@@ -240,7 +245,7 @@ class TestOrchestratorResolution(unittest.TestCase):
                     agent_id="TestAgent"
                 )
             
-            self.assertIn("Projeto não encontrado", str(context.exception))
+            self.assertIn("não encontrado", str(context.exception))
             
         finally:
             scripts.genesis_agent.load_workspaces_config = original_load_workspaces

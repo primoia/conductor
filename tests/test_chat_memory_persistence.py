@@ -208,14 +208,19 @@ class TestChatMemoryPersistence(unittest.TestCase):
         with patch('scripts.genesis_agent.load_workspaces_config', return_value=self._mock_workspaces_config()), \
              patch('scripts.genesis_agent.__file__', str(self.mock_conductor_root / "scripts" / "genesis_agent.py")):
             
-            agent = GenesisAgent(
-                environment="develop",
-                project="test-service",
-                ai_provider="claude"
-            )
-            
-            # Load agent state (this should load conversation_history)
-            success = agent.embody_agent_v2("TestAgent")
+            original_cwd = os.getcwd()
+            os.chdir(self.mock_conductor_root)
+            try:
+                agent = GenesisAgent(
+                    environment="develop",
+                    project="test-service",
+                    ai_provider="claude"
+                )
+                
+                # Load agent state (this should load conversation_history)
+                success = agent.embody_agent_v2("TestAgent")
+            finally:
+                os.chdir(original_cwd)
             
         # THEN: Agent should have loaded the conversation history
         self.assertTrue(success, "Agent should successfully embody")
@@ -241,7 +246,12 @@ class TestChatMemoryPersistence(unittest.TestCase):
             )
             
             # Embody agent first
-            success = agent.embody_agent_v2("TestAgent")
+            original_cwd = os.getcwd()
+            os.chdir(self.mock_conductor_root)
+            try:
+                success = agent.embody_agent_v2("TestAgent")
+            finally:
+                os.chdir(original_cwd)
             self.assertTrue(success, "Agent should embody successfully")
             
         # WHEN: Multiple chat interactions occur
@@ -266,7 +276,12 @@ class TestChatMemoryPersistence(unittest.TestCase):
             )
             
             # Embody agent first (this loads state)
-            success = agent.embody_agent_v2("TestAgent")
+            original_cwd = os.getcwd()
+            os.chdir(self.mock_conductor_root)
+            try:
+                success = agent.embody_agent_v2("TestAgent")
+            finally:
+                os.chdir(original_cwd)
             self.assertTrue(success, "Agent should embody successfully")
             
             # Replace with mock client and manually add conversation history to simulate loaded state
@@ -300,7 +315,12 @@ class TestChatMemoryPersistence(unittest.TestCase):
             )
             
             # Embody agent
-            success = agent.embody_agent_v2("TestAgent")
+            original_cwd = os.getcwd()
+            os.chdir(self.mock_conductor_root)
+            try:
+                success = agent.embody_agent_v2("TestAgent")
+            finally:
+                os.chdir(original_cwd)
             self.assertTrue(success, "Agent should embody successfully")
             
             # Replace with mock client
@@ -346,7 +366,12 @@ class TestChatMemoryPersistence(unittest.TestCase):
                 ai_provider="claude"
             )
             agent.llm_client = MockLLMClient()
-            success = agent.embody_agent_v2("TestAgent")
+            original_cwd = os.getcwd()
+            os.chdir(self.mock_conductor_root)
+            try:
+                success = agent.embody_agent_v2("TestAgent")
+            finally:
+                os.chdir(original_cwd)
             
         # THEN: Agent should initialize with empty conversation history
         self.assertTrue(success, "Agent should handle missing conversation_history gracefully")
@@ -367,7 +392,12 @@ class TestChatMemoryPersistence(unittest.TestCase):
                 ai_provider="claude"
             )
             agent.llm_client = MockLLMClient()
-            success = agent.embody_agent_v2("TestAgent")
+            original_cwd = os.getcwd()
+            os.chdir(self.mock_conductor_root)
+            try:
+                success = agent.embody_agent_v2("TestAgent")
+            finally:
+                os.chdir(original_cwd)
             
         # THEN: Agent should recover and create new state
         self.assertTrue(success, "Agent should recover from malformed state")

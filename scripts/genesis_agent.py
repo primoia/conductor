@@ -30,14 +30,30 @@ import time
 from functools import wraps
 
 # Import shared functionality
-from agent_common import (
-    load_ai_providers_config,
-    load_agent_config_v2,
-    resolve_agent_paths,
-    create_llm_client,
-    start_repl_session,
-    validate_agent_config
-)
+try:
+    from agent_common import (
+        load_ai_providers_config,
+        load_agent_config_v2,
+        resolve_agent_paths,
+        create_llm_client,
+        start_repl_session,
+        validate_agent_config
+    )
+except ImportError:
+    # Try importing from the same directory when called from tests
+    import sys
+    import os
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    if script_dir not in sys.path:
+        sys.path.insert(0, script_dir)
+    from agent_common import (
+        load_ai_providers_config,
+        load_agent_config_v2,
+        resolve_agent_paths,
+        create_llm_client,
+        start_repl_session,
+        validate_agent_config
+    )
 
 # Configuration Constants
 WORKSPACES_CONFIG_PATH = os.path.join("config", "workspaces.yaml")

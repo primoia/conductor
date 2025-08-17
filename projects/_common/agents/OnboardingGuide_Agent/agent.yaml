@@ -33,7 +33,5 @@ output_artifact: onboarding_report.md
 output_directory: workspace/reports
 persona_prompt_path: persona.md
 state_file_path: state.json
-target_context:
-  output_scope: docs/onboarding/*.md
-  project_key: nex-web-backend
+
 version: '2.0'
