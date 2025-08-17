@@ -139,20 +139,47 @@ def resolve_agent_paths(environment: str, project: str, agent_id: str) -> Tuple[
         project_root_path = Path.cwd()
         
     else:
-        # Regular project agents
+        # Regular project agents - need to resolve project_root using workspaces
         agent_home_path = Path("projects") / environment / project / "agents" / agent_id
         if not agent_home_path.exists():
-            raise FileNotFoundError(
+            raise ValueError(
                 f"Agente '{agent_id}' não encontrado em: {agent_home_path}\n"
                 f"Verifique se o agente existe no projeto '{project}' no ambiente '{environment}'."
             )
         
-        project_root_path = Path("projects") / environment / project
-        if not project_root_path.exists():
-            raise FileNotFoundError(
-                f"Projeto '{project}' não encontrado em: {project_root_path}\n"
-                f"Verifique se o projeto existe no ambiente '{environment}'."
-            )
+        # Load workspaces configuration to resolve project root
+        try:
+            # Import here to avoid circular imports  
+            import sys
+            if 'scripts.genesis_agent' in sys.modules:
+                load_workspaces_config = sys.modules['scripts.genesis_agent'].load_workspaces_config
+            else:
+                from genesis_agent import load_workspaces_config
+            workspaces = load_workspaces_config()
+            
+            if environment not in workspaces:
+                raise ValueError(
+                    f"Environment '{environment}' não encontrado em workspaces.yaml\n"
+                    f"Environments disponíveis: {list(workspaces.keys())}"
+                )
+            
+            workspace_root = Path(workspaces[environment])
+            project_root_path = workspace_root / project
+            
+            if not project_root_path.exists():
+                raise ValueError(
+                    f"Projeto '{project}' não encontrado em: {project_root_path}\n"
+                    f"Verifique se o projeto existe no ambiente '{environment}'."
+                )
+                
+        except ImportError:
+            # Fallback to simple path resolution for tests or when load_workspaces_config is not available
+            project_root_path = Path("projects") / environment / project
+            if not project_root_path.exists():
+                raise ValueError(
+                    f"Projeto '{project}' não encontrado em: {project_root_path}\n"
+                    f"Verifique se o projeto existe no ambiente '{environment}'."
+                )
         
         # Convert to absolute paths
         agent_home_path = agent_home_path.resolve()

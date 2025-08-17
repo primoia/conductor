@@ -70,6 +70,7 @@ class TestPersonaPlaceholderResolution(unittest.TestCase):
         
         # Conductor structure (where agent definitions live)
         self.conductor_dir = os.path.join(self.test_dir, "conductor")
+        self.mock_conductor_root = self.conductor_dir  # For compatibility with other tests
         self.projects_dir = os.path.join(self.conductor_dir, "projects", "develop", "test-service")
         self.agents_dir = os.path.join(self.projects_dir, "agents")
         self.agent_dir = os.path.join(self.agents_dir, "TestAgent")
@@ -163,15 +164,19 @@ Como Contexto, sua função é analisar problemas."""
             f.write(persona_content)
         
         with patch('scripts.genesis_agent.load_workspaces_config', return_value=self.workspaces_config["workspaces"]), \
-             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')), \
-             patch('os.getcwd', return_value=self.test_dir):
+             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')):
             
             agent = GenesisAgent(environment="develop", project="test-service", ai_provider="claude")
             mock_client = MockLLMClient()
             agent.llm_client = mock_client
             
-            # WHEN: Agent is embodied
-            success = agent.embody_agent_v2("TestAgent")
+            # WHEN: Agent is embodied (with cwd fix)
+            original_cwd = os.getcwd()
+            os.chdir(self.conductor_dir)
+            try:
+                success = agent.embody_agent_v2("TestAgent")
+            finally:
+                os.chdir(original_cwd)
             
         # THEN: Agent should successfully embody
         self.assertTrue(success, "Agent should successfully embody")
@@ -204,15 +209,19 @@ Your name is {{agent_id}}."""
             f.write(persona_content)
         
         with patch('scripts.genesis_agent.load_workspaces_config', return_value=self.workspaces_config["workspaces"]), \
-             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')), \
-             patch('os.getcwd', return_value=self.test_dir):
+             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')):
             
             agent = GenesisAgent(environment="develop", project="test-service", ai_provider="claude")
             mock_client = MockLLMClient()
             agent.llm_client = mock_client
             
-            # WHEN: Agent is embodied
-            success = agent.embody_agent_v2("TestAgent")
+            # WHEN: Agent is embodied (with cwd fix)
+            original_cwd = os.getcwd()
+            os.chdir(self.conductor_dir)
+            try:
+                success = agent.embody_agent_v2("TestAgent")
+            finally:
+                os.chdir(original_cwd)
             
         # THEN: {{agent_id}} should be replaced with "TestAgent"
         self.assertTrue(success, "Agent should successfully embody")
@@ -233,15 +242,19 @@ You specialize in: {{agent_description}}"""
             f.write(persona_content)
         
         with patch('scripts.genesis_agent.load_workspaces_config', return_value=self.workspaces_config["workspaces"]), \
-             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')), \
-             patch('os.getcwd', return_value=self.test_dir):
+             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')):
             
             agent = GenesisAgent(environment="develop", project="test-service", ai_provider="claude")
             mock_client = MockLLMClient()
             agent.llm_client = mock_client
             
-            # WHEN: Agent is embodied
-            success = agent.embody_agent_v2("TestAgent")
+            # WHEN: Agent is embodied (with cwd fix)
+            original_cwd = os.getcwd()
+            os.chdir(self.conductor_dir)
+            try:
+                success = agent.embody_agent_v2("TestAgent")
+            finally:
+                os.chdir(original_cwd)
             
         # THEN: {{agent_description}} should be replaced with actual description
         self.assertTrue(success, "Agent should successfully embody")
@@ -266,15 +279,19 @@ As Contexto, you work with {{agent_id}} capabilities."""
             f.write(persona_content)
         
         with patch('scripts.genesis_agent.load_workspaces_config', return_value=self.workspaces_config["workspaces"]), \
-             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')), \
-             patch('os.getcwd', return_value=self.test_dir):
+             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')):
             
             agent = GenesisAgent(environment="develop", project="test-service", ai_provider="claude")
             mock_client = MockLLMClient()
             agent.llm_client = mock_client
             
-            # WHEN: Agent is embodied
-            success = agent.embody_agent_v2("TestAgent")
+            # WHEN: Agent is embodied (with cwd fix)
+            original_cwd = os.getcwd()
+            os.chdir(self.conductor_dir)
+            try:
+                success = agent.embody_agent_v2("TestAgent")
+            finally:
+                os.chdir(original_cwd)
             
         # THEN: All placeholders should be resolved
         self.assertTrue(success, "Agent should successfully embody")
@@ -304,15 +321,19 @@ Your role is to help users with their tasks."""
             f.write(persona_content)
         
         with patch('scripts.genesis_agent.load_workspaces_config', return_value=self.workspaces_config["workspaces"]), \
-             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')), \
-             patch('os.getcwd', return_value=self.test_dir):
+             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')):
             
             agent = GenesisAgent(environment="develop", project="test-service", ai_provider="claude")
             mock_client = MockLLMClient()
             agent.llm_client = mock_client
             
-            # WHEN: Agent is embodied
-            success = agent.embody_agent_v2("TestAgent")
+            # WHEN: Agent is embodied (with cwd fix)
+            original_cwd = os.getcwd()
+            os.chdir(self.conductor_dir)
+            try:
+                success = agent.embody_agent_v2("TestAgent")
+            finally:
+                os.chdir(original_cwd)
             
         # THEN: Persona should remain unchanged
         self.assertTrue(success, "Agent should successfully embody")
@@ -363,15 +384,19 @@ Seu único objetivo é colaborar com o desenvolvedor."""
             json.dump({"version": "2.0", "agent_id": "ProblemRefiner_Agent", "conversation_history": []}, f)
         
         with patch('scripts.genesis_agent.load_workspaces_config', return_value=self.workspaces_config["workspaces"]), \
-             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')), \
-             patch('os.getcwd', return_value=self.test_dir):
+             patch('scripts.genesis_agent.__file__', os.path.join(self.conductor_dir, 'scripts', 'genesis_agent.py')):
             
             agent = GenesisAgent(environment="develop", project="test-service", ai_provider="claude")
             mock_client = MockLLMClient()
             agent.llm_client = mock_client
             
-            # WHEN: ProblemRefiner_Agent is embodied
-            success = agent.embody_agent_v2("ProblemRefiner_Agent")
+            # WHEN: ProblemRefiner_Agent is embodied (with cwd fix)
+            original_cwd = os.getcwd()
+            os.chdir(self.conductor_dir)
+            try:
+                success = agent.embody_agent_v2("ProblemRefiner_Agent")
+            finally:
+                os.chdir(original_cwd)
             
         # THEN: "Contexto" should be replaced with "Agente Analisador de Problemas" (from title)
         self.assertTrue(success, "ProblemRefiner_Agent should successfully embody")

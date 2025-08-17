@@ -137,8 +137,17 @@ class TestScopedWriteSession(unittest.TestCase):
                 ai_provider="claude"
             )
             
-            # Embody agente com output_scope restrito
-            success = agent.embody_agent_v2("ServiceCreatorAgent")
+            # Embody agente com output_scope restrito - com fix de CWD
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(self.mock_conductor_root)
+                success = agent.embody_agent_v2("ServiceCreatorAgent")
+                # Agent deve ficar no diretório do projeto após embody
+                if hasattr(agent, 'working_directory') and agent.working_directory:
+                    os.chdir(agent.working_directory)
+            except:
+                os.chdir(original_cwd)
+                raise
             self.assertTrue(success, "Falha ao embodar agente")
             self.assertEqual(agent.output_scope, "src/service/*.kt")
             
@@ -233,7 +242,17 @@ class TestScopedWriteSession(unittest.TestCase):
                 ai_provider="claude"
             )
             
-            agent.embody_agent_v2("ServiceCreatorAgent")
+            # Embody agente com fix de CWD
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(self.mock_conductor_root)
+                agent.embody_agent_v2("ServiceCreatorAgent")
+                # Agent deve ficar no diretório do projeto após embody
+                if hasattr(agent, 'working_directory') and agent.working_directory:
+                    os.chdir(agent.working_directory)
+            except:
+                os.chdir(original_cwd)
+                raise
             
             # Teste 1: Caminho com ./ no início
             self.assertTrue(agent.toolbelt._validate_output_scope("./src/service/TestService.kt"))
@@ -295,7 +314,17 @@ class TestScopedWriteSession(unittest.TestCase):
                 ai_provider="claude"
             )
             
-            agent.embody_agent_v2("ServiceCreatorAgent")
+            # Embody agente com fix de CWD
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(self.mock_conductor_root)
+                agent.embody_agent_v2("ServiceCreatorAgent")
+                # Agent deve ficar no diretório do projeto após embody
+                if hasattr(agent, 'working_directory') and agent.working_directory:
+                    os.chdir(agent.working_directory)
+            except:
+                os.chdir(original_cwd)
+                raise
             
             # Simula modo TTY e resposta do usuário
             with patch('sys.stdin.isatty', return_value=True), \

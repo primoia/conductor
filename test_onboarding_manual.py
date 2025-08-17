@@ -146,7 +146,7 @@ def main():
         
         print("\n🚀 PRÓXIMO PASSO:")
         print("   Para testar o chat completo, execute:")
-        print("   python scripts/genesis_agent.py --embody OnboardingGuide_Agent --project-root /tmp/meu_projeto --repl")
+        print("   python scripts/admin.py --agent OnboardingGuide_Agent --repl")
         
     except Exception as e:
         print(f"\n❌ ERRO DURANTE OS TESTES: {e}")

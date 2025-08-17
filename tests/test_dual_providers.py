@@ -145,8 +145,13 @@ class TestDualProviders(unittest.TestCase):
                 ai_provider=None  # Não especifica provider
             )
             
-            # Embody agente
-            success = agent.embody_agent_v2("DualProviderTestAgent")
+            # Embody agente with cwd fix
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(self.mock_conductor_root)
+                success = agent.embody_agent_v2("DualProviderTestAgent")
+            finally:
+                os.chdir(original_cwd)
             self.assertTrue(success, "Falha ao embodar agente")
             
             # Testa resolução de provedores
@@ -201,7 +206,13 @@ class TestDualProviders(unittest.TestCase):
                 ai_provider=None
             )
             
-            success = agent.embody_agent_v2("OverrideTestAgent")
+            # Embody agente with cwd fix
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(self.mock_conductor_root)
+                success = agent.embody_agent_v2("OverrideTestAgent")
+            finally:
+                os.chdir(original_cwd)
             self.assertTrue(success, "Falha ao embodar agente com override")
             
             # Verifica se override funciona
@@ -228,7 +239,13 @@ class TestDualProviders(unittest.TestCase):
                 ai_provider="gemini"  # CLI override
             )
             
-            success = agent.embody_agent_v2("DualProviderTestAgent")
+            # Embody agente with cwd fix
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(self.mock_conductor_root)
+                success = agent.embody_agent_v2("DualProviderTestAgent")
+            finally:
+                os.chdir(original_cwd)
             self.assertTrue(success, "Falha ao embodar agente com CLI override")
             
             # CLI override deveria ter precedência
@@ -267,7 +284,13 @@ class TestDualProviders(unittest.TestCase):
                 ai_provider=None
             )
             
-            success = agent.embody_agent_v2("DualProviderTestAgent")
+            # Embody agente with cwd fix
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(self.mock_conductor_root)
+                success = agent.embody_agent_v2("DualProviderTestAgent")
+            finally:
+                os.chdir(original_cwd)
             self.assertTrue(success, "Falha ao embodar agente")
             
             chat_provider = agent.get_chat_provider()
