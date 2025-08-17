@@ -10,9 +10,9 @@
 
 Este repositório contém uma arquitetura de múltiplos executores que trabalham em harmonia para fornecer uma plataforma robusta de automação e desenvolvimento assistido por IA.
 
-1.  **`genesis_agent.py` (Executor de Projeto):** Uma interface de linha de comando para executar **agentes de projeto**. Estes agentes são projetados para operar sobre bases de código externas, realizando tarefas de análise, modificação e geração de código dentro de um escopo seguro e definido.
+1.  **`admin.py` (Executor Administrativo):** Uma interface de linha de comando para executar **meta-agentes**. É o ponto de partida do framework, usado para tarefas de gerenciamento como a criação de novos agentes (`AgentCreator_Agent`).
 
-2.  **`admin.py` (Executor Administrativo):** Uma interface de linha de comando para executar **meta-agentes**. Estes agentes realizam tarefas de gerenciamento no próprio framework, como a criação de novos agentes (`AgentCreator_Agent`).
+2.  **`genesis_agent.py` (Executor de Projeto):** Uma interface de linha de comando para executar os **agentes de projeto** que você criou. Estes agentes operam sobre bases de código externas, realizando as tarefas de análise e codificação.
 
 3.  **`run_conductor.py` (Motor de Orquestração):** Um motor de execução **não-interativo e automatizado**. Ele interpreta arquivos de workflow (`.yaml`) para orquestrar sequências complexas de tarefas envolvendo múltiplos agentes, ideal para automação e CI/CD.
 
