@@ -27,9 +27,14 @@ import time
 from functools import wraps
 
 # Configuration Constants
-AGENTS_BASE_PATH = os.path.join("projects", "develop", "agents")
+WORKSPACES_CONFIG_PATH = os.path.join("config", "workspaces.yaml")
 MAX_TOOL_CALLS_PER_TURN = 5  # Limit to prevent infinite loops
 MAX_CONVERSATION_HISTORY = 50  # Sliding window for conversation history
+
+# Custom Exceptions for v2.0 Security
+class OutputScopeViolationError(Exception):
+    """Exceção específica para violações de output_scope que nunca deve ser recuperável."""
+    pass
 
 # Error Handling and Retry Configuration
 MAX_RETRIES = 3
@@ -133,6 +138,10 @@ def retry_on_failure(max_retries: int = MAX_RETRIES,
                     delay = min(delay_base * (RETRY_DELAY_MULTIPLIER ** attempt), MAX_RETRY_DELAY)
                     logger.warning(f"Function {func.__name__} failed (attempt {attempt + 1}/{max_retries + 1}): {e}. Retrying in {delay:.1f}s...")
                     time.sleep(delay)
+                except (PermissionError, OutputScopeViolationError) as e:
+                    # Security errors should be re-raised immediately
+                    logger.error(f"Function {func.__name__} failed with security error: {e}")
+                    raise e
                 except Exception as e:
                     # Non-recoverable error, fail immediately
                     logger.error(f"Function {func.__name__} failed with non-recoverable error: {e}")
@@ -225,6 +234,15 @@ def safe_file_operation(create_backup: bool = True):
                 
                 return result
                 
+            except (PermissionError, OutputScopeViolationError) as e:
+                # Re-raise security errors - these should not be masked by the decorator
+                for original, backup in backup_files:
+                    try:
+                        os.remove(backup)  # Clean up backup since we're re-raising
+                    except:
+                        pass
+                raise e
+                
             except Exception as e:
                 # Restore from backups on failure
                 for original, backup in backup_files:
@@ -255,14 +273,16 @@ class Toolbelt:
     - run_shell_command: Execute shell commands with security restrictions
     """
     
-    def __init__(self, working_directory: str = None):
+    def __init__(self, working_directory: str = None, genesis_agent=None):
         """
         Initialize the Toolbelt.
         
         Args:
             working_directory: Base directory for tool operations (defaults to current dir)
+            genesis_agent: Reference to parent GenesisAgent for v2.0 security features
         """
         self.working_directory = working_directory or os.getcwd()
+        self.genesis_agent = genesis_agent  # Reference for output_scope validation
         
         # Registry of available tools
         self.tools = {
@@ -354,7 +374,72 @@ class Toolbelt:
         except UnicodeDecodeError as e:
             raise ValueError(f"Encoding error reading file {file_path}: {e}")
     
-    @retry_on_failure(max_retries=3, recoverable_errors=RECOVERABLE_IO_ERRORS)
+    def _validate_output_scope(self, file_path: str) -> bool:
+        """
+        Valida se o arquivo está dentro do output_scope definido para o agente v2.0.
+        
+        Args:
+            file_path: Caminho do arquivo a ser validado
+            
+        Returns:
+            True se o arquivo está permitido, False caso contrário
+        """
+        # Se não há agente ou output_scope, permite (meta-agente)
+        if not self.genesis_agent or not hasattr(self.genesis_agent, 'output_scope'):
+            return True
+            
+        output_scope = getattr(self.genesis_agent, 'output_scope', None)
+        if not output_scope:
+            return True  # Meta-agente sem restrições
+        
+        import fnmatch
+        
+        # Normaliza o caminho para comparação
+        normalized_path = file_path.replace('\\', '/')
+        if normalized_path.startswith('./'):
+            normalized_path = normalized_path[2:]
+        
+        # Testa contra o padrão glob do output_scope
+        if fnmatch.fnmatch(normalized_path, output_scope):
+            logger.info(f"Output scope validation PASSED: {file_path} matches {output_scope}")
+            return True
+        else:
+            logger.warning(f"Output scope validation FAILED: {file_path} does NOT match {output_scope}")
+            return False
+    
+    def _prompt_user_confirmation(self, file_path: str, content: str) -> bool:
+        """
+        Solicita confirmação do usuário antes de escrever arquivo em modo REPL.
+        
+        Args:
+            file_path: Caminho do arquivo
+            content: Conteúdo a ser escrito
+            
+        Returns:
+            True se usuário confirmar, False caso contrário
+        """
+        try:
+            print(f"\n📝 Agent quer escrever arquivo: {file_path}")
+            print(f"📏 Tamanho: {len(content)} caracteres")
+            
+            # Mostra preview do conteúdo
+            preview_lines = content.splitlines()[:10]
+            print("📄 Preview:")
+            for i, line in enumerate(preview_lines, 1):
+                print(f"   {i:2}: {line[:80]}")
+            
+            if len(preview_lines) < len(content.splitlines()):
+                remaining = len(content.splitlines()) - len(preview_lines)
+                print(f"   ... (+{remaining} linhas)")
+            
+            response = input("\n✅ Confirmar escrita? (y/N): ").strip().lower()
+            return response == 'y'
+            
+        except (EOFError, KeyboardInterrupt):
+            print("\n❌ Operação cancelada")
+            return False
+    
+    @retry_on_failure(max_retries=3, recoverable_errors=(OSError, IOError))  # Exclude PermissionError for security
     @safe_file_operation(create_backup=True)
     def write_file(self, file_path: str, content: str, encoding: str = 'utf-8', 
                    create_dirs: bool = True) -> str:
@@ -376,6 +461,24 @@ class Toolbelt:
         """
         # Resolve and validate the path
         resolved_path = self._resolve_and_validate_path(file_path, allow_create=True)
+        
+        # v2.0 Security: Validate output_scope
+        if not self._validate_output_scope(file_path):
+            raise OutputScopeViolationError(
+                f"Output scope violation: '{file_path}' não está permitido pelo output_scope do agente.\n"
+                f"Scope permitido: {getattr(self.genesis_agent, 'output_scope', 'N/A')}"
+            )
+        
+        # v2.0 UX: Prompt user confirmation in REPL mode
+        is_repl_mode = (self.genesis_agent and 
+                       hasattr(self.genesis_agent, 'ai_provider'))
+        
+        if is_repl_mode:
+            # Verifica se estamos em modo interativo (tem TTY)
+            import sys
+            if sys.stdin.isatty():
+                if not self._prompt_user_confirmation(file_path, content):
+                    return f"❌ Escrita cancelada pelo usuário: {file_path}"
         
         logger.debug(f"Writing file: {resolved_path} ({len(content)} characters)")
         
@@ -1170,7 +1273,7 @@ Este projeto foi configurado com o team template: **{template_data.get('id', 'un
 ### Modo Interativo (Conversar com um agente)
 ```bash
 # Incorporar um agente específico
-python scripts/genesis_agent.py --embody [AGENT_ID] --project-root {project_root} --repl
+python scripts/genesis_agent.py --environment develop --project {project_name} --agent [AGENT_ID] --repl
 ```
 
 ### Modo Automático (Executar workflows)
@@ -1982,7 +2085,7 @@ Projeto criado pelo **{template_vars['team_name']}**!
 ## 🚀 Próximos Passos
 
 1. Explore os agentes no diretório: `{template_vars['project_root']}/projects/{template_vars['environment']}/{template_vars['project_name']}/agents/`
-2. Inicie uma conversa: `python scripts/genesis_agent.py --embody [AGENT] --project-root {template_vars['project_root']} --repl`
+2. Inicie uma conversa: `python scripts/genesis_agent.py --environment {template_vars['environment']} --project {template_vars['project_name']} --agent [AGENT] --repl`
 
 ---
 *Gerado pelo Conductor Onboarding v{template_vars['system_version']}*
@@ -2287,6 +2390,130 @@ def create_llm_client(ai_provider: str, working_directory: str = None) -> LLMCli
         raise ValueError(f"Unsupported AI provider: {ai_provider}. Supported providers: 'claude', 'gemini'")
 
 
+# Workspace Resolution Functions for v2.0 Architecture
+def load_workspaces_config() -> Dict[str, str]:
+    """
+    Carrega a configuração de workspaces do arquivo config/workspaces.yaml.
+    
+    Returns:
+        Dict com mapeamento environment -> path
+        
+    Raises:
+        FileNotFoundError: Se o arquivo de configuração não existir
+        yaml.YAMLError: Se houver erro de parsing do YAML
+    """
+    config_path = Path(__file__).parent.parent / WORKSPACES_CONFIG_PATH
+    
+    if not config_path.exists():
+        raise FileNotFoundError(
+            f"Arquivo de configuração de workspaces não encontrado: {config_path}\n"
+            f"Crie o arquivo com o mapeamento de ambientes para seus diretórios."
+        )
+    
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        if not config or 'workspaces' not in config:
+            raise ValueError("Arquivo workspaces.yaml deve conter uma seção 'workspaces'")
+        
+        return config['workspaces']
+    except yaml.YAMLError as e:
+        raise yaml.YAMLError(f"Erro ao fazer parse do workspaces.yaml: {e}")
+
+
+def resolve_agent_paths(environment: str, project: str, agent_id: str) -> Tuple[Path, Path]:
+    """
+    Resolve os caminhos do agente e do projeto alvo baseado na nova arquitetura v2.0.
+    
+    Args:
+        environment: Nome do ambiente (develop, main, etc.)
+        project: Nome do projeto 
+        agent_id: ID do agente
+    
+    Returns:
+        Tuple[agent_home_path, project_root_path]
+        
+    Raises:
+        ValueError: Se o ambiente não estiver configurado ou paths inválidos
+    """
+    # Carrega configuração de workspaces
+    workspaces = load_workspaces_config()
+    
+    if environment not in workspaces:
+        available = ', '.join(workspaces.keys())
+        raise ValueError(
+            f"Ambiente '{environment}' não encontrado em workspaces.yaml.\n"
+            f"Ambientes disponíveis: {available}"
+        )
+    
+    # Calcula caminhos
+    conductor_root = Path(__file__).parent.parent
+    workspace_root = Path(workspaces[environment])
+    
+    # Caminho do "lar" do agente
+    agent_home_path = conductor_root / "projects" / environment / project / "agents" / agent_id
+    
+    # Caminho do projeto alvo
+    project_root_path = workspace_root / project
+    
+    # Valida se os caminhos existem
+    if not agent_home_path.exists():
+        raise ValueError(
+            f"Agente não encontrado: {agent_home_path}\n"
+            f"Use o script de migração ou AgentCreator_Agent para criar o agente."
+        )
+    
+    if not project_root_path.exists():
+        raise ValueError(
+            f"Projeto não encontrado: {project_root_path}\n"
+            f"Verifique se o projeto '{project}' existe no ambiente '{environment}'."
+        )
+    
+    return agent_home_path, project_root_path
+
+
+def load_agent_config_v2(agent_home_path: Path) -> Dict[str, Any]:
+    """
+    Carrega a configuração do agente da nova estrutura v2.0.
+    
+    Args:
+        agent_home_path: Caminho para o diretório do agente
+        
+    Returns:
+        Configuração do agente com target_context
+        
+    Raises:
+        FileNotFoundError: Se agent.yaml não existir
+        ValueError: Se configuração for inválida para v2.0
+    """
+    agent_yaml_path = agent_home_path / "agent.yaml"
+    
+    if not agent_yaml_path.exists():
+        raise FileNotFoundError(f"agent.yaml não encontrado em: {agent_yaml_path}")
+    
+    try:
+        with open(agent_yaml_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+    except yaml.YAMLError as e:
+        raise yaml.YAMLError(f"Erro ao fazer parse de agent.yaml: {e}")
+    
+    # Valida se é um agente v2.0
+    version = config.get('version', '1.0')
+    if str(version) != '2.0':
+        raise ValueError(
+            f"Agente não é v2.0 (versão atual: {version}). "
+            f"Execute o script de migração: python scripts/migrate_agents_v2.py"
+        )
+    
+    # Valida execution_mode
+    execution_mode = config.get('execution_mode')
+    if not execution_mode:
+        raise ValueError("Campo 'execution_mode' obrigatório em agentes v2.0")
+    
+    return config
+
+
 class GenesisAgent:
     """
     Main Genesis Agent class implementing the "embodiment" functionality.
@@ -2295,131 +2522,204 @@ class GenesisAgent:
     as defined in the Maestro framework specification.
     """
     
-    def __init__(self, project_root: str = None, working_directory: str = None, ai_provider: str = 'claude'):
+    def __init__(self, environment: str = None, project: str = None, agent_id: str = None, 
+                 ai_provider: str = 'claude'):
         """
-        Initialize the Genesis Agent.
+        Initialize the Genesis Agent for v2.0 architecture.
         
         Args:
-            project_root: Root directory for project operations
-            working_directory: Working directory for subprocess calls
+            environment: Nome do ambiente (develop, main, etc.) - obrigatório para v2.0
+            project: Nome do projeto alvo - obrigatório para v2.0
+            agent_id: ID do agente para embodiment - opcional, pode ser feito depois
             ai_provider: AI provider to use ('claude', 'gemini')
         """
-        self.project_root = project_root or os.getcwd()
-        self.working_directory = working_directory or self.project_root
         self.ai_provider = ai_provider
+        
+        # Agent state
+        self.current_agent = None
+        self.embodied = False
+        self.agent_config = None
+        self.agent_home_path = None
+        self.project_root_path = None
+        self.original_cwd = os.getcwd()  # Salva CWD original para restaurar
+        
+        # v2.0 Architecture - Project Resident Mode
+        if environment and project:
+            self.environment = environment
+            self.project = project
+            
+            try:
+                # Resolve paths usando nova arquitetura
+                if agent_id:
+                    self.agent_home_path, self.project_root_path = resolve_agent_paths(
+                        environment, project, agent_id
+                    )
+                    logger.info(f"v2.0 Mode: Paths resolved for {agent_id}")
+                    logger.info(f"Agent Home: {self.agent_home_path}")
+                    logger.info(f"Project Root: {self.project_root_path}")
+                else:
+                    # Só resolve workspace root por enquanto
+                    workspaces = load_workspaces_config()
+                    workspace_root = Path(workspaces[environment])
+                    self.project_root_path = workspace_root / project
+                    
+                    if not self.project_root_path.exists():
+                        raise ValueError(f"Projeto não encontrado: {self.project_root_path}")
+                    
+                    logger.info(f"v2.0 Mode: Workspace resolved for {environment}/{project}")
+                    logger.info(f"Project Root: {self.project_root_path}")
+                
+                # Define working directory como projeto alvo
+                self.working_directory = str(self.project_root_path)
+                
+            except Exception as e:
+                logger.error(f"Erro ao resolver paths v2.0: {e}")
+                raise
+        else:
+            logger.warning("Inicializando sem environment/project - use embody_agent_v2() depois")
+            self.environment = environment
+            self.project = project
+            self.working_directory = os.getcwd()
         
         # Initialize LLM client
         self.llm_client = create_llm_client(ai_provider, self.working_directory)
         
         # Initialize toolbelt
-        self.toolbelt = Toolbelt(self.working_directory)
+        self.toolbelt = Toolbelt(self.working_directory, genesis_agent=self)
         
-        # Agent state
-        self.current_agent = None
-        self.embodied = False
-        
-        logger.info(f"GenesisAgent initialized with provider: {ai_provider}")
+        logger.info(f"GenesisAgent initialized (v2.0) with provider: {ai_provider}")
     
-    def embody_agent(self, agent_name: str) -> bool:
+    def embody_agent_v2(self, agent_id: str) -> bool:
         """
-        Embody a specific agent by loading its configuration and state.
+        Embody um agente usando a nova arquitetura v2.0 com Project Resident Mode.
         
         Args:
-            agent_name: Name of the agent to embody
+            agent_id: ID do agente para embodiment
             
         Returns:
-            True if successful, False otherwise
+            True se bem-sucedido, False caso contrário
         """
         try:
-            # Construct agent directory path
-            agent_dir = os.path.join(AGENTS_BASE_PATH, agent_name)
-            if not os.path.exists(agent_dir):
-                logger.error(f"Agent directory not found: {agent_dir}")
+            if not self.environment or not self.project:
+                raise ValueError("Environment e project devem estar definidos para usar embody_agent_v2()")
+            
+            # Resolve caminhos do agente e projeto
+            self.agent_home_path, self.project_root_path = resolve_agent_paths(
+                self.environment, self.project, agent_id
+            )
+            
+            # Carrega configuração do agente v2.0
+            self.agent_config = load_agent_config_v2(self.agent_home_path)
+            
+            # FUNDAMENTAL: Muda para o diretório do projeto alvo (Project Resident Mode)
+            logger.info(f"Changing working directory to project: {self.project_root_path}")
+            os.chdir(str(self.project_root_path))
+            
+            # Atualiza working directory de todos os componentes
+            self.working_directory = str(self.project_root_path)
+            self.toolbelt.working_directory = str(self.project_root_path)
+            self.llm_client.working_directory = str(self.project_root_path)
+            
+            # Carrega estado do agente (usando caminho absoluto)
+            state_file_path = self.agent_home_path / self.agent_config.get("state_file_path", "state.json")
+            self._load_agent_state_v2(str(state_file_path))
+            
+            # Carrega persona do agente (usando caminho absoluto)
+            persona_path = self.agent_home_path / self.agent_config.get("persona_prompt_path", "persona.md")
+            if not self._load_agent_persona(str(persona_path), agent_id):
                 return False
             
-            # Load agent configuration
-            agent_yaml_path = os.path.join(agent_dir, "agent.yaml")
-            if not os.path.exists(agent_yaml_path):
-                logger.error(f"Agent configuration not found: {agent_yaml_path}")
-                return False
-                
-            import yaml
-            with open(agent_yaml_path, 'r') as f:
-                self.agent_config = yaml.safe_load(f)
+            # Salva paths absolutos para gestão de estado
+            self.state_file_path = str(state_file_path)
             
-            # Load agent state and conversation history
-            state_file_path = os.path.join(agent_dir, self.agent_config.get("state_file_path", "state.json"))
-            self._load_agent_state(state_file_path)
-            
-            # Load agent persona
-            persona_path = os.path.join(agent_dir, self.agent_config.get("persona_prompt_path", "persona.md"))
-            if not self._load_agent_persona(persona_path, agent_name):
-                return False
-            
-            # Store paths for future state saving
-            self.agent_dir = agent_dir
-            self.state_file_path = state_file_path
-            
-            # Set current agent and mark as embodied
-            self.current_agent = agent_name
+            # Marca agente como embodied
+            self.current_agent = agent_id
             self.embodied = True
             
-            # CRITICAL FIX: Update working directory to agent's folder
-            # This allows the agent to save files in its own directory
-            self.working_directory = agent_dir
-            self.toolbelt.working_directory = agent_dir
-            self.llm_client.working_directory = agent_dir
+            logger.info(f"Successfully embodied agent v2.0: {agent_id}")
+            logger.info(f"Agent Home: {self.agent_home_path}")
+            logger.info(f"Project Root (CWD): {self.project_root_path}")
+            logger.info(f"State File: {self.state_file_path}")
             
-            logger.info(f"Successfully embodied agent: {agent_name} (working_directory: {agent_dir})")
+            # Configura validação de output_scope se aplicável
+            target_context = self.agent_config.get('target_context')
+            if target_context and 'output_scope' in target_context:
+                self.output_scope = target_context['output_scope']
+                logger.info(f"Output scope configured: {self.output_scope}")
+            else:
+                self.output_scope = None
+                logger.info("No output scope restriction (meta-agent)")
+            
             return True
             
         except Exception as e:
-            logger.error(f"Failed to embody agent {agent_name}: {e}")
+            logger.error(f"Failed to embody agent v2.0 {agent_id}: {e}")
+            # Restaura CWD original em caso de erro
+            try:
+                os.chdir(self.original_cwd)
+            except:
+                pass
             return False
     
-    def _load_agent_state(self, state_file_path: str):
+    def _load_agent_state_v2(self, state_file_path: str):
         """
-        Load agent state from state.json file.
+        Carrega estado do agente v2.0 usando caminho absoluto.
         
         Args:
-            state_file_path: Path to the state.json file
+            state_file_path: Caminho absoluto para o state.json
         """
         try:
             if os.path.exists(state_file_path):
-                with open(state_file_path, 'r') as f:
+                with open(state_file_path, 'r', encoding='utf-8') as f:
                     state_data = json.load(f)
                 
-                # Load conversation history into LLM client
-                conversation_history = state_data.get("conversation_history", [])
-                if hasattr(self.llm_client, 'conversation_history'):
-                    self.llm_client.conversation_history = conversation_history
-                    logger.debug(f"Loaded {len(conversation_history)} conversation entries from state")
-                
-                # Store full state data for future reference
-                self.agent_state = state_data
-                
-            else:
-                logger.info(f"State file not found: {state_file_path}, initializing with empty state")
-                self.agent_state = {
-                    "version": "1.0",
-                    "agent_id": self.current_agent,
-                    "conversation_history": [],
-                    "last_updated": datetime.now().isoformat()
-                }
-                if hasattr(self.llm_client, 'conversation_history'):
+                # Carrega conversation history se existir
+                if 'conversation_history' in state_data and isinstance(state_data['conversation_history'], list):
+                    self.llm_client.conversation_history = state_data['conversation_history']
+                    logger.info(f"Loaded conversation history: {len(self.llm_client.conversation_history)} messages")
+                else:
                     self.llm_client.conversation_history = []
-                    
-        except Exception as e:
-            logger.error(f"Error loading agent state: {e}")
-            # Initialize with empty state on error
-            self.agent_state = {
-                "version": "1.0", 
-                "agent_id": getattr(self, 'current_agent', 'unknown'),
-                "conversation_history": [],
-                "last_updated": datetime.now().isoformat()
-            }
-            if hasattr(self.llm_client, 'conversation_history'):
+                    logger.info("No conversation history found, starting fresh")
+                
+                # Carrega outras informações de estado
+                if 'last_modified' in state_data:
+                    logger.info(f"Last modified: {state_data['last_modified']}")
+            else:
+                logger.info(f"No state file found at {state_file_path}, starting fresh")
                 self.llm_client.conversation_history = []
+                
+        except Exception as e:
+            logger.warning(f"Could not load agent state from {state_file_path}: {e}")
+            self.llm_client.conversation_history = []
+    
+    def save_agent_state_v2(self):
+        """
+        Salva estado do agente v2.0 usando caminho absoluto.
+        """
+        if not self.state_file_path:
+            logger.warning("No state file path configured for v2.0 agent")
+            return
+        
+        try:
+            state_data = {
+                'conversation_history': self.llm_client.conversation_history,
+                'last_modified': datetime.now().isoformat(),
+                'agent_id': self.current_agent,
+                'environment': self.environment,
+                'project': self.project
+            }
+            
+            # Garante que o diretório do agente existe
+            state_file = Path(self.state_file_path)
+            state_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            with open(self.state_file_path, 'w', encoding='utf-8') as f:
+                json.dump(state_data, f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"Agent state saved to: {self.state_file_path}")
+            
+        except Exception as e:
+            logger.error(f"Failed to save agent state v2.0: {e}")
     
     def _load_agent_persona(self, persona_path: str, agent_name: str = None) -> bool:
         """
@@ -2568,40 +2868,114 @@ class GenesisAgent:
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(description='Genesis Agent CLI')
-    parser.add_argument('--embody', type=str, help='Agent name to embody')
-    parser.add_argument('--project-root', type=str, help='Project root directory')
+    parser = argparse.ArgumentParser(
+        description='Genesis Agent CLI v2.0 - Project Resident Architecture',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+    python scripts/genesis_agent.py --environment develop --project nex-web-backend --agent KotlinEntityCreator_Agent --repl
+    python scripts/genesis_agent.py --environment develop --project nex-web-backend --agent ProblemRefiner_Agent
+        """
+    )
+    
+    # v2.0 Arguments
+    parser.add_argument('--environment', type=str, 
+                        help='Environment name (develop, main, etc.) - Required for v2.0')
+    parser.add_argument('--project', type=str,
+                        help='Project name - Required for v2.0')
+    parser.add_argument('--agent', type=str,
+                        help='Agent ID to embody - Required for v2.0')
+    
+    # Common Arguments
     parser.add_argument('--ai-provider', type=str, default='claude', choices=['claude', 'gemini'], 
                         help='AI provider to use')
-    parser.add_argument('--repl', action='store_true', help='Start interactive REPL')
+    parser.add_argument('--repl', action='store_true', 
+                        help='Start interactive REPL')
     
     args = parser.parse_args()
     
-    # Initialize Genesis Agent
-    agent = GenesisAgent(
-        project_root=args.project_root,
-        ai_provider=args.ai_provider
-    )
+    # Validate arguments
+    if not (args.environment and args.project):
+        print("❌ Erro: Especifique argumentos obrigatórios")
+        print("Uso: --environment develop --project nex-web-backend --agent KotlinEntityCreator_Agent")
+        exit(1)
     
-    # Embody agent if specified
-    if args.embody:
-        if agent.embody_agent(args.embody):
-            print(f"Successfully embodied {args.embody}")
-        else:
-            print(f"Failed to embody {args.embody}")
-            exit(1)
+    # Initialize Genesis Agent
+    try:
+        print(f"🚀 Iniciando Genesis Agent v2.0")
+        print(f"   Environment: {args.environment}")
+        print(f"   Project: {args.project}")
+        
+        agent = GenesisAgent(
+            environment=args.environment,
+            project=args.project,
+            agent_id=args.agent,
+            ai_provider=args.ai_provider
+        )
+        
+        # Embody agent if specified
+        if args.agent:
+            print(f"🤖 Embodying agent: {args.agent}")
+            if agent.embody_agent_v2(args.agent):
+                print(f"✅ Successfully embodied {args.agent} in {args.environment}/{args.project}")
+                print(f"📂 Working directory: {agent.working_directory}")
+                if hasattr(agent, 'output_scope') and agent.output_scope:
+                    print(f"🔒 Output scope: {agent.output_scope}")
+                else:
+                    print(f"🔓 No output restrictions (meta-agent)")
+            else:
+                print(f"❌ Failed to embody {args.agent}")
+                exit(1)
+    
+    except Exception as e:
+        print(f"❌ Initialization failed: {e}")
+        exit(1)
     
     # Start REPL if requested
     if args.repl:
-        print("Genesis Agent REPL started. Type 'exit' to quit.")
+        print("\n" + "="*60)
+        print("🎼 Genesis Agent REPL started")
+        print("Commands: 'exit' to quit, 'save' to save state")
+        print("="*60)
+        
         while True:
             try:
-                user_input = input("> ")
-                if user_input.lower() == 'exit':
+                user_input = input(f"[{agent.current_agent or 'genesis'}]> ")
+                
+                if user_input.lower() in ['exit', 'quit']:
                     break
+                elif user_input.lower() == 'save':
+                    if hasattr(agent, 'save_agent_state_v2'):
+                        agent.save_agent_state_v2()
+                        print("💾 State saved!")
+                    else:
+                        print("⚠️  State saving not available")
+                    continue
+                elif user_input.lower() in ['help', '?']:
+                    print("Commands: 'exit'=quit, 'save'=save state, 'help'=this message")
+                    continue
+                
+                if not user_input.strip():
+                    continue
+                
                 response = agent.chat(user_input)
                 print(response)
+                
+                # Auto-save state in v2.0 mode after each interaction
+                if hasattr(agent, 'save_agent_state_v2'):
+                    agent.save_agent_state_v2()
+                
             except KeyboardInterrupt:
-                print("\nExiting...")
+                print("\n👋 Exiting...")
                 break
+            except Exception as e:
+                print(f"❌ Error: {e}")
+                continue
+    
+    # If not REPL mode, just run a single interaction
+    elif not args.repl and agent.embodied:
+        print("\n💡 Tip: Use --repl for interactive mode")
+        print("🤖 Agent ready for programmatic use")
+    
+    print("\n👋 Genesis Agent session completed")
 

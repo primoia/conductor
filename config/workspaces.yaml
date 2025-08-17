@@ -1,0 +1,6 @@
+# Mapeia nomes de ambientes para seus diretórios raiz no sistema de arquivos.
+# É o único arquivo que um novo dev precisa configurar.
+workspaces:
+  develop: /mnt/ramdisk/develop
+  main: /mnt/ramdisk/main
+  primoia-main: /mnt/ramdisk/primoia-main
