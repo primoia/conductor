@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Test Suite: Chat Memory Persistence
+Test Suite: Chat Memory Persistence v2.0
 Bug Report: project-management/bug-reports/memory-chat-issue/
 
 Tests the critical chat memory persistence functionality without external API dependencies.
 Uses mock LLM clients to simulate Claude/Gemini responses.
+Updated for v2.0 architecture.
 
 Author: Global Engineering Team
 Date: 2025-08-16
@@ -15,6 +16,7 @@ import tempfile
 import os
 import json
 import shutil
+import yaml
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 
@@ -32,6 +34,7 @@ class MockLLMClient(LLMClient):
         super().__init__(working_directory)
         self.mock_responses = []
         self.call_count = 0
+        self.ai_provider = 'claude'  # Set provider to match expected behavior
         
     def add_mock_response(self, response: str):
         """Add a predetermined response for testing."""
@@ -89,50 +92,103 @@ class TestChatMemoryPersistence(unittest.TestCase):
     """
     
     def setUp(self):
-        """Set up test environment with temporary directories and mock agents."""
+        """Set up test environment with v2.0 architecture structure."""
         # Create temporary test directory structure
-        self.test_dir = tempfile.mkdtemp()
-        self.projects_dir = os.path.join(self.test_dir, "projects", "develop", "agents")
-        self.agent_dir = os.path.join(self.projects_dir, "TestAgent")
+        self.test_dir = tempfile.mkdtemp(prefix="conductor_memory_test_")
+        self.addCleanup(self._cleanup_test_dir)
         
-        os.makedirs(self.agent_dir, exist_ok=True)
+        # v2.0 Structure
+        self.mock_conductor_root = Path(self.test_dir) / "conductor"
+        self.mock_workspace = Path(self.test_dir) / "workspace" 
+        self.mock_project = self.mock_workspace / "test-service"
         
-        # Create test agent configuration
+        # Create structure
+        self.mock_conductor_root.mkdir(parents=True)
+        (self.mock_conductor_root / "config").mkdir()
+        
+        # Agent structure in v2.0
+        self.agent_home = (self.mock_conductor_root / "projects" / "develop" / 
+                          "test-service" / "agents" / "TestAgent")
+        self.agent_home.mkdir(parents=True)
+        
+        # Project structure
+        self.mock_project.mkdir(parents=True)
+        
+        # Create workspaces.yaml
+        workspaces_config = {
+            'workspaces': {
+                'develop': str(self.mock_workspace)
+            }
+        }
+        workspaces_yaml = self.mock_conductor_root / "config" / "workspaces.yaml"
+        with open(workspaces_yaml, 'w') as f:
+            yaml.dump(workspaces_config, f)
+        
+        # Create ai_providers.yaml
+        ai_providers_config = {
+            'default_providers': {
+                'chat': 'claude',
+                'generation': 'claude'
+            },
+            'fallback_provider': 'claude'
+        }
+        ai_providers_yaml = self.mock_conductor_root / "config" / "ai_providers.yaml"
+        with open(ai_providers_yaml, 'w') as f:
+            yaml.dump(ai_providers_config, f)
+        
+        # Create test agent configuration v2.0
         self.agent_yaml = {
             "id": "TestAgent",
-            "version": "1.0",
+            "version": "2.0",
             "description": "Test agent for memory persistence",
             "ai_provider": "claude",
             "persona_prompt_path": "persona.md",
             "state_file_path": "state.json",
+            "execution_mode": "project_resident",
+            "target_context": {
+                "project_key": "test-service",
+                "output_scope": "src/**/*.kt"
+            },
             "available_tools": ["read_file", "write_file"]
         }
         
         # Write agent.yaml
-        with open(os.path.join(self.agent_dir, "agent.yaml"), 'w') as f:
-            import yaml
+        agent_yaml = self.agent_home / "agent.yaml"
+        with open(agent_yaml, 'w') as f:
             yaml.dump(self.agent_yaml, f)
             
         # Write persona.md
-        with open(os.path.join(self.agent_dir, "persona.md"), 'w') as f:
-            f.write("# Test Agent Persona\nI am a test agent for memory persistence testing.")
+        persona_md = self.agent_home / "persona.md"
+        persona_md.write_text("# Test Agent Persona\nI am a test agent for memory persistence testing.")
             
         # Write initial state.json
         self.initial_state = {
-            "version": "1.0",
+            "version": "2.0",
             "agent_id": "TestAgent",
-            "status": "IDLE",
+            "environment": "develop",
+            "project": "test-service",
             "conversation_history": [],
-            "last_updated": "2025-08-16T10:00:00Z"
+            "last_modified": "2025-08-16T10:00:00Z"
         }
         
-        self.state_file = os.path.join(self.agent_dir, "state.json")
+        self.state_file = self.agent_home / "state.json"
         with open(self.state_file, 'w') as f:
             json.dump(self.initial_state, f, indent=2)
-            
-    def tearDown(self):
-        """Clean up test environment."""
-        shutil.rmtree(self.test_dir)
+        
+        # Save original CWD
+        self.original_cwd = os.getcwd()
+    
+    def _cleanup_test_dir(self):
+        """Limpa diretório de teste e restaura CWD."""
+        try:
+            os.chdir(self.original_cwd)
+        except:
+            pass
+        shutil.rmtree(self.test_dir, ignore_errors=True)
+    
+    def _mock_workspaces_config(self):
+        """Retorna configuração mock de workspaces."""
+        return {'develop': str(self.mock_workspace)}
         
     def test_agent_state_loading_on_initialization(self):
         """Test: Agent loads conversation_history from state.json on initialization."""
@@ -148,31 +204,45 @@ class TestChatMemoryPersistence(unittest.TestCase):
         with open(self.state_file, 'w') as f:
             json.dump(state_with_history, f, indent=2)
             
-        # WHEN: GenesisAgent is initialized and embodied
-        with patch('scripts.genesis_agent.AGENTS_BASE_PATH', self.projects_dir):
-            agent = GenesisAgent()
-            # Replace with mock client
-            agent.llm_client = MockLLMClient()
+        # WHEN: GenesisAgent is initialized and embodied with v2.0 architecture
+        with patch('scripts.genesis_agent.load_workspaces_config', return_value=self._mock_workspaces_config()), \
+             patch('scripts.genesis_agent.__file__', str(self.mock_conductor_root / "scripts" / "genesis_agent.py")):
+            
+            agent = GenesisAgent(
+                environment="develop",
+                project="test-service",
+                ai_provider="claude"
+            )
             
             # Load agent state (this should load conversation_history)
-            success = agent.embody_agent("TestAgent")
+            success = agent.embody_agent_v2("TestAgent")
             
         # THEN: Agent should have loaded the conversation history
         self.assertTrue(success, "Agent should successfully embody")
-        # This should fail until we implement state loading
         self.assertEqual(len(agent.llm_client.conversation_history), 2, "Should load existing conversation history")
         
     def test_conversation_persistence_across_interactions(self):
         """Test: Conversation history persists across multiple chat interactions."""
-        # GIVEN: Initialized agent
-        with patch('scripts.genesis_agent.AGENTS_BASE_PATH', self.projects_dir):
-            agent = GenesisAgent()
+        # GIVEN: Initialized agent with v2.0 architecture
+        with patch('scripts.genesis_agent.load_workspaces_config', return_value=self._mock_workspaces_config()), \
+             patch('scripts.genesis_agent.__file__', str(self.mock_conductor_root / "scripts" / "genesis_agent.py")), \
+             patch('scripts.genesis_agent.create_llm_client') as mock_create_client:
+            
+            # Set up mock client
             mock_client = MockLLMClient()
             mock_client.add_mock_response("Hello! How can I help you?")
             mock_client.add_mock_response("I remember you asked about my function.")
-            agent.llm_client = mock_client
+            mock_create_client.return_value = mock_client
             
-            agent.embody_agent("TestAgent")
+            agent = GenesisAgent(
+                environment="develop",
+                project="test-service",
+                ai_provider="claude"
+            )
+            
+            # Embody agent first
+            success = agent.embody_agent_v2("TestAgent")
+            self.assertTrue(success, "Agent should embody successfully")
             
         # WHEN: Multiple chat interactions occur
         response1 = agent.chat("Hello")
@@ -186,15 +256,22 @@ class TestChatMemoryPersistence(unittest.TestCase):
     def test_context_injection_in_llm_calls(self):
         """Test: Previous conversation context is included in new LLM calls."""
         # GIVEN: Agent with existing conversation history
-        with patch('scripts.genesis_agent.AGENTS_BASE_PATH', self.projects_dir):
-            agent = GenesisAgent()
-            mock_client = MockLLMClient()
-            agent.llm_client = mock_client
+        with patch('scripts.genesis_agent.load_workspaces_config', return_value=self._mock_workspaces_config()), \
+             patch('scripts.genesis_agent.__file__', str(self.mock_conductor_root / "scripts" / "genesis_agent.py")):
+            
+            agent = GenesisAgent(
+                environment="develop",
+                project="test-service",
+                ai_provider="claude"
+            )
             
             # Embody agent first (this loads state)
-            agent.embody_agent("TestAgent")
+            success = agent.embody_agent_v2("TestAgent")
+            self.assertTrue(success, "Agent should embody successfully")
             
-            # THEN manually add conversation history to simulate loaded state
+            # Replace with mock client and manually add conversation history to simulate loaded state
+            mock_client = MockLLMClient()
+            agent.llm_client = mock_client
             agent.llm_client.conversation_history = [
                 {"prompt": "Hello", "response": "Hi there!", "timestamp": 1234567890.0}
             ]
@@ -213,12 +290,23 @@ class TestChatMemoryPersistence(unittest.TestCase):
     def test_state_persistence_after_interactions(self):
         """Test: Agent state is saved to state.json after chat interactions."""
         # GIVEN: Agent with mock client
-        with patch('scripts.genesis_agent.AGENTS_BASE_PATH', self.projects_dir):
-            agent = GenesisAgent()
+        with patch('scripts.genesis_agent.load_workspaces_config', return_value=self._mock_workspaces_config()), \
+             patch('scripts.genesis_agent.__file__', str(self.mock_conductor_root / "scripts" / "genesis_agent.py")):
+            
+            agent = GenesisAgent(
+                environment="develop",
+                project="test-service",
+                ai_provider="claude"
+            )
+            
+            # Embody agent
+            success = agent.embody_agent_v2("TestAgent")
+            self.assertTrue(success, "Agent should embody successfully")
+            
+            # Replace with mock client
             mock_client = MockLLMClient()
             mock_client.add_mock_response("Test response")
             agent.llm_client = mock_client
-            agent.embody_agent("TestAgent")
             
         # WHEN: Chat interaction occurs
         agent.chat("Test message")
@@ -238,9 +326,10 @@ class TestChatMemoryPersistence(unittest.TestCase):
         """Test: Agent handles empty or missing conversation_history gracefully."""
         # GIVEN: state.json without conversation_history field
         state_without_history = {
-            "version": "1.0",
+            "version": "2.0",
             "agent_id": "TestAgent",
-            "status": "IDLE"
+            "environment": "develop",
+            "project": "test-service"
             # Note: no conversation_history field
         }
         
@@ -248,10 +337,16 @@ class TestChatMemoryPersistence(unittest.TestCase):
             json.dump(state_without_history, f, indent=2)
             
         # WHEN: Agent is initialized
-        with patch('scripts.genesis_agent.AGENTS_BASE_PATH', self.projects_dir):
-            agent = GenesisAgent()
+        with patch('scripts.genesis_agent.load_workspaces_config', return_value=self._mock_workspaces_config()), \
+             patch('scripts.genesis_agent.__file__', str(self.mock_conductor_root / "scripts" / "genesis_agent.py")):
+            
+            agent = GenesisAgent(
+                environment="develop",
+                project="test-service",
+                ai_provider="claude"
+            )
             agent.llm_client = MockLLMClient()
-            success = agent.embody_agent("TestAgent")
+            success = agent.embody_agent_v2("TestAgent")
             
         # THEN: Agent should initialize with empty conversation history
         self.assertTrue(success, "Agent should handle missing conversation_history gracefully")
@@ -263,10 +358,16 @@ class TestChatMemoryPersistence(unittest.TestCase):
             f.write("{ invalid json content")
             
         # WHEN: Agent is initialized
-        with patch('scripts.genesis_agent.AGENTS_BASE_PATH', self.projects_dir):
-            agent = GenesisAgent()
+        with patch('scripts.genesis_agent.load_workspaces_config', return_value=self._mock_workspaces_config()), \
+             patch('scripts.genesis_agent.__file__', str(self.mock_conductor_root / "scripts" / "genesis_agent.py")):
+            
+            agent = GenesisAgent(
+                environment="develop",
+                project="test-service",
+                ai_provider="claude"
+            )
             agent.llm_client = MockLLMClient()
-            success = agent.embody_agent("TestAgent")
+            success = agent.embody_agent_v2("TestAgent")
             
         # THEN: Agent should recover and create new state
         self.assertTrue(success, "Agent should recover from malformed state")

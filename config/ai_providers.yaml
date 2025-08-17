@@ -1,0 +1,22 @@
+# Define os provedores de IA padrão para cada tipo de tarefa.
+# Estes são usados a menos que um agente especifique o seu próprio.
+default_providers:
+  chat: 'gemini'        # Modelo otimizado para conversação interativa
+  generation: 'claude'  # Modelo otimizado para geração de código e artefatos
+
+# Configurações específicas por tipo de tarefa
+task_configurations:
+  chat:
+    description: "Interações de diálogo durante o REPL - conversação fluida e rápida"
+    preferred_models:
+      - gemini
+      - claude
+  
+  generation:
+    description: "Geração final de artefatos - código complexo e de alta qualidade"
+    preferred_models:
+      - claude
+      - gemini
+
+# Fallback configuration
+fallback_provider: 'claude'  # Se nenhum provedor específico estiver disponível
