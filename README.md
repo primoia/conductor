@@ -45,7 +45,7 @@ conductor/
 │   │   └── agents/
 │   │       └── AgentCreator_Agent/ # Meta-agentes residem aqui
 │   └── <ambiente>/            # Ex: develop, main
-│       └── <projeto>/         # Ex: nex-web-backend
+│       └── <projeto>/         # Ex: your-project-name
 │           └── agents/
 │               └── <agent_id>/  # Agentes de projeto residem aqui
 └── ...
@@ -64,7 +64,7 @@ Use este executor para interagir com agentes que leem ou modificam uma base de c
 python scripts/genesis_agent.py --environment <env> --project <proj> --agent <agent_id> [opções]
 ```
 - `--environment`: **(Obrigatório)** O ambiente de destino (ex: `develop`, `main`), conforme definido em `config/workspaces.yaml`.
-- `--project`: **(Obrigatório)** O nome do projeto alvo (ex: `nex-web-backend`).
+- `--project`: **(Obrigatório)** O nome do projeto alvo (ex: `your-project-name`).
 - `--agent`: **(Obrigatório)** O ID do agente a ser executado.
 
 **Modos de Execução:**

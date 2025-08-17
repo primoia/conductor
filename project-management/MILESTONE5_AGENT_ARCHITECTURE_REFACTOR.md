@@ -43,7 +43,7 @@ A nova arquitetura se baseia em um modelo de **Agente Residente** (cujo diretór
     id: KotlinControllerAgent
     version: 2.0
     target_context:
-      project_key: "nex-web-backend"
+      project_key: "your-project-name"
       output_scope: "src/main/kotlin/**/*Controller.kt"
     ```
 -   Meta-agentes (como o `AgentCreator_Agent`) não conterão a seção `target_context`.
