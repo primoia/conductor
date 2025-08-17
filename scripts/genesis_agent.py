@@ -7,6 +7,9 @@ Milestone 1: Basic structure and agent loading functionality.
 
 The Genesis Agent serves as the main interface for interactive mode in the Maestro framework,
 allowing developers to "embody" specialist agents for dialogue, analysis, and debugging.
+
+This script is focused exclusively on project agents that require environment/project context.
+For meta-agents that manage the framework itself, use admin.py instead.
 """
 
 import yaml
@@ -26,9 +29,18 @@ from datetime import datetime
 import time
 from functools import wraps
 
+# Import shared functionality
+from agent_common import (
+    load_ai_providers_config,
+    load_agent_config_v2,
+    resolve_agent_paths,
+    create_llm_client,
+    start_repl_session,
+    validate_agent_config
+)
+
 # Configuration Constants
 WORKSPACES_CONFIG_PATH = os.path.join("config", "workspaces.yaml")
-AI_PROVIDERS_CONFIG_PATH = os.path.join("config", "ai_providers.yaml")
 MAX_TOOL_CALLS_PER_TURN = 5  # Limit to prevent infinite loops
 MAX_CONVERSATION_HISTORY = 50  # Sliding window for conversation history
 
@@ -2423,145 +2435,10 @@ def load_workspaces_config() -> Dict[str, str]:
         raise yaml.YAMLError(f"Erro ao fazer parse do workspaces.yaml: {e}")
 
 
-def load_ai_providers_config() -> Dict[str, Any]:
-    """
-    Carrega a configuração de provedores de IA do arquivo config/ai_providers.yaml.
-    
-    Returns:
-        Dict com configuração de provedores para chat e generation
-        
-    Raises:
-        FileNotFoundError: Se o arquivo de configuração não existir
-        yaml.YAMLError: Se houver erro de parsing do YAML
-    """
-    config_path = Path(__file__).parent.parent / AI_PROVIDERS_CONFIG_PATH
-    
-    if not config_path.exists():
-        # Return default configuration if file doesn't exist
-        logger.warning(f"AI providers config not found: {config_path}. Using defaults.")
-        return {
-            'default_providers': {
-                'chat': 'gemini',
-                'generation': 'claude'
-            },
-            'fallback_provider': 'claude'
-        }
-    
-    try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f)
-        
-        if not config or 'default_providers' not in config:
-            raise ValueError("Arquivo ai_providers.yaml deve conter uma seção 'default_providers'")
-        
-        # Validate and set defaults for missing fields
-        required_providers = ['chat', 'generation']
-        fallback = config.get('fallback_provider', 'claude')
-        
-        for provider_type in required_providers:
-            if provider_type not in config['default_providers']:
-                logger.warning(f"Provider '{provider_type}' not configured, using fallback: {fallback}")
-                config['default_providers'][provider_type] = fallback
-        
-        # Set fallback if not specified
-        if 'fallback_provider' not in config:
-            config['fallback_provider'] = 'claude'
-        
-        return config
-    except yaml.YAMLError as e:
-        raise yaml.YAMLError(f"Erro ao fazer parse do ai_providers.yaml: {e}")
-
-
-def resolve_agent_paths(environment: str, project: str, agent_id: str) -> Tuple[Path, Path]:
-    """
-    Resolve os caminhos do agente e do projeto alvo baseado na nova arquitetura v2.0.
-    
-    Args:
-        environment: Nome do ambiente (develop, main, etc.)
-        project: Nome do projeto 
-        agent_id: ID do agente
-    
-    Returns:
-        Tuple[agent_home_path, project_root_path]
-        
-    Raises:
-        ValueError: Se o ambiente não estiver configurado ou paths inválidos
-    """
-    # Carrega configuração de workspaces
-    workspaces = load_workspaces_config()
-    
-    if environment not in workspaces:
-        available = ', '.join(workspaces.keys())
-        raise ValueError(
-            f"Ambiente '{environment}' não encontrado em workspaces.yaml.\n"
-            f"Ambientes disponíveis: {available}"
-        )
-    
-    # Calcula caminhos
-    conductor_root = Path(__file__).parent.parent
-    workspace_root = Path(workspaces[environment])
-    
-    # Caminho do "lar" do agente
-    agent_home_path = conductor_root / "projects" / environment / project / "agents" / agent_id
-    
-    # Caminho do projeto alvo
-    project_root_path = workspace_root / project
-    
-    # Valida se os caminhos existem
-    if not agent_home_path.exists():
-        raise ValueError(
-            f"Agente não encontrado: {agent_home_path}\n"
-            f"Use o script de migração ou AgentCreator_Agent para criar o agente."
-        )
-    
-    if not project_root_path.exists():
-        raise ValueError(
-            f"Projeto não encontrado: {project_root_path}\n"
-            f"Verifique se o projeto '{project}' existe no ambiente '{environment}'."
-        )
-    
-    return agent_home_path, project_root_path
-
-
-def load_agent_config_v2(agent_home_path: Path) -> Dict[str, Any]:
-    """
-    Carrega a configuração do agente da nova estrutura v2.0.
-    
-    Args:
-        agent_home_path: Caminho para o diretório do agente
-        
-    Returns:
-        Configuração do agente com target_context
-        
-    Raises:
-        FileNotFoundError: Se agent.yaml não existir
-        ValueError: Se configuração for inválida para v2.0
-    """
-    agent_yaml_path = agent_home_path / "agent.yaml"
-    
-    if not agent_yaml_path.exists():
-        raise FileNotFoundError(f"agent.yaml não encontrado em: {agent_yaml_path}")
-    
-    try:
-        with open(agent_yaml_path, 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f)
-    except yaml.YAMLError as e:
-        raise yaml.YAMLError(f"Erro ao fazer parse de agent.yaml: {e}")
-    
-    # Valida se é um agente v2.0
-    version = config.get('version', '1.0')
-    if str(version) != '2.0':
-        raise ValueError(
-            f"Agente não é v2.0 (versão atual: {version}). "
-            f"Execute o script de migração: python scripts/migrate_agents_v2.py"
-        )
-    
-    # Valida execution_mode
-    execution_mode = config.get('execution_mode')
-    if not execution_mode:
-        raise ValueError("Campo 'execution_mode' obrigatório em agentes v2.0")
-    
-    return config
+# Functions moved to agent_common.py:
+# - load_ai_providers_config()
+# - resolve_agent_paths()
+# - load_agent_config_v2()
 
 
 class GenesisAgent:
@@ -2705,13 +2582,16 @@ class GenesisAgent:
             if not self.environment or not self.project:
                 raise ValueError("Environment e project devem estar definidos para usar embody_agent_v2()")
             
-            # Resolve caminhos do agente e projeto
+            # Resolve caminhos do agente e projeto usando função compartilhada
             self.agent_home_path, self.project_root_path = resolve_agent_paths(
                 self.environment, self.project, agent_id
             )
             
-            # Carrega configuração do agente v2.0
+            # Carrega configuração do agente v2.0 usando função compartilhada
             self.agent_config = load_agent_config_v2(self.agent_home_path)
+            
+            # Validate configuration using shared function
+            validate_agent_config(self.agent_config)
             
             # Initialize LLM client with chat provider (default for conversation)
             chat_provider = self.get_chat_provider()
@@ -3021,12 +2901,15 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(
-        description='Genesis Agent CLI v2.0 - Project Resident Architecture',
+        description='Genesis Agent CLI v2.0 - Project Agent Executor',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
     python scripts/genesis_agent.py --environment develop --project nex-web-backend --agent KotlinEntityCreator_Agent --repl
     python scripts/genesis_agent.py --environment develop --project nex-web-backend --agent ProblemRefiner_Agent
+
+Note: For meta-agents that manage the framework itself, use admin.py instead:
+    python scripts/admin.py --agent AgentCreator_Agent --repl
         """
     )
     
@@ -3048,13 +2931,15 @@ Examples:
     
     # Validate arguments
     if not (args.environment and args.project):
-        print("❌ Erro: Especifique argumentos obrigatórios")
+        print("❌ Erro: Especifique argumentos obrigatórios para agentes de projeto")
         print("Uso: --environment develop --project nex-web-backend --agent KotlinEntityCreator_Agent")
+        print("\n💡 Para meta-agentes que gerenciam o framework, use admin.py:")
+        print("   python scripts/admin.py --agent AgentCreator_Agent")
         exit(1)
     
     # Initialize Genesis Agent
     try:
-        print(f"🚀 Iniciando Genesis Agent v2.0")
+        print(f"🚀 Iniciando Genesis Agent v2.0 (Project Agent Executor)")
         print(f"   Environment: {args.environment}")
         print(f"   Project: {args.project}")
         
@@ -3085,73 +2970,7 @@ Examples:
     
     # Start REPL if requested
     if args.repl:
-        print("\n" + "="*60)
-        print("🎼 Genesis Agent REPL started")
-        print("Commands: 'exit' to quit, 'save' to save state")
-        print("Generation: 'gerar documento', 'preview', 'consolidar' use generation provider")
-        print("="*60)
-        
-        # Show dual provider info
-        if agent.embodied:
-            chat_provider = agent.get_chat_provider()
-            generation_provider = agent.get_generation_provider()
-            print(f"💬 Chat provider: {chat_provider}")
-            print(f"🏗️  Generation provider: {generation_provider}")
-            print("="*60)
-        
-        while True:
-            try:
-                user_input = input(f"[{agent.current_agent or 'genesis'}]> ")
-                
-                if user_input.lower() in ['exit', 'quit']:
-                    break
-                elif user_input.lower() == 'save':
-                    if hasattr(agent, 'save_agent_state_v2'):
-                        agent.save_agent_state_v2()
-                        print("💾 State saved!")
-                    else:
-                        print("⚠️  State saving not available")
-                    continue
-                elif user_input.lower() in ['help', '?']:
-                    chat_prov = agent.get_chat_provider() if agent.embodied else 'N/A'
-                    gen_prov = agent.get_generation_provider() if agent.embodied else 'N/A'
-                    print("Commands:")
-                    print("  'exit'/'quit' = quit session")
-                    print("  'save' = save agent state")
-                    print("  'help'/'?' = this message")
-                    print("  'gerar documento' = generate artifact with generation provider")
-                    print("  'preview' = preview artifact with generation provider")
-                    print("  'consolidar' = consolidate conversation with generation provider")
-                    print(f"  Current chat provider: {chat_prov}")
-                    print(f"  Current generation provider: {gen_prov}")
-                    continue
-                
-                if not user_input.strip():
-                    continue
-                
-                # Check if this is a generation task
-                generation_commands = ['gerar documento', 'preview', 'consolidar', 'criar artefato', 'salvar documento']
-                is_generation_task = any(cmd in user_input.lower() for cmd in generation_commands)
-                
-                if is_generation_task:
-                    print(f"🏗️  Using generation provider for artifact creation...")
-                    response = agent.generate_artifact(user_input)
-                else:
-                    # Regular chat interaction
-                    response = agent.chat(user_input)
-                
-                print(response)
-                
-                # Auto-save state after each interaction
-                if hasattr(agent, 'save_agent_state_v2'):
-                    agent.save_agent_state_v2()
-                
-            except KeyboardInterrupt:
-                print("\n👋 Exiting...")
-                break
-            except Exception as e:
-                print(f"❌ Error: {e}")
-                continue
+        start_repl_session(agent, "genesis")
     
     # If not REPL mode, just run a single interaction
     elif not args.repl and agent.embodied:
