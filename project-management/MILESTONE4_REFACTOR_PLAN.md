@@ -33,7 +33,7 @@ The core engine must be updated to handle the new context.
 ### 3.1. New Command-Line Arguments
 
 The script must accept the following new mandatory argument:
-*   `--project-root <path>`: The absolute path to the target project on which the agent will operate (e.g., `/mnt/ramdisk/main/nex-web-backend`).
+*   `--project-root <path>`: The absolute path to the target project on which the agent will operate (e.g., `/mnt/ramdisk/main/your-project-name`).
 
 ### 3.2. Dynamic AI Provider Selection
 
@@ -55,7 +55,7 @@ The agent's persona and logic must be updated for the new contextual creation fl
 The guided dialogue must now include these new questions at the beginning:
 
 1.  "In which **environment** will this new agent operate? (e.g., `develop`, `main`)"
-2.  "For which **project** within this environment will the agent be created? (e.g., `nex-web-backend`)"
+2.  "For which **project** within this environment will the agent be created? (e.g., `your-project-name`)"
 3.  "Which **AI provider** (`claude` or `gemini`) should this agent use by default?"
 
 ### 4.2. New Path Creation Logic

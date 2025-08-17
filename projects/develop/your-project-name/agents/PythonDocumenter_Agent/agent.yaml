@@ -1,0 +1,49 @@
+ai_provider: claude
+available_tools:
+- Read
+- Write
+- Grep
+- Glob
+- Bash
+config:
+  documentation_style: formal_detailed
+  output_format: markdown
+description: Analisa classes Python e gera documentação automática completa com exemplos,
+  docstrings e guias de uso.
+execution_mode: project_resident
+execution_task: 'Com base no `input_file` (arquivo Python especificado), analise e
+  gere documentação completa (${output_artifact}) com:
+
+  - Análise de classes, métodos e funções
+
+  - Documentação de parâmetros e retornos
+
+  - Exemplos de uso e casos práticos
+
+  - Guias de instalação e configuração
+
+  - Diagramas de arquitetura quando relevante
+
+  - Índice e navegação estruturada
+
+  '
+id: PythonDocumenter_Agent
+metadata:
+  author: AgentCreator_Agent
+  category: documentation
+  created_date: '2025-08-16'
+  migrated_to_v2_1: '2025-08-16'
+  tags:
+  - python
+  - documentation
+  - markdown
+  - classes
+  - functions
+output_artifact: python_documentation.md
+output_directory: docs/generated
+persona_prompt_path: persona.md
+state_file_path: state.json
+target_context:
+  output_scope: docs/api/*.md
+  project_key: your-project-name
+version: '2.0'

@@ -69,7 +69,7 @@ Target Kotlin File
 ```
 
 ### **Paths**
-- **Project Root**: `/mnt/ramdisk/develop/nex-web-backend`
+- **Project Root**: `/mnt/ramdisk/develop/your-project-name`
 - **Agents Root**: `/mnt/ramdisk/primoia-main/conductor/projects/develop/agents`
 - **Output**: `src/test/kotlin/.../*Test.kt`
 

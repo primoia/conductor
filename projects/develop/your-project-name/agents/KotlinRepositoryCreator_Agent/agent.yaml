@@ -1,0 +1,32 @@
+ai_provider: claude
+available_tools:
+- Read
+- Write
+- Grep
+- Glob
+description: Especialista em criar classes Repository Spring Data JPA para Kotlin/Spring
+  Boot com queries e métodos customizados.
+execution_mode: project_resident
+execution_task: 'Com base na especificação fornecida no `input_file`, criar um Repository
+  Kotlin (${output_artifact}) com:
+
+  - Interface extendendo JpaRepository<Entity, ID>
+
+  - Queries customizadas com @Query quando necessário
+
+  - Métodos de busca específicos (findBy...)
+
+  - Anotações @Repository quando apropriado
+
+  - Documentação e comentários descritivos
+
+  '
+id: KotlinRepositoryCreator_Agent
+output_artifact: Repository.kt
+output_directory: src/main/kotlin/com/project/repository
+persona_prompt_path: persona.md
+state_file_path: state.json
+target_context:
+  output_scope: src/main/kotlin/br/com/nextar/repository/*.kt
+  project_key: your-project-name
+version: '2.0'

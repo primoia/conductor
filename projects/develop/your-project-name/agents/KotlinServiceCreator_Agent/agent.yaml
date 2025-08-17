@@ -1,0 +1,34 @@
+ai_provider: claude
+available_tools:
+- Read
+- Write
+- Grep
+- Glob
+description: Especialista em criar classes Service para Kotlin/Spring Boot com lógica
+  de negócio e integração com repositories.
+execution_mode: project_resident
+execution_task: 'Com base na especificação fornecida no `input_file`, criar uma classe
+  Service Kotlin (${output_artifact}) com:
+
+  - Anotação @Service para marcação Spring
+
+  - Injeção de dependência de repositories via construtor
+
+  - Métodos de lógica de negócio (create, update, delete, find)
+
+  - Tratamento de exceções adequado
+
+  - Validações de negócio quando necessário
+
+  - Documentação e comentários descritivos
+
+  '
+id: KotlinServiceCreator_Agent
+output_artifact: Service.kt
+output_directory: src/main/kotlin/com/project/service
+persona_prompt_path: persona.md
+state_file_path: state.json
+target_context:
+  output_scope: src/main/kotlin/br/com/nextar/service/*.kt
+  project_key: your-project-name
+version: '2.0'

@@ -18,7 +18,7 @@ A arquitetura de executores foi refatorada seguindo o **Princípio da Responsabi
 
 **Uso:**
 ```bash
-python scripts/genesis_agent.py --environment develop --project nex-web-backend --agent KotlinEntityCreator_Agent --repl
+python scripts/genesis_agent.py --environment develop --project your-project-name --agent KotlinEntityCreator_Agent --repl
 ```
 
 **Exemplos de Agentes:**
@@ -117,7 +117,7 @@ conductor/
     │   └── agents/          # Meta-agentes
     │       └── AgentCreator_Agent/
     └── develop/
-        └── nex-web-backend/
+        └── your-project-name/
             └── agents/      # Agentes de projeto
                 └── KotlinEntityCreator_Agent/
 ```
