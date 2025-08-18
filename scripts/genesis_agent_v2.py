@@ -2446,7 +2446,7 @@ class ClaudeCLIClient(LLMClient):
             full_prompt = self._build_full_prompt_with_persona(prompt)
             
             # Build command with proper arguments and allowed tools
-            cmd = [self.claude_command, "--print"]
+            cmd = [self.claude_command, "--print", "--dangerously-skip-permissions"]
             
             # Add allowed tools based on agent configuration
             # Check if we have access to agent's available tools via genesis_agent reference
@@ -2474,7 +2474,7 @@ class ClaudeCLIClient(LLMClient):
                 input=input_text,
                 capture_output=True,
                 text=True,
-                timeout=300,  # 5 minutes timeout for complex operations like agent generation
+                timeout=getattr(self, 'timeout', 120),  # Use configured timeout or default to 2 minutes
                 cwd=self.working_directory
             )
             
@@ -2498,8 +2498,9 @@ class ClaudeCLIClient(LLMClient):
                 return None
                 
         except subprocess.TimeoutExpired:
-            logger.error("Claude CLI timed out after 300 seconds")
-            return "❌ Claude CLI timed out after 300 seconds (5 minutes). Complex operations may need more time."
+            timeout_value = getattr(self, 'timeout', 120)
+            logger.error(f"Claude CLI timed out after {timeout_value} seconds")
+            return f"❌ Claude CLI timed out after {timeout_value} seconds. Complex operations may need more time."
         except Exception as e:
             logger.error(f"Claude CLI error: {e}")
             return f"❌ Claude CLI error: {e}"
@@ -2577,7 +2578,7 @@ class GeminiCLIClient(LLMClient):
             return None
 
 
-def create_llm_client(ai_provider: str, working_directory: str = None) -> LLMClient:
+def create_llm_client(ai_provider: str, working_directory: str = None, timeout: int = 120) -> LLMClient:
     """
     Factory function to create LLM clients based on provider.
     
@@ -2592,7 +2593,9 @@ def create_llm_client(ai_provider: str, working_directory: str = None) -> LLMCli
         ValueError: If unsupported provider is specified
     """
     if ai_provider == 'claude':
-        return ClaudeCLIClient(working_directory)
+        client = ClaudeCLIClient(working_directory)
+        client.timeout = timeout  # Set timeout for Claude client
+        return client
     elif ai_provider == 'gemini':
         return GeminiCLIClient(working_directory)
     else:
@@ -2646,7 +2649,7 @@ class GenesisAgent:
     """
     
     def __init__(self, environment: str = None, project: str = None, agent_id: str = None, 
-                 ai_provider: str = None):
+                 ai_provider: str = None, timeout: int = 120):
         """
         Initialize the Genesis Agent for v2.0 architecture.
         
@@ -2659,6 +2662,7 @@ class GenesisAgent:
         # Load AI providers configuration for dual provider logic
         self.ai_providers_config = load_ai_providers_config()
         self.ai_provider_override = ai_provider  # Agent-specific override if provided
+        self.timeout = timeout  # Store timeout for LLM operations
         
         # Agent state
         self.current_agent = None
@@ -2764,6 +2768,12 @@ class GenesisAgent:
         """Resolve provedor para tarefas de geração de artefatos."""
         return self.resolve_provider_for_task('generation')
     
+    def get_available_tools(self) -> List[str]:
+        """Get list of available tool names from agent config."""
+        if not self.agent_config:
+            return []
+        return self.agent_config.get('available_tools', [])
+    
     def embody_agent_v2(self, agent_id: str) -> bool:
         """
         Embody um agente usando a nova arquitetura v2.0 com Project Resident Mode.
@@ -2791,7 +2801,11 @@ class GenesisAgent:
             
             # Initialize LLM client with chat provider (default for conversation)
             chat_provider = self.get_chat_provider()
-            self.llm_client = create_llm_client(chat_provider, str(self.project_root_path))
+            self.llm_client = create_llm_client(chat_provider, str(self.project_root_path), self.timeout)
+            
+            # Pass reference to this agent for tool access
+            self.llm_client.genesis_agent = self
+            
             logger.info(f"Initialized LLM client with chat provider: {chat_provider}")
             
             # FUNDAMENTAL: Muda para o diretório do projeto alvo (Project Resident Mode)
@@ -2812,7 +2826,11 @@ class GenesisAgent:
                 return False
             
             # Salva paths absolutos para gestão de estado
-            self.state_file_path = str(state_file_path)
+            # Para project-resident agents, salva o state no diretório do projeto
+            if self.agent_config.get('execution_mode') == 'project_resident':
+                self.state_file_path = str(self.project_root_path / "agents" / agent_id / "state.json")
+            else:
+                self.state_file_path = str(state_file_path)
             
             # Marca agente como embodied
             self.current_agent = agent_id
@@ -3043,7 +3061,7 @@ class GenesisAgent:
             current_provider = self.get_chat_provider()
             if not hasattr(self.llm_client, 'ai_provider') or self.llm_client.ai_provider != current_provider:
                 logger.info(f"Switching to chat provider: {current_provider}")
-                self.llm_client = create_llm_client(current_provider, self.working_directory)
+                self.llm_client = create_llm_client(current_provider, self.working_directory, self.timeout)
                 # Restore conversation history
                 if hasattr(self, '_conversation_history'):
                     self.llm_client.conversation_history = self._conversation_history
@@ -3081,7 +3099,7 @@ class GenesisAgent:
             logger.info(f"Using generation provider for artifact: {generation_provider}")
             
             # Create dedicated LLM client for generation
-            generation_client = create_llm_client(generation_provider, self.working_directory)
+            generation_client = create_llm_client(generation_provider, self.working_directory, self.timeout)
             
             # Transfer conversation history for context
             if hasattr(self, '_conversation_history'):
@@ -3129,6 +3147,8 @@ Note: For meta-agents that manage the framework itself, use admin.py instead:
                         help='Input message to send to agent (non-interactive mode)')
     parser.add_argument('--debug', action='store_true',
                         help='Enable debug mode (shows logs in console)')
+    parser.add_argument('--timeout', type=int, default=120,
+                        help='Timeout in seconds for Claude CLI operations (default: 120)')
     
     args = parser.parse_args()
     
@@ -3160,7 +3180,8 @@ Note: For meta-agents that manage the framework itself, use admin.py instead:
             environment=args.environment,
             project=args.project,
             agent_id=args.agent,
-            ai_provider=args.ai_provider
+            ai_provider=args.ai_provider,
+            timeout=args.timeout
         )
         
         logger.info("GenesisAgent initialized successfully")
