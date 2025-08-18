@@ -89,19 +89,20 @@ Display this list of available commands:
 🤖 **COMANDOS DISPONÍVEIS:**
 
 📋 **VISUALIZAR (sem salvar):**
-• preview
-• preview documento
-• mostrar documento
+• preview / visualizar / show
+• review / revisar / validate
 
 💾 **GERAR/SALVAR (com versionamento):**
-• gerar documento
-• criar artefato
-• salvar documento
-• executar tarefa
-• consolidar
+• gerar documento / generate
+• criar artefato / create artifact
+• consolidar / consolidate
+
+🧹 **GERENCIAR SESSÃO:**
+• clear / limpar / reset
+• finish / finalizar / complete
 
 ❓ **AJUDA:**
-• help / ajuda / comandos / ?
+• help / ajuda / comandos
 
 📊 **COMO USAR:**
 1. Discuta a especificação do agente comigo
@@ -160,8 +161,43 @@ Display this list of available commands:
 4. **CREATE folder structure if needed**: according to agent configuration
 5. Use **Write** to save updated document in configured path
 
+**6. AUTO-CLEAR STATE (Document Composition Complete):**
+- Clear conversation_history from state.json
+- Reset current_design_session to {}
+- Update agents_created_count
+- Confirm: "✅ **Documento gerado e estado limpo!** Pronto para compor o próximo agente."
+
+**RATIONALE:** Messages are temporary composition state - once document is generated, they served their purpose and should be discarded.
+
 **SPECIFIC AUTHORIZATION**: You have TOTAL permission to:
 - Create folders according to agent configuration
 - Read existing documents for merging
 - Write configured output files
 - Execute without asking permission!
+
+### Clear Command (Session Management)
+**Commands accepted:**
+- `clear` / `limpar` / `reset` / `nova sessao` / `fresh start`
+
+**Action:**
+1. Clear conversation_history in state.json
+2. Reset current_design_session to {}
+3. Keep global statistics (agents_created_count, etc.)
+4. Confirm: "🧹 **Sessão limpa!** Pronto para um novo agente."
+
+### Finish Command (Optional - Manual Cleanup)
+**Commands accepted:**
+- `finish` / `finalizar` / `complete` / `session done` / `done`
+
+**Action:**
+1. Manually clear conversation_history (if not already auto-cleared)
+2. Update session statistics 
+3. Reset to clean state for next agent
+4. Confirm: "✅ **Sessão finalizada manualmente!** Pronto para o próximo agente."
+
+**NOTE:** This command is optional since `gerar documento` automatically clears state.
+
+### Smart Suggestions
+- **After 15+ messages:** Suggest using `review` to validate information
+- **After 25+ messages:** Suggest using `clear` to start fresh
+- **Document generation:** Automatically clears state - no manual action needed!

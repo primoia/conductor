@@ -220,8 +220,70 @@ def start_repl_session(agent, agent_name: str = "admin"):
     while True:
         user_input = ""
         try:
-            # Isolate the input call to robustly handle EOF and keyboard interrupts.
-            user_input = input(f"[{agent.current_agent or agent_name}]> ")
+            # Check if we're receiving piped input (non-interactive mode)
+            import sys
+            if not sys.stdin.isatty():
+                # Read all available input as one message for non-interactive mode
+                lines = []
+                commands = []
+                try:
+                    while True:
+                        line = input()
+                        # Separate commands from content
+                        if line.lower().strip() in ['exit', 'quit', 'gerar documento', 'preview', 'consolidar', 'clear', 'help']:
+                            commands.append(line.lower().strip())
+                        else:
+                            lines.append(line)
+                except EOFError:
+                    # End of input reached - process content first, then commands
+                    if lines:
+                        user_input = '\n'.join(lines)
+                        print(f"[{agent.current_agent or agent_name}]> ")
+                        print(f"📝 Processing multi-line input ({len(lines)} lines)...")
+                        
+                        # Process the main content message
+                        generation_commands = ['gerar documento', 'preview', 'consolidar', 'criar artefato', 'salvar documento']
+                        is_generation_task = any(cmd in user_input.lower() for cmd in generation_commands)
+                        
+                        try:
+                            if is_generation_task:
+                                print(f"🏗️  Using generation provider for artifact creation...")
+                                response = agent.generate_artifact(user_input)
+                            else:
+                                response = agent.chat(user_input)
+                            
+                            print(response)
+
+                        except Exception as agent_error:
+                            print(f"\n❌ Erro na execução do agente: {agent_error}")
+                            print("   A sessão REPL continua ativa. Você pode tentar novamente ou digitar 'exit'.")
+                        
+                        # Save state after processing
+                        if hasattr(agent, 'save_agent_state_v2'):
+                            agent.save_agent_state_v2()
+                    
+                    # Now process commands
+                    for cmd in commands:
+                        if cmd in ['exit', 'quit']:
+                            print("👋 Encerrando sessão.")
+                            return
+                        elif cmd == 'gerar documento':
+                            print("🏗️  Using generation provider for document generation...")
+                            try:
+                                response = agent.generate_artifact("gerar documento")
+                                print(response)
+                            except Exception as e:
+                                print(f"❌ Error generating document: {e}")
+                            if hasattr(agent, 'save_agent_state_v2'):
+                                agent.save_agent_state_v2()
+                        # Handle other commands as needed
+                    
+                    # Exit after processing all
+                    print("👋 Encerrando sessão.")
+                    return
+            else:
+                # Interactive mode - read line by line as before
+                user_input = input(f"[{agent.current_agent or agent_name}]> ")
         except (KeyboardInterrupt, EOFError):
             print("\n👋 Encerrando sessão.")
             break
