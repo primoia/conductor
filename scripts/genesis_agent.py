@@ -2178,6 +2178,13 @@ class LLMClient:
         self.agent_persona = persona
         logger.debug("Agent persona set in LLM client")
     
+    def generate_artifact(self, prompt: str) -> str:
+        """
+        Generate an artifact using this LLM client.
+        Base implementation just calls _invoke_subprocess.
+        """
+        return self._invoke_subprocess(prompt) or "No response generated."
+    
     def _invoke_subprocess(self, prompt: str) -> Optional[str]:
         """
         Abstract method for invoking AI via subprocess.
@@ -2284,20 +2291,33 @@ class ClaudeCLIClient(LLMClient):
             # Build full prompt with persona and conversation context
             full_prompt = self._build_full_prompt_with_persona(prompt)
             
-            # Build command with proper arguments
-            # Build command with conditional permissions
+            # Build command with proper arguments and allowed tools
             cmd = [self.claude_command, "--print"]
             
-            # Only skip permissions if explicitly requested (for file operations)
-            if "Write" in prompt or "write_file" in prompt or "criar arquivo" in prompt.lower() or "salvar" in prompt.lower():
-                cmd.append("--dangerously-skip-permissions")
-                logger.debug("Adding --dangerously-skip-permissions for file operations")
+            # Add allowed tools based on agent configuration
+            # Check if we have access to agent's available tools via genesis_agent reference
+            if hasattr(self, 'genesis_agent') and hasattr(self.genesis_agent, 'get_available_tools'):
+                available_tools = self.genesis_agent.get_available_tools()
+                if available_tools:
+                    tools_str = " ".join(available_tools)
+                    cmd.extend(["--allowedTools", tools_str])
+                    logger.debug(f"Adding allowed tools: {tools_str}")
+            else:
+                # Fallback: allow common tools for file operations
+                if "Write" in prompt or "write_file" in prompt or "criar arquivo" in prompt.lower() or "salvar" in prompt.lower():
+                    cmd.extend(["--allowedTools", "Write Edit Bash Read Grep Glob LS"])
+                    logger.debug("Adding fallback allowed tools for file operations")
             
-            cmd.append(full_prompt)
+            # Use stdin instead of command line argument for better compatibility
+            input_text = full_prompt
             
-            # Execute Claude CLI with timeout
+            # Debug: log the command being executed
+            logger.debug(f"Executing Claude CLI command: {' '.join(cmd[:3])} ... [prompt]")
+            
+            # Execute Claude CLI with timeout using stdin
             result = subprocess.run(
                 cmd,
+                input=input_text,
                 capture_output=True,
                 text=True,
                 timeout=60,
@@ -2347,7 +2367,7 @@ class GeminiCLIClient(LLMClient):
             working_directory: Working directory for subprocess calls
         """
         super().__init__(working_directory)
-        self.gemini_command = "gemini-cli"  # Assuming a Gemini CLI tool exists
+        self.gemini_command = ["npx", "--yes", "@google/gemini-cli"]
         logger.debug("GeminiCLIClient initialized")
     
     def _invoke_subprocess(self, prompt: str) -> Optional[str]:
@@ -2361,8 +2381,14 @@ class GeminiCLIClient(LLMClient):
             Gemini's response or None if failed
         """
         try:
-            # Build command for Gemini
-            cmd = [self.gemini_command, "--prompt", prompt]
+            # Build command for Gemini exactly like focused_gemini_orchestrator.py
+            cmd = self.gemini_command.copy()
+            cmd.extend(["--prompt", prompt])
+            
+            # Add tool approval mode for file operations
+            if "Write" in prompt or "write_file" in prompt or "criar arquivo" in prompt.lower() or "salvar" in prompt.lower():
+                cmd.extend(["--approval-mode", "yolo"])  # Use yolo for auto-approval
+                logger.debug("Adding yolo approval mode for file operations")
             
             result = subprocess.run(
                 cmd,
