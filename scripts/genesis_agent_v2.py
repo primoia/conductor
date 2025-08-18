@@ -2474,7 +2474,7 @@ class ClaudeCLIClient(LLMClient):
                 input=input_text,
                 capture_output=True,
                 text=True,
-                timeout=90,  # Increased timeout for complex operations like agent generation
+                timeout=300,  # 5 minutes timeout for complex operations like agent generation
                 cwd=self.working_directory
             )
             
@@ -2498,8 +2498,8 @@ class ClaudeCLIClient(LLMClient):
                 return None
                 
         except subprocess.TimeoutExpired:
-            logger.error("Claude CLI timed out after 90 seconds")
-            return "❌ Claude CLI timed out after 90 seconds. Complex operations may need more time."
+            logger.error("Claude CLI timed out after 300 seconds")
+            return "❌ Claude CLI timed out after 300 seconds (5 minutes). Complex operations may need more time."
         except Exception as e:
             logger.error(f"Claude CLI error: {e}")
             return f"❌ Claude CLI error: {e}"
@@ -2967,6 +2967,9 @@ class GenesisAgent:
             '{{agent_id}}': agent_id,
             '{{agent_name}}': friendly_name,
             '{{agent_description}}': agent_description,
+            '{{environment}}': getattr(self, 'environment', 'develop'),
+            '{{project}}': getattr(self, 'project', 'unknown'),
+            '{{project_key}}': getattr(self, 'project', 'unknown'),
         }
         
         # Apply placeholder replacements only with valid strings
@@ -3122,6 +3125,8 @@ Note: For meta-agents that manage the framework itself, use admin.py instead:
                         help='AI provider override (uses dual provider system by default)')
     parser.add_argument('--repl', action='store_true', 
                         help='Start interactive REPL')
+    parser.add_argument('--input', type=str, default=None,
+                        help='Input message to send to agent (non-interactive mode)')
     parser.add_argument('--debug', action='store_true',
                         help='Enable debug mode (shows logs in console)')
     
@@ -3192,9 +3197,44 @@ Note: For meta-agents that manage the framework itself, use admin.py instead:
         start_repl_session(agent, "genesis")
         logger.info("REPL session completed")
     
-    # If not REPL mode, just run a single interaction
+    # Process input if provided (non-interactive mode)
+    elif args.input and agent.embodied:
+        logger.info(f"Processing input message: {args.input[:100]}...")
+        print(f"\n🤖 Processing input for {args.agent}:")
+        print(f"📝 Input: {args.input}")
+        print("-" * 60)
+        
+        try:
+            # Determine if this is a generation task
+            generation_commands = ['gerar documento', 'preview', 'consolidar', 'criar artefato', 'salvar documento']
+            is_generation_task = any(cmd in args.input.lower() for cmd in generation_commands)
+            
+            if is_generation_task:
+                print(f"🏗️  Using generation provider for artifact creation...")
+                logger.info("Using generation provider for artifact creation")
+                response = agent.generate_artifact(args.input)
+            else:
+                print(f"💬 Using chat provider for conversation...")
+                logger.info("Using chat provider for conversation")
+                response = agent.chat(args.input)
+            
+            print("\n📄 Response:")
+            print("=" * 60)
+            print(response)
+            print("=" * 60)
+            
+            # Save state after processing
+            if hasattr(agent, 'save_agent_state_v2'):
+                agent.save_agent_state_v2()
+                logger.info("Agent state saved after processing input")
+            
+        except Exception as e:
+            print(f"\n❌ Error processing input: {e}")
+            logger.error(f"Error processing input: {e}")
+    
+    # If not REPL mode and no input, just show ready message
     elif not args.repl and agent.embodied:
-        print("\n💡 Tip: Use --repl for interactive mode")
+        print("\n💡 Tip: Use --repl for interactive mode or --input for single message")
         print("🤖 Agent ready for programmatic use")
         logger.info("Agent ready for programmatic use")
     
