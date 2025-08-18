@@ -3,7 +3,7 @@
 Agent Common Module - Shared functionality for agent execution
 
 This module contains common functions and classes used by both
-genesis_agent.py (project agents) and admin.py (meta-agents).
+gensis_agent.py (project agents) and admin.py (meta-agents).
 """
 
 import yaml
@@ -49,7 +49,7 @@ ALLOWED_AGENT_FIELDS = {
 DANGEROUS_PATTERNS = [
     r'rm\s+-rf?\s+/', r'sudo\s+', r'chmod\s+777', r'>/dev/', r'\|\s*sh\b',
     r'eval\s*\(', r'exec\s*\(', r'system\s*\(', r'\$\([^)]*\)',
-    r'__import__', r'open\s*\(.*["\']w', r'delete\s+from', r'drop\s+table',
+    r'__import__', r'open\s*\(.*[\'"\\]w', r'delete\s+from', r'drop\s+table',
     r'truncate\s+table', r'alter\s+table', r'create\s+user', r'grant\s+all'
 ]
 
@@ -143,7 +143,8 @@ def resolve_agent_paths(environment: str, project: str, agent_id: str) -> Tuple[
         agent_home_path = Path("projects") / environment / project / "agents" / agent_id
         if not agent_home_path.exists():
             raise ValueError(
-                f"Agente '{agent_id}' não encontrado em: {agent_home_path}\n"
+                f"Agente '{agent_id}' não encontrado em: {agent_home_path}\
+"
                 f"Verifique se o agente existe no projeto '{project}' no ambiente '{environment}'."
             )
         
@@ -159,7 +160,8 @@ def resolve_agent_paths(environment: str, project: str, agent_id: str) -> Tuple[
             
             if environment not in workspaces:
                 raise ValueError(
-                    f"Environment '{environment}' não encontrado em workspaces.yaml\n"
+                    f"Environment '{environment}' não encontrado em workspaces.yaml\
+"
                     f"Environments disponíveis: {list(workspaces.keys())}"
                 )
             
@@ -168,7 +170,8 @@ def resolve_agent_paths(environment: str, project: str, agent_id: str) -> Tuple[
             
             if not project_root_path.exists():
                 raise ValueError(
-                    f"Projeto '{project}' não encontrado em: {project_root_path}\n"
+                    f"Projeto '{project}' não encontrado em: {project_root_path}\
+"
                     f"Verifique se o projeto existe no ambiente '{environment}'."
                 )
                 
@@ -177,7 +180,8 @@ def resolve_agent_paths(environment: str, project: str, agent_id: str) -> Tuple[
             project_root_path = Path("projects") / environment / project
             if not project_root_path.exists():
                 raise ValueError(
-                    f"Projeto '{project}' não encontrado em: {project_root_path}\n"
+                    f"Projeto '{project}' não encontrado em: {project_root_path}\
+"
                     f"Verifique se o projeto existe no ambiente '{environment}'."
                 )
         
@@ -189,16 +193,7 @@ def resolve_agent_paths(environment: str, project: str, agent_id: str) -> Tuple[
 
 
 def create_llm_client(ai_provider: str, working_directory: str = None) -> 'LLMClient':
-    """
-    Create LLM client for the specified provider.
-    
-    Args:
-        ai_provider: AI provider name (claude, gemini, etc.)
-        working_directory: Working directory for the client
-        
-    Returns:
-        LLMClient instance
-    """
+    """Create LLM client for the specified provider."""
     # Import here to avoid circular imports
     try:
         from genesis_agent import create_llm_client as genesis_create_llm_client
@@ -207,22 +202,14 @@ def create_llm_client(ai_provider: str, working_directory: str = None) -> 'LLMCl
         logger.error("LLMClient not available")
         raise
 
-
 def start_repl_session(agent, agent_name: str = "admin"):
-    """
-    Start interactive REPL session for the agent.
-    
-    Args:
-        agent: Agent instance with chat and generate_artifact methods
-        agent_name: Name to display in prompt
-    """
+    """Start interactive REPL session for the agent."""
     print("\n" + "="*60)
     print("🎼 Agent REPL started")
     print("Commands: 'exit' to quit, 'save' to save state")
     print("Generation: 'gerar documento', 'preview', 'consolidar' use generation provider")
     print("="*60)
     
-    # Show dual provider info if available
     if hasattr(agent, 'embodied') and agent.embodied:
         chat_provider = agent.get_chat_provider()
         generation_provider = agent.get_generation_provider()
@@ -231,36 +218,41 @@ def start_repl_session(agent, agent_name: str = "admin"):
         print("="*60)
     
     while True:
+        user_input = ""
         try:
+            # Isolate the input call to robustly handle EOF and keyboard interrupts.
             user_input = input(f"[{agent.current_agent or agent_name}]> ")
-            
-            if user_input.lower() in ['exit', 'quit']:
-                break
-            elif user_input.lower() == 'save':
-                if hasattr(agent, 'save_agent_state_v2'):
-                    agent.save_agent_state_v2()
-                    print("💾 State saved!")
-                else:
-                    print("⚠️  State saving not available")
-                continue
-            elif user_input.lower() in ['help', '?']:
-                chat_prov = agent.get_chat_provider() if hasattr(agent, 'get_chat_provider') else 'N/A'
-                gen_prov = agent.get_generation_provider() if hasattr(agent, 'get_generation_provider') else 'N/A'
-                print("Commands:")
-                print("  'exit'/'quit' = quit session")
-                print("  'save' = save agent state")
-                print("  'help'/'?' = this message")
-                print("  'gerar documento' = generate artifact with generation provider")
-                print("  'preview' = preview artifact with generation provider")
-                print("  'consolidar' = consolidate conversation with generation provider")
-                print(f"  Current chat provider: {chat_prov}")
-                print(f"  Current generation provider: {gen_prov}")
-                continue
-            
-            if not user_input.strip():
-                continue
-            
-            # Check if this is a generation task
+        except (KeyboardInterrupt, EOFError):
+            print("\n👋 Encerrando sessão.")
+            break
+
+        # Process the user input if it was successfully received.
+        if user_input.lower() in ['exit', 'quit']:
+            break
+        
+        if user_input.lower() == 'save':
+            if hasattr(agent, 'save_agent_state_v2'):
+                agent.save_agent_state_v2()
+            else:
+                print("⚠️  State saving not available")
+            continue
+
+        if user_input.lower() in ['help', '?']:
+            chat_prov = agent.get_chat_provider() if hasattr(agent, 'get_chat_provider') else 'N/A'
+            gen_prov = agent.get_generation_provider() if hasattr(agent, 'get_generation_provider') else 'N/A'
+            print("Commands:")
+            print("  'exit'/'quit' = quit session")
+            print("  'save' = save agent state")
+            print("  'help'/'?' = this message")
+            print(f"  Current chat provider: {chat_prov}")
+            print(f"  Current generation provider: {gen_prov}")
+            continue
+
+        if not user_input.strip():
+            continue
+
+        # Inner try-except block for recoverable agent errors during processing.
+        try:
             generation_commands = ['gerar documento', 'preview', 'consolidar', 'criar artefato', 'salvar documento']
             is_generation_task = any(cmd in user_input.lower() for cmd in generation_commands)
             
@@ -268,43 +260,29 @@ def start_repl_session(agent, agent_name: str = "admin"):
                 print(f"🏗️  Using generation provider for artifact creation...")
                 response = agent.generate_artifact(user_input)
             else:
-                # Regular chat interaction
                 response = agent.chat(user_input)
             
             print(response)
-            
-            # Auto-save state after each interaction
-            if hasattr(agent, 'save_agent_state_v2'):
-                agent.save_agent_state_v2()
-            
-        except KeyboardInterrupt:
-            print("\n👋 Exiting...")
-            break
-        except Exception as e:
-            print(f"❌ Error: {e}")
+
+        except Exception as agent_error:
+            print(f"\n❌ Erro na execução do agente: {agent_error}")
+            print("   A sessão REPL continua ativa. Você pode tentar novamente ou digitar 'exit'.")
             continue
+        
+        if hasattr(agent, 'save_agent_state_v2'):
+            agent.save_agent_state_v2()
     
     print("\n👋 Agent session completed")
 
 
 def validate_agent_config(config: Dict[str, Any]) -> bool:
-    """
-    Validate agent configuration for security and correctness.
-    
-    Args:
-        config: Agent configuration dictionary
-        
-    Returns:
-        True if valid, raises exception if invalid
-    """
-    # Check for dangerous patterns in execution_task
+    """Validate agent configuration for security and correctness."""
     execution_task = config.get('execution_task', '')
     if execution_task:
         for pattern in DANGEROUS_PATTERNS:
             if re.search(pattern, execution_task, re.IGNORECASE):
                 raise ValueError(f"Dangerous pattern detected in execution_task: {pattern}")
     
-    # Check execution_task length
     if len(execution_task) > MAX_EXECUTION_TASK_LENGTH:
         raise ValueError(f"execution_task too long ({len(execution_task)} chars, max {MAX_EXECUTION_TASK_LENGTH})")
     
