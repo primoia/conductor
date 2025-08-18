@@ -123,11 +123,45 @@ VALID_ENVIRONMENTS = {
     'develop', 'main', 'production'
 }
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+# Configure genesis logging
+def setup_genesis_logging(debug_mode: bool = False):
+    """Setup logging for genesis agent executor."""
+    # Create logs directory
+    logs_dir = Path("logs")
+    logs_dir.mkdir(exist_ok=True)
+    
+    # Create genesis logger
+    genesis_logger = logging.getLogger('genesis_executor')
+    genesis_logger.setLevel(logging.DEBUG)
+    
+    # Clear any existing handlers to avoid duplicates
+    genesis_logger.handlers.clear()
+    
+    # File handler (always logs everything)
+    log_file = logs_dir / f"genesis_{datetime.now().strftime('%Y%m%d')}.log"
+    file_handler = logging.FileHandler(log_file, encoding='utf-8')
+    file_handler.setLevel(logging.DEBUG)
+    
+    # Console handler (only if debug mode)
+    if debug_mode:
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_format = logging.Formatter('%(levelname)s: %(message)s')
+        console_handler.setFormatter(console_format)
+        genesis_logger.addHandler(console_handler)
+    
+    # Prevent propagation to root logger
+    genesis_logger.propagate = False
+    
+    # Detailed file format
+    file_format = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
+    )
+    file_handler.setFormatter(file_format)
+    genesis_logger.addHandler(file_handler)
+    
+    return genesis_logger
+
 logger = logging.getLogger(__name__)
 
 
@@ -3088,8 +3122,13 @@ Note: For meta-agents that manage the framework itself, use admin.py instead:
                         help='AI provider override (uses dual provider system by default)')
     parser.add_argument('--repl', action='store_true', 
                         help='Start interactive REPL')
+    parser.add_argument('--debug', action='store_true',
+                        help='Enable debug mode (shows logs in console)')
     
     args = parser.parse_args()
+    
+    # Setup logging
+    logger = setup_genesis_logging(debug_mode=args.debug)
     
     # Validate arguments
     if not (args.environment and args.project):
@@ -3104,6 +3143,13 @@ Note: For meta-agents that manage the framework itself, use admin.py instead:
         print(f"🚀 Iniciando Genesis Agent v2.0 (Project Agent Executor)")
         print(f"   Environment: {args.environment}")
         print(f"   Project: {args.project}")
+        if args.debug:
+            print(f"   Debug mode: enabled")
+            print(f"   Logs: logs/genesis_{datetime.now().strftime('%Y%m%d')}.log")
+        
+        logger.info(f"Starting Genesis Agent v2.0 for {args.environment}/{args.project}")
+        logger.debug(f"AI provider override: {args.ai_provider}")
+        logger.debug(f"Debug mode: {args.debug}")
         
         agent = GenesisAgent(
             environment=args.environment,
@@ -3112,9 +3158,13 @@ Note: For meta-agents that manage the framework itself, use admin.py instead:
             ai_provider=args.ai_provider
         )
         
+        logger.info("GenesisAgent initialized successfully")
+        
         # Embody agent if specified
         if args.agent:
             print(f"🤖 Embodying agent: {args.agent}")
+            logger.info(f"Attempting to embody agent: {args.agent}")
+            
             if agent.embody_agent_v2(args.agent):
                 print(f"✅ Successfully embodied {args.agent} in {args.environment}/{args.project}")
                 print(f"📂 Working directory: {agent.working_directory}")
@@ -3122,22 +3172,32 @@ Note: For meta-agents that manage the framework itself, use admin.py instead:
                     print(f"🔒 Output scope: {agent.output_scope}")
                 else:
                     print(f"🔓 No output restrictions (meta-agent)")
+                
+                logger.info(f"Successfully embodied agent: {args.agent}")
+                logger.debug(f"Working directory: {agent.working_directory}")
+                logger.debug(f"Output scope: {getattr(agent, 'output_scope', 'None')}")
             else:
                 print(f"❌ Failed to embody {args.agent}")
+                logger.error(f"Failed to embody agent: {args.agent}")
                 exit(1)
     
     except Exception as e:
         print(f"❌ Initialization failed: {e}")
+        logger.error(f"Genesis Agent initialization failed: {e}")
         exit(1)
     
     # Start REPL if requested
     if args.repl:
+        logger.info("Starting REPL session")
         start_repl_session(agent, "genesis")
+        logger.info("REPL session completed")
     
     # If not REPL mode, just run a single interaction
     elif not args.repl and agent.embodied:
         print("\n💡 Tip: Use --repl for interactive mode")
         print("🤖 Agent ready for programmatic use")
+        logger.info("Agent ready for programmatic use")
     
     print("\n👋 Genesis Agent session completed")
+    logger.info("Genesis Agent session completed")
 
