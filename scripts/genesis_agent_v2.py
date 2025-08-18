@@ -2525,6 +2525,43 @@ class GeminiCLIClient(LLMClient):
         self.gemini_command = ["npx", "--yes", "@google/gemini-cli"]
         logger.debug("GeminiCLIClient initialized")
     
+    def set_agent_persona(self, persona: str):
+        """
+        Set the agent persona for this Gemini client.
+        
+        Args:
+            persona: The agent's persona text from persona.md
+        """
+        self.agent_persona = persona
+        logger.debug("Agent persona set in Gemini client")
+        logger.info(f"Persona length: {len(persona)} characters")
+    
+    def _build_full_prompt_with_persona(self, prompt: str) -> str:
+        """
+        Build a prompt that includes the agent persona for context.
+        
+        Args:
+            prompt: The user prompt
+            
+        Returns:
+            Full prompt including persona context
+        """
+        if not self.agent_persona:
+            return prompt
+        
+        # Build prompt with persona as system instructions
+        full_prompt = f"""You are a specialized AI agent with the following persona and instructions:
+
+{self.agent_persona}
+
+Now, please respond to the following request following your persona and instructions:
+
+{prompt}"""
+        
+        logger.debug(f"Built full prompt with persona for Gemini (length: {len(full_prompt)})")
+        logger.info(f"Persona included in prompt: {'Yes' if self.agent_persona else 'No'}")
+        return full_prompt
+    
     def _invoke_subprocess(self, prompt: str) -> Optional[str]:
         """
         Invoke Gemini CLI with the given prompt.
@@ -2536,9 +2573,25 @@ class GeminiCLIClient(LLMClient):
             Gemini's response or None if failed
         """
         try:
+            # Build full prompt with persona if available
+            full_prompt = self._build_full_prompt_with_persona(prompt)
+            
             # Build command for Gemini exactly like focused_gemini_orchestrator.py
             cmd = self.gemini_command.copy()
-            cmd.extend(["--prompt", prompt])
+            cmd.extend(["--prompt", full_prompt])
+            
+            # Add allowed tools based on agent configuration (similar to Claude)
+            if hasattr(self, 'genesis_agent') and hasattr(self.genesis_agent, 'get_available_tools'):
+                available_tools = self.genesis_agent.get_available_tools()
+                if available_tools:
+                    tools_str = " ".join(available_tools)
+                    cmd.extend(["--allowed-tools", tools_str])
+                    logger.debug(f"Adding allowed tools for Gemini: {tools_str}")
+            else:
+                # Fallback: allow common tools for file operations
+                if "Write" in prompt or "write_file" in prompt or "criar arquivo" in prompt.lower() or "salvar" in prompt.lower():
+                    cmd.extend(["--allowed-tools", "Write Edit Bash Read Grep Glob LS"])
+                    logger.debug("Adding fallback allowed tools for Gemini file operations")
             
             # Add tool approval mode for file operations
             if "Write" in prompt or "write_file" in prompt or "criar arquivo" in prompt.lower() or "salvar" in prompt.lower():
@@ -2549,7 +2602,7 @@ class GeminiCLIClient(LLMClient):
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=60,
+                timeout=getattr(self, 'timeout', 120),  # Use configured timeout or default to 2 minutes
                 cwd=self.working_directory
             )
             
@@ -2593,11 +2646,15 @@ def create_llm_client(ai_provider: str, working_directory: str = None, timeout: 
         ValueError: If unsupported provider is specified
     """
     if ai_provider == 'claude':
+        logger.info(f"Creating Claude CLI client with timeout: {timeout}s")
         client = ClaudeCLIClient(working_directory)
         client.timeout = timeout  # Set timeout for Claude client
         return client
     elif ai_provider == 'gemini':
-        return GeminiCLIClient(working_directory)
+        logger.info(f"Creating Gemini CLI client with timeout: {timeout}s")
+        client = GeminiCLIClient(working_directory)
+        client.timeout = timeout  # Set timeout for Gemini client
+        return client
     else:
         raise ValueError(f"Unsupported AI provider: {ai_provider}. Supported providers: 'claude', 'gemini'")
 
@@ -3227,17 +3284,25 @@ Note: For meta-agents that manage the framework itself, use admin.py instead:
         
         try:
             # Determine if this is a generation task
-            generation_commands = ['gerar documento', 'preview', 'consolidar', 'criar artefato', 'salvar documento']
+            generation_commands = ['gerar documento', 'preview', 'consolidar', 'criar artefato', 'salvar documento', 'documento', 'documentacao', 'gere']
             is_generation_task = any(cmd in args.input.lower() for cmd in generation_commands)
+            
+            # Always enhance input with automatic persona instructions
+            enhanced_input = f"""IMPORTANTE: Leia atentamente o persona.md e agent.yaml do agente e siga EXATAMENTE as diretrizes definidas nesses arquivos.
+
+{args.input}
+
+Lembre-se: Você DEVE seguir a estrutura e formato especificados no persona, não crie formatos alternativos."""
+            logger.info("Enhanced input with automatic persona instructions")
             
             if is_generation_task:
                 print(f"🏗️  Using generation provider for artifact creation...")
                 logger.info("Using generation provider for artifact creation")
-                response = agent.generate_artifact(args.input)
+                response = agent.generate_artifact(enhanced_input)
             else:
                 print(f"💬 Using chat provider for conversation...")
                 logger.info("Using chat provider for conversation")
-                response = agent.chat(args.input)
+                response = agent.chat(enhanced_input)
             
             print("\n📄 Response:")
             print("=" * 60)
