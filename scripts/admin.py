@@ -251,10 +251,13 @@ class AdminAgent:
             return "❌ No agent embodied. Use embody_meta_agent() first."
         
         try:
+            self.logger.info(f"Processing chat message: {message[:100]}...")
             # Use the correct method to invoke the LLM with native tool support
             response = self.llm_client._invoke_subprocess(message)
+            self.logger.info(f"Chat response received: {len(response) if response else 0} chars")
             return response
         except Exception as e:
+            self.logger.error(f"Chat error: {e}")
             return f"❌ Error in chat: {e}"
     
     def generate_artifact(self, prompt: str) -> str:
