@@ -2222,37 +2222,156 @@ class ClaudeCLIClient(LLMClient):
     def _build_contextual_prompt(self, new_prompt: str) -> str:
         """
         Build a prompt that includes conversation history for context.
+        Uses intelligent context compression to avoid token overflow.
         
         Args:
             new_prompt: The new user prompt
             
         Returns:
-            Full prompt including conversation context
+            Full prompt including conversation context (optimized)
         """
         if not self.conversation_history:
             return new_prompt
         
-        # Build context from conversation history
-        context_parts = ["Previous conversation context:"]
+        # Check if this looks like an AgentCreator session with collected specs
+        if self._is_agent_creation_session():
+            return self._build_agent_creation_context(new_prompt)
         
-        # Include last N messages for context (limit to prevent token overflow)
-        max_context_messages = 8  # Reasonable context window
+        # For other conversations, use limited recent context
+        context_parts = ["Recent conversation:"]
+        
+        # Only include last 3 messages to keep context manageable
+        max_context_messages = 3
         recent_history = self.conversation_history[-max_context_messages:]
         
         for entry in recent_history:
             user_msg = entry.get('prompt', '').strip()
             assistant_msg = entry.get('response', '').strip()
             
-            # Keep full messages - Claude can handle context intelligently
+            # Truncate long messages to essential parts
             if user_msg:
-                context_parts.append(f"User: {user_msg}")
+                user_summary = user_msg[:150] + "..." if len(user_msg) > 150 else user_msg
+                context_parts.append(f"User: {user_summary}")
             if assistant_msg:
-                context_parts.append(f"Assistant: {assistant_msg}")
+                assistant_summary = assistant_msg[:200] + "..." if len(assistant_msg) > 200 else assistant_msg
+                context_parts.append(f"Assistant: {assistant_summary}")
         
         context_parts.append("\nCurrent message:")
         context_parts.append(f"User: {new_prompt}")
         
         return "\n".join(context_parts)
+    
+    def _is_agent_creation_session(self) -> bool:
+        """
+        Detect if this is an AgentCreator session collecting agent specifications.
+        """
+        if len(self.conversation_history) < 2:
+            return False
+        
+        # Look for agent creation keywords in conversation
+        recent_messages = self.conversation_history[-5:]
+        agent_keywords = ['ambiente', 'projeto', 'agente', 'agent', 'cURL', 'QA', 'documentation']
+        
+        for entry in recent_messages:
+            response = entry.get('response', '').lower()
+            if any(keyword in response for keyword in agent_keywords):
+                return True
+        
+        return False
+    
+    def _build_agent_creation_context(self, new_prompt: str) -> str:
+        """
+        Build optimized context for agent creation sessions.
+        Extracts and summarizes collected specifications instead of full history.
+        """
+        context_parts = ["Agent creation session in progress:"]
+        
+        # Extract key information from conversation history
+        extracted_specs = self._extract_agent_specifications()
+        
+        if extracted_specs:
+            context_parts.append("Collected specifications:")
+            for key, value in extracted_specs.items():
+                if value:
+                    context_parts.append(f"- {key}: {value}")
+        
+        # Add only the most recent exchange for immediate context
+        if self.conversation_history:
+            last_entry = self.conversation_history[-1]
+            last_response = last_entry.get('response', '')
+            if last_response:
+                # Truncate to key points
+                response_summary = last_response[:300] + "..." if len(last_response) > 300 else last_response
+                context_parts.append(f"\nLast response: {response_summary}")
+        
+        context_parts.append(f"\nCurrent message: {new_prompt}")
+        
+        return "\n".join(context_parts)
+    
+    def _extract_agent_specifications(self) -> dict:
+        """
+        Extract agent specifications from conversation history.
+        Returns structured data instead of raw conversation.
+        """
+        specs = {
+            'ambiente': None,
+            'projeto': None,
+            'nome_agente': None,
+            'funcionalidade': None,
+            'publico_alvo': None,
+            'provedor_ia': None,
+            'ferramentas': None,
+            'conteudo_doc': [],
+            'regras_formatacao': [],
+            'informacoes_adicionais': []
+        }
+        
+        # Parse conversation history for key information
+        for entry in self.conversation_history:
+            response = entry.get('response', '')
+            
+            # Extract environment
+            if 'ambiente' in response.lower() and 'develop' in response:
+                specs['ambiente'] = 'develop'
+            
+            # Extract project
+            if 'projeto' in response.lower():
+                if 'nex-web-backend' in response:
+                    specs['projeto'] = 'nex-web-backend'
+            
+            # Extract agent name
+            if 'nome' in response.lower() and 'agent' in response:
+                if 'QADocumentationAgent_Agent' in response:
+                    specs['nome_agente'] = 'QADocumentationAgent_Agent'
+            
+            # Extract functionality
+            if 'documentação técnica' in response.lower():
+                specs['funcionalidade'] = 'Gerar documentação técnica'
+            
+            # Extract target audience
+            if 'QA' in response and 'time' in response.lower():
+                specs['publico_alvo'] = 'Time de QA'
+            
+            # Extract content requirements
+            if 'cURL' in response:
+                if 'cURL' not in specs['conteudo_doc']:
+                    specs['conteudo_doc'].append('Comando cURL')
+            if 'JSON' in response and 'exemplo' in response.lower():
+                if 'Exemplos JSON' not in specs['conteudo_doc']:
+                    specs['conteudo_doc'].append('Exemplos JSON')
+            if 'status code' in response.lower():
+                if 'Status codes' not in specs['conteudo_doc']:
+                    specs['conteudo_doc'].append('Status codes')
+            
+            # Extract formatting rules
+            if 'aspas duplas' in response.lower():
+                if 'Aspas duplas' not in specs['regras_formatacao']:
+                    specs['regras_formatacao'].append('URLs com aspas duplas')
+            if '{{' in response and '}}' in response:
+                if 'Postman vars' not in specs['regras_formatacao']:
+                    specs['regras_formatacao'].append('Variáveis Postman {{var}}')
+        
+        return specs
     
     def _build_full_prompt_with_persona(self, new_prompt: str) -> str:
         """
@@ -2315,13 +2434,13 @@ class ClaudeCLIClient(LLMClient):
             # Debug: log the command being executed
             logger.debug(f"Executing Claude CLI command: {' '.join(cmd[:3])} ... [prompt]")
             
-            # Execute Claude CLI with shorter timeout using stdin
+            # Execute Claude CLI with reasonable timeout using stdin
             result = subprocess.run(
                 cmd,
                 input=input_text,
                 capture_output=True,
                 text=True,
-                timeout=30,  # Reduced from 60 to 30 seconds
+                timeout=90,  # Increased timeout for complex operations like agent generation
                 cwd=self.working_directory
             )
             
@@ -2345,8 +2464,8 @@ class ClaudeCLIClient(LLMClient):
                 return None
                 
         except subprocess.TimeoutExpired:
-            logger.error("Claude CLI timed out after 30 seconds")
-            return "❌ Claude CLI timed out. Try with a shorter message or check your connection."
+            logger.error("Claude CLI timed out after 90 seconds")
+            return "❌ Claude CLI timed out after 90 seconds. Complex operations may need more time."
         except Exception as e:
             logger.error(f"Claude CLI error: {e}")
             return f"❌ Claude CLI error: {e}"
