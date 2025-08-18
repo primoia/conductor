@@ -2236,13 +2236,14 @@ class ClaudeCLIClient(LLMClient):
         context_parts = ["Previous conversation context:"]
         
         # Include last N messages for context (limit to prevent token overflow)
-        max_context_messages = 10
+        max_context_messages = 8  # Reasonable context window
         recent_history = self.conversation_history[-max_context_messages:]
         
         for entry in recent_history:
             user_msg = entry.get('prompt', '').strip()
             assistant_msg = entry.get('response', '').strip()
             
+            # Keep full messages - Claude can handle context intelligently
             if user_msg:
                 context_parts.append(f"User: {user_msg}")
             if assistant_msg:
@@ -2314,13 +2315,13 @@ class ClaudeCLIClient(LLMClient):
             # Debug: log the command being executed
             logger.debug(f"Executing Claude CLI command: {' '.join(cmd[:3])} ... [prompt]")
             
-            # Execute Claude CLI with timeout using stdin
+            # Execute Claude CLI with shorter timeout using stdin
             result = subprocess.run(
                 cmd,
                 input=input_text,
                 capture_output=True,
                 text=True,
-                timeout=60,
+                timeout=30,  # Reduced from 60 to 30 seconds
                 cwd=self.working_directory
             )
             
@@ -2344,11 +2345,11 @@ class ClaudeCLIClient(LLMClient):
                 return None
                 
         except subprocess.TimeoutExpired:
-            logger.error("Claude CLI timed out")
-            return None
+            logger.error("Claude CLI timed out after 30 seconds")
+            return "❌ Claude CLI timed out. Try with a shorter message or check your connection."
         except Exception as e:
             logger.error(f"Claude CLI error: {e}")
-            return None
+            return f"❌ Claude CLI error: {e}"
 
 
 class GeminiCLIClient(LLMClient):
