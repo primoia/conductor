@@ -43,3 +43,6 @@ docker-compose.override.yml
 /build/
 /dist/
 /target/
+
+# Diretório para instruções de tarefa de IA temporárias e descartáveis
+.workspace/
