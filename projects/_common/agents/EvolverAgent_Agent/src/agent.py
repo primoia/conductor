@@ -1,12 +1,20 @@
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 from git import Repo
 from git.exc import InvalidGitRepositoryError
 
 from .knowledge_base import KnowledgeBase
 from .analysis import analyze_repo
-from .artifacts import generate_health_report, generate_summary_stats
+from .security_analysis import analyze_security_issues, analyze_dependency_vulnerabilities, get_security_summary
+from .task_generator import generate_task_suggestions
+from .artifacts import (
+    generate_health_report, 
+    generate_summary_stats, 
+    generate_task_suggestions_json,
+    generate_enhanced_health_report
+)
 
 
 class EvolverAgent:
@@ -57,15 +65,16 @@ class EvolverAgent:
     
     def run(self) -> None:
         """
-        Main execution method for the EvolverAgent.
+        Main execution method for the EvolverAgent Phase 2.
         
-        This method orchestrates the entire analysis process:
+        This method orchestrates the comprehensive analysis process:
         1. Gets the current commit hash
         2. Checks if the commit has already been analyzed
-        3. If not, performs the analysis and generates reports
-        4. Stores the results in the knowledge base
+        3. If not, performs complexity, security, and dependency analysis
+        4. Generates task suggestions and enhanced reports
+        5. Stores the results in the knowledge base
         """
-        print("🧠 EvolverAgent MVP Starting...")
+        print("🧠 EvolverAgent Phase 2 Starting...")
         print(f"📁 Repository path: {self.repo_path}")
         
         # Get current commit hash
@@ -77,34 +86,57 @@ class EvolverAgent:
             print("✅ This commit has already been analyzed. Exiting.")
             return
         
-        print("🔍 Running analysis...")
+        print("🔍 Running comprehensive analysis...")
         
         # Perform the repository analysis
         try:
-            analysis_results = analyze_repo(self.repo_path)
-            print(f"📊 Found {len(analysis_results)} complexity issues")
+            # Perform complexity analysis
+            complexity_results = analyze_repo(self.repo_path)
+            print(f"📊 Found {len(complexity_results)} complexity issues")
+            
+            # Perform security analysis
+            security_results = analyze_security_issues(self.repo_path)
+            print(f"🔒 Found {len(security_results)} security issues")
+            
+            # Perform dependency analysis
+            dependency_results = analyze_dependency_vulnerabilities(self.repo_path)
+            print(f"📦 Found {len(dependency_results)} dependency issues")
+            
+            # Generate task suggestions
+            task_suggestions = generate_task_suggestions(
+                complexity_results, security_results, dependency_results
+            )
+            print(f"📋 Generated {len(task_suggestions)} task suggestions")
+            
+            # Generate artifacts
+            generate_enhanced_health_report(
+                complexity_results, security_results, dependency_results, self.repo_path
+            )
+            generate_task_suggestions_json(task_suggestions, self.repo_path)
+            print("📄 Enhanced reports generated")
             
             # Generate summary statistics
-            stats = generate_summary_stats(analysis_results)
-            
-            # Generate the health report
-            generate_health_report(analysis_results, self.repo_path)
-            print("📄 Health report generated")
+            complexity_stats = generate_summary_stats(complexity_results)
+            security_stats = get_security_summary(security_results, dependency_results)
             
             # Prepare results for storage
             results = {
                 'commit_hash': commit_hash,
-                'timestamp': None,  # Will be set by datetime in generate_health_report
-                'analysis_results': analysis_results,
-                'summary_stats': stats,
-                'agent_version': 'MVP-1.0'
+                'timestamp': datetime.now().isoformat(),
+                'complexity_results': complexity_results,
+                'security_results': security_results,
+                'dependency_results': dependency_results,
+                'task_suggestions': task_suggestions,
+                'complexity_stats': complexity_stats,
+                'security_stats': security_stats,
+                'agent_version': 'Phase2-1.0'
             }
             
             # Store results in knowledge base
             self.knowledge_base.store_results(commit_hash, results)
             print("💾 Results stored in knowledge base")
             
-            print("✅ EvolverAgent analysis completed successfully!")
+            print("✅ EvolverAgent Phase 2 analysis completed successfully!")
             
         except Exception as e:
             print(f"❌ Error during analysis: {e}")
