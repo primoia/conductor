@@ -8,6 +8,9 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Diagnostic step to verify git installation
+RUN ls -l /usr/bin/git
+
 # Configure git to trust the mounted monorepo directory
 RUN git config --global --add safe.directory /monorepo
 
