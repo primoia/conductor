@@ -2,6 +2,15 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
+# Install git and other necessary system dependencies
+RUN apt-get update && \
+    apt-get install -y git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Configure git to trust the mounted monorepo directory
+RUN git config --global --add safe.directory /monorepo
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
