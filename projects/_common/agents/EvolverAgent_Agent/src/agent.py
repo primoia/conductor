@@ -30,13 +30,18 @@ class EvolverAgent:
         
     def _get_repo_path(self) -> str:
         """
-        Get the repository root path by going up 6 levels from the script location
-        to reach primoia-main/primoia-monorepo.
+        Get the repository root path. In Docker container, use /monorepo.
+        Otherwise, try to detect the repository root.
         
         Returns:
             Path to the repository root
         """
-        # Get the current script's directory
+        # Check if running in Docker container with mounted volume
+        docker_repo_path = Path('/monorepo')
+        if docker_repo_path.exists() and (docker_repo_path / '.git').exists():
+            return str(docker_repo_path.absolute())
+        
+        # Fallback: Get the current script's directory and go up levels
         current_dir = Path(__file__).parent.absolute()
         
         # Go up 6 levels to reach primoia-main/primoia-monorepo
