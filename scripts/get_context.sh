@@ -44,8 +44,10 @@ if [ "$LEVEL" == "deep" ]; then
         docs/DOCUMENTATION_GUIDE.md \
         docs/README.md \
         docs/guides/ONBOARDING_NEW_PROJECT.md \
-        docs/architecture/GEMINI_ARCH_SPEC.md
+        docs/architecture/GEMINI_ARCH_SPEC.md \
+        docs/architecture/HYBRID_AGENT_ARCHITECTURE.md
 else
+
     echo "## CONTEÚDO DOS ARQUIVOS-CHAVE (SUPERFICIAL):"
     cat README.md \
         docs/DOCUMENTATION_GUIDE.md
