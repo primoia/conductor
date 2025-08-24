@@ -10,7 +10,7 @@
 
 Este repositório contém uma arquitetura de múltiplos executores que trabalham em harmonia para fornecer uma plataforma robusta de automação e desenvolvimento assistido por IA.
 
-1.  **`admin.py` (Executor Administrativo):** Uma interface de linha de comando para executar **meta-agentes**. É o ponto de partida do framework, usado para tarefas de gerenciamento como o onboarding de novos projetos ou a criação de agentes.
+1.  **`admin.py` (Executor Administrativo):** Uma interface de linha de comando para executar **meta-agentes**. É o ponto de partida do framework, usado para tarefas de gerenciamento como o onboarding de novos projetos ou a criação automatizada de agentes com o novo parâmetro `--destination-path`.
 
 2.  **`genesis_agent.py` (Executor de Projeto):** Uma interface de linha de comando para executar os **agentes de projeto** que você criou. Estes agentes operam sobre bases de código externas, realizando as tarefas de análise e codificação.
 
@@ -71,9 +71,17 @@ python scripts/genesis_agent.py --environment <env> --project <proj> --agent <ag
 Se você prefere criar um agente do zero em vez de usar o onboarding guiado, pode usar o `AgentCreator_Agent`.
 
 ```bash
-# Inicia o criador de agentes em modo interativo
+# Modo interativo - conversacional
 python scripts/admin.py --agent AgentCreator_Agent --repl
+
+# Modo automatizado - direto (v2.1)
+python scripts/admin.py --agent AgentCreator_Agent \
+  --destination-path "/caminho/absoluto/do/agente" \
+  --input "Descrição detalhada do agente" \
+  --ai-provider claude
 ```
+
+> **💡 Novidade v2.1:** O AgentCreator_Agent agora suporta criação totalmente automatizada com o parâmetro `--destination-path`, eliminando a necessidade de interação para especificar localização.
 
 ## 📁 Estrutura de Diretórios
 
@@ -98,6 +106,10 @@ conductor/
 ## 📚 Documentação Arquitetural
 
 Para um mergulho profundo no design e nas melhores práticas, consulte nossos documentos principais:
+
+> **📜 GOVERNANÇA:** Antes de contribuir, leia nosso [**Guia de Documentação**](docs/DOCUMENTATION_GUIDE.md). Ele define as melhores práticas para manter nossa base de conhecimento organizada e confiável.
+
+> **📋 LEITURA OBRIGATÓRIA:** [**Arquitetura de Executores**](scripts/EXECUTOR_ARCHITECTURE.md) - Entenda a separação de responsabilidades entre `admin.py` e `genesis_agent.py`, incluindo as melhorias v2.1 para criação automatizada de agentes.
 
 - **[📖 Especificação Arquitetural "Maestro"](docs/GEMINI_ARCH_SPEC.md)**
 - **[🚀 Design Técnico do Genesis](docs/GENESIS_TECHNICAL_DESIGN.md)**
