@@ -107,6 +107,8 @@ conductor/
 
 Para um mergulho profundo no design e nas melhores práticas, consulte nossos documentos principais:
 
+> **⭐ ARQUITETURA ATUAL:** Comece por aqui! [**O Modelo Híbrido de "Cache Local Estabilizado"**](docs/architecture/HYBRID_AGENT_ARCHITECTURE.md) - Descreve a arquitetura definitiva do framework, resultado da SAGA-006.
+
 > **📜 GOVERNANÇA:** Antes de contribuir, leia nosso [**Guia de Documentação**](docs/DOCUMENTATION_GUIDE.md). Ele define as melhores práticas para manter nossa base de conhecimento organizada e confiável.
 
 > **📋 LEITURA OBRIGATATÓRIA:** [**Arquitetura de Executores**](docs/sagas/SAGA-003-A-Separacao-de-Executores/EXECUTOR_ARCHITECTURE.md) - Entenda a separação de responsabilidades entre `admin.py` e `genesis_agent.py`, incluindo as melhorias v2.1 para criação automatizada de agentes.
