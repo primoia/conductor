@@ -111,7 +111,7 @@ Para um mergulho profundo no design e nas melhores práticas, consulte nossos do
 
 > **📜 GOVERNANÇA:** Antes de contribuir, leia nosso [**Guia de Documentação**](docs/DOCUMENTATION_GUIDE.md). Ele define as melhores práticas para manter nossa base de conhecimento organizada e confiável.
 
-> **📋 LEITURA OBRIGATATÓRIA:** [**Arquitetura de Executores**](docs/sagas/SAGA-003-A-Separacao-de-Executores/EXECUTOR_ARCHITECTURE.md) - Entenda a separação de responsabilidades entre `admin.py` e `genesis_agent.py`, incluindo as melhorias v2.1 para criação automatizada de agentes.
+> **📋 LEITURA OBRIGATATÓRIA:** [**Arquitetura de Executores**](docs/architecture/EXECUTOR_ARCHITECTURE.md) - Entenda a separação de responsabilidades entre `admin.py` e `genesis_agent.py`, incluindo as melhorias v2.1 para criação automatizada de agentes.
 
 - **[📖 Especificação Arquitetural "Maestro"](docs/architecture/GEMINI_ARCH_SPEC.md)**
 - **[🚀 Design Técnico do Genesis](docs/architecture/GENESIS_TECHNICAL_DESIGN.md)**
