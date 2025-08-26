@@ -5,7 +5,7 @@
 
 Este documento descreve a arquitetura de execução de agentes para o Framework Conductor. Ela foi projetada para ser robusta, escalável e para suportar fluxos de trabalho complexos tanto para equipes de desenvolvimento quanto para automação não-interativa.
 
-> Para entender o processo de decisão e a jornada que levou a este design, consulte a [**SAGA-006: A Arquitetura Híbrida Definitiva**](../sagas/SAGA-006-A-Arquitetura-Hibrida-Definitiva/README.md).
+> Para entender o processo de decisão e a jornada que levou a este design, consulte a SAGA-006 ("A Arquitetura Híbrida Definitiva").
 
 ## 1. Visão Geral e Princípios
 
