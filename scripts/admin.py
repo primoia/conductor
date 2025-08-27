@@ -30,7 +30,7 @@ from agent_common import (
 )
 
 # Import GenesisAgent class for meta-agent execution
-from genesis_agent import GenesisAgent, Toolbelt
+from genesis_agent_v2 import GenesisAgent
 
 # Configure admin logging
 def setup_admin_logging(debug_mode: bool = False):
@@ -61,122 +61,122 @@ def setup_admin_logging(debug_mode: bool = False):
 class AdminAgent:
     """
     Admin Agent class for executing meta-agents that manage the framework.
+    Uses GenesisAgent internally for consistent behavior.
     """
     
     def __init__(self, agent_id: str = None, ai_provider: str = None, logger = None, timeout: int = 90):
         """
         Initialize the Admin Agent for meta-agent execution.
         """
-        self.ai_providers_config = load_ai_providers_config()
-        self.ai_provider_override = ai_provider
         self.logger = logger or logging.getLogger('admin_executor')
         self.timeout = timeout
-        self.current_agent = None
-        self.embodied = False
-        self.agent_config = None
-        self.agent_home_path = None
-        self.working_directory = None
-        self.llm_client = None
-        self.original_cwd = os.getcwd()
-        self.environment = None
-        self.project = None
+        self.ai_provider_override = ai_provider
         self.destination_path = None
+        self.genesis = GenesisAgent()
+        
         if agent_id:
             self.embody_meta_agent(agent_id)
     
     def embody_meta_agent(self, agent_id: str) -> bool:
         """
-        Embody a meta-agent for framework management.
+        Embody a meta-agent for framework management using GenesisAgent.
         """
         try:
-            self.agent_home_path, _ = resolve_agent_paths("_common", "_common", agent_id)
-            self.agent_config = load_agent_config_v2(self.agent_home_path)
-            validate_agent_config(self.agent_config)
-            chat_provider = self.get_chat_provider()
-            self.llm_client = create_llm_client(chat_provider, str(Path.cwd()), self.timeout)
-            self.llm_client.genesis_agent = self
-            self.toolbelt = Toolbelt(str(Path.cwd()), genesis_agent=self)
-            if 'available_tools' in self.agent_config:
-                pass
-            self.working_directory = str(Path.cwd())
-            state_file_path = self.agent_home_path / self.agent_config.get("state_file_path", "state.json")
-            self._load_agent_state(str(state_file_path))
-            persona_path = self.agent_home_path / self.agent_config.get("persona_prompt_path", "persona.md")
-            if not self._load_agent_persona(str(persona_path), agent_id):
+            # Override AI provider if specified
+            if self.ai_provider_override:
+                self.genesis.ai_provider_override = self.ai_provider_override
+                
+            # Set timeout
+            self.genesis.timeout = self.timeout
+            
+            # Set environment and project for GenesisAgent
+            self.genesis.environment = "_common"
+            self.genesis.project = "_common"
+            
+            # Embody the agent using GenesisAgent v2
+            success = self.genesis.embody_agent_v2(agent_id)
+            
+            if success:
+                print(f"✅ Successfully embodied meta-agent: {agent_id}")
+                self.logger.info(f"Embodied meta-agent: {agent_id}")
+                
+                # DEBUG: Log detalhado de carregamento
+                if hasattr(self.genesis, 'agent_config'):
+                    self.logger.info(f"Agent config loaded: {len(str(self.genesis.agent_config))} chars")
+                    print(f"📋 Agent config: {list(self.genesis.agent_config.keys())}")
+                
+                if hasattr(self.genesis, 'agent_persona'):
+                    persona_preview = str(self.genesis.agent_persona)[:100] + "..." if len(str(self.genesis.agent_persona)) > 100 else str(self.genesis.agent_persona)
+                    self.logger.info(f"Agent persona loaded: {len(str(self.genesis.agent_persona))} chars")
+                    print(f"🎭 Persona preview: {persona_preview}")
+                
+                if hasattr(self.genesis, 'llm_client') and hasattr(self.genesis.llm_client, 'conversation_history'):
+                    hist_len = len(self.genesis.llm_client.conversation_history)
+                    self.logger.info(f"Conversation history loaded: {hist_len} messages")
+                    print(f"💬 History: {hist_len} messages loaded")
+                
+                return True
+            else:
+                print(f"❌ Failed to embody meta-agent {agent_id}")
                 return False
-            self.state_file_path = str(state_file_path)
-            self.current_agent = agent_id
-            self.embodied = True
-            print(f"✅ Successfully embodied meta-agent: {agent_id}")
-            self.logger.info(f"Embodied meta-agent: {agent_id}")
-            return True
         except Exception as e:
             print(f"❌ Failed to embody meta-agent {agent_id}: {e}")
+            self.logger.error(f"Failed to embody meta-agent {agent_id}: {e}")
             return False
     
-    def get_chat_provider(self) -> str:
-        """Get chat provider for meta-agent."""
-        if self.ai_provider_override:
-            return self.ai_provider_override
-        return self.ai_providers_config.get('default_provider', 'claude')
-    
-    def get_generation_provider(self) -> str:
-        """Get generation provider for meta-agent."""
-        if self.ai_provider_override:
-            return self.ai_provider_override
-        return self.ai_providers_config.get('generation_provider', 'claude')
-    
+    @property
+    def embodied(self) -> bool:
+        """Check if agent is embodied."""
+        return hasattr(self.genesis, 'current_agent') and self.genesis.current_agent is not None
+        
     def get_available_tools(self) -> List[str]:
         """Get list of available tool names from agent config."""
-        if not self.agent_config:
+        if not hasattr(self.genesis, 'agent_config') or not self.genesis.agent_config:
             return []
-        return self.agent_config.get('available_tools', [])
+        return self.genesis.agent_config.get('available_tools', [])
     
-    def _load_agent_state(self, state_file_path: str):
-        """Load agent state from file."""
-        try:
-            if os.path.exists(state_file_path):
-                with open(state_file_path, 'r', encoding='utf-8') as f:
-                    state_data = json.load(f)
-                if 'conversation_history' in state_data and isinstance(state_data['conversation_history'], list):
-                    self.llm_client.conversation_history = state_data['conversation_history']
-                    print(f"📚 Loaded conversation history: {len(self.llm_client.conversation_history)} messages")
-                    self.logger.info(f"Loaded {len(self.llm_client.conversation_history)} messages from conversation history")
-                else:
-                    self.llm_client.conversation_history = []
-                    self.logger.debug("No conversation history found in state, starting fresh")
-            else:
-                self.llm_client.conversation_history = []
-                self.logger.debug("No state file found, starting fresh")
-        except Exception as e:
-            print(f"⚠️  Warning: Could not load agent state: {e}")
-            self.logger.warning(f"Could not load agent state from {state_file_path}: {e}")
-            self.llm_client.conversation_history = []
     
-    def _load_agent_persona(self, persona_path: str, agent_id: str) -> bool:
-        """Load agent persona from file."""
-        try:
-            if not os.path.exists(persona_path):
-                print(f"⚠️  Warning: Persona file not found: {persona_path}")
-                return True
-            with open(persona_path, 'r', encoding='utf-8') as f:
-                persona_content = f.read()
-            self.llm_client.set_agent_persona(persona_content)
-            print(f"🎭 Loaded persona for {agent_id}")
-            self.logger.info(f"Loaded persona for {agent_id} from {persona_path}")
-            return True
-        except Exception as e:
-            print(f"❌ Failed to load persona: {e}")
-            self.logger.error(f"Failed to load persona from {persona_path}: {e}")
-            return False
-    
-    def chat(self, message: str) -> str:
+    def chat(self, message: str, debug_save_input: bool = False) -> str:
         """Send a message to the meta-agent."""
         if not self.embodied:
             return "❌ No agent embodied. Use embody_meta_agent() first."
         try:
             self.logger.info(f"Processing chat message: {message[:100]}...")
-            response = self.llm_client._invoke_subprocess(message)
+            
+            # DEBUG: Salvar input completo antes de enviar ao provider
+            if debug_save_input:
+                import os
+                from datetime import datetime
+                debug_dir = "/tmp/admin_debug"
+                os.makedirs(debug_dir, exist_ok=True)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                debug_file = f"{debug_dir}/input_final_{timestamp}.txt"
+                
+                # Capturar contexto completo que seria enviado
+                debug_context = {
+                    "timestamp": timestamp,
+                    "agent_config": getattr(self.genesis, 'agent_config', {}),
+                    "agent_persona": getattr(self.genesis, 'agent_persona', 'Not loaded'),
+                    "conversation_history": getattr(self.genesis.llm_client, 'conversation_history', []) if hasattr(self.genesis, 'llm_client') else [],
+                    "user_input": message,
+                    "environment": getattr(self.genesis, 'environment', 'unknown'),
+                    "project": getattr(self.genesis, 'project', 'unknown'),
+                    "agent_home_path": str(getattr(self.genesis, 'agent_home_path', 'unknown'))
+                }
+                
+                with open(debug_file, 'w', encoding='utf-8') as f:
+                    f.write("=== DEBUG: INPUT COMPLETO PARA PROVIDER ===\n\n")
+                    for key, value in debug_context.items():
+                        f.write(f"== {key.upper()} ==\n")
+                        f.write(f"{value}\n\n")
+                
+                self.logger.info(f"DEBUG: Input completo salvo em {debug_file}")
+                print(f"🔍 DEBUG: Contexto completo salvo em {debug_file}")
+                
+                # Retornar sem chamar o provider para análise
+                return f"✅ DEBUG MODE: Input capturado e salvo em {debug_file}. Provider NÃO foi chamado."
+            
+            response = self.genesis.chat(message)
             self.logger.info(f"Chat response received: {len(response) if response else 0} chars")
             return response
         except Exception as e:
@@ -187,46 +187,26 @@ class AdminAgent:
         """Generate an artifact using the generation provider with fallback."""
         if not self.embodied:
             return "❌ No agent embodied. Use embody_meta_agent() first."
-        generation_provider = self.get_generation_provider()
         try:
-            generation_client = create_llm_client(generation_provider, self.working_directory, self.timeout)
-            generation_client.genesis_agent = self
-            response = generation_client.generate_artifact(prompt)
+            # Use GenesisAgent's chat method with generation-specific prompt
+            enhanced_prompt = f"GENERATE ARTIFACT: {prompt}"
+            response = self.genesis.chat(enhanced_prompt)
             return response
         except Exception as e:
-            self.logger.warning(f"Generation provider {generation_provider} failed: {e}")
-            print(f"⚠️  Generation provider {generation_provider} failed: {e}")
-            if generation_provider != 'claude':
-                try:
-                    self.logger.info(f"Falling back to Claude from {generation_provider}")
-                    print(f"🔄 Falling back to Claude...")
-                    fallback_client = create_llm_client('claude', self.working_directory, self.timeout)
-                    fallback_client.genesis_agent = self
-                    response = fallback_client.generate_artifact(prompt)
-                    self.logger.info("Fallback to Claude succeeded")
-                    return response
-                except Exception as fallback_error:
-                    self.logger.error(f"Both {generation_provider} and Claude failed. Original: {e}, Fallback: {fallback_error}")
-                    return f"❌ Both {generation_provider} and Claude failed. {generation_provider}: {e}, Claude: {fallback_error}"
-            else:
-                self.logger.error(f"Claude generation failed: {e}")
-                return f"❌ Error generating artifact with {generation_provider}: {e}"
+            self.logger.error(f"Artifact generation failed: {e}")
+            return f"❌ Error generating artifact: {e}"
     
     def save_agent_state_v2(self):
-        """Save agent state to file."""
-        if not self.embodied or not hasattr(self, 'state_file_path'):
+        """Save agent state to file using GenesisAgent."""
+        if not self.embodied:
             print("⚠️  No agent state to save")
             return
         try:
-            state_data = {
-                'agent_id': self.current_agent,
-                'timestamp': datetime.now().isoformat(),
-                'conversation_history': self.llm_client.conversation_history if self.llm_client else []
-            }
-            with open(self.state_file_path, 'w', encoding='utf-8') as f:
-                json.dump(state_data, f, indent=2, ensure_ascii=False)
+            self.genesis.save_agent_state_v2()
+            self.logger.info("Agent state saved successfully")
         except Exception as e:
             print(f"❌ Failed to save state: {e}")
+            self.logger.error(f"Failed to save state: {e}")
     
     @staticmethod
     def create_initial_state_file(agent_id: str, state_file_path: str):
@@ -274,6 +254,8 @@ Examples:
                         help='Absolute path where the agent should be created (required for AgentCreator_Agent)')
     parser.add_argument('--timeout', type=int, default=90,
                         help='Timeout in seconds for AI operations (default: 90)')
+    parser.add_argument('--debug-input', action='store_true',
+                        help='DEBUG: Salva input completo sem chamar provider')
     args = parser.parse_args()
     logger = setup_admin_logging(debug_mode=args.debug)
     try:
@@ -310,10 +292,10 @@ Examples:
         if args.destination_path and args.agent == 'AgentCreator_Agent':
             agent.destination_path = args.destination_path
             # Add destination path to the agent's environment for the LLM client
-            if hasattr(agent, 'llm_client') and agent.llm_client:
+            if hasattr(agent.genesis, 'llm_client') and agent.genesis.llm_client:
                 # Store in a way that the agent can access it
-                if not hasattr(agent.llm_client, 'genesis_agent'):
-                    agent.llm_client.genesis_agent = agent
+                if not hasattr(agent.genesis.llm_client, 'genesis_agent'):
+                    agent.genesis.llm_client.genesis_agent = agent
                 # The input will include the destination path information
                 enhanced_input = f"DESTINATION_PATH={args.destination_path}\n\n{args.input}"
                 logger.info(f"Enhanced input with destination path: {args.destination_path}")
@@ -326,14 +308,15 @@ Examples:
             print(f"📍 Destination: {args.destination_path}")
         print("-" * 60)
         try:
-            response = agent.chat(enhanced_input)
+            # Ativar modo debug para interceptar input
+            debug_mode = "--debug-input" in sys.argv
+            response = agent.chat(enhanced_input, debug_save_input=debug_mode)
             print("\n📄 Response:")
             print("=" * 60)
             print(response)
             print("=" * 60)
-            if hasattr(agent, 'save_agent_state_v2'):
-                agent.save_agent_state_v2()
-                logger.info("Agent state saved after processing input")
+            agent.save_agent_state_v2()
+            logger.info("Agent state saved after processing input")
         except Exception as e:
             print(f"\n❌ Error processing input: {e}")
             logger.error(f"Error processing input: {e}")
