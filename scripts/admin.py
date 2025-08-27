@@ -16,6 +16,7 @@ import logging
 from pathlib import Path
 from typing import List
 from datetime import datetime
+import time # Added for time.time()
 
 # Add the scripts directory to the path to import from genesis_agent
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -72,6 +73,7 @@ class AdminAgent:
         self.timeout = timeout
         self.ai_provider_override = ai_provider
         self.destination_path = None
+        self.simulate_mode = False  # Novo: modo de simulação
         self.genesis = GenesisAgent()
         
         if agent_id:
@@ -143,6 +145,12 @@ class AdminAgent:
         try:
             self.logger.info(f"Processing chat message: {message[:100]}...")
             
+            # Adicionar DESTINATION_PATH se disponível
+            enhanced_message = message
+            if self.destination_path:
+                enhanced_message = f"DESTINATION_PATH={self.destination_path}\n\n{message}"
+                self.logger.info(f"Enhanced message with destination path: {self.destination_path}")
+            
             # DEBUG: Salvar input completo antes de enviar ao provider
             if debug_save_input:
                 import os
@@ -158,7 +166,8 @@ class AdminAgent:
                     "agent_config": getattr(self.genesis, 'agent_config', {}),
                     "agent_persona": getattr(self.genesis, 'agent_persona', 'Not loaded'),
                     "conversation_history": getattr(self.genesis.llm_client, 'conversation_history', []) if hasattr(self.genesis, 'llm_client') else [],
-                    "user_input": message,
+                    "user_input": enhanced_message,
+                    "destination_path": self.destination_path,
                     "environment": getattr(self.genesis, 'environment', 'unknown'),
                     "project": getattr(self.genesis, 'project', 'unknown'),
                     "agent_home_path": str(getattr(self.genesis, 'agent_home_path', 'unknown'))
@@ -176,7 +185,42 @@ class AdminAgent:
                 # Retornar sem chamar o provider para análise
                 return f"✅ DEBUG MODE: Input capturado e salvo em {debug_file}. Provider NÃO foi chamado."
             
-            response = self.genesis.chat(message)
+            # MODO SIMULAÇÃO: Retorna resposta simulada sem chamar provider
+            if self.simulate_mode:
+                # Adiciona à conversa history para manter contexto
+                if hasattr(self.genesis, 'llm_client') and hasattr(self.genesis.llm_client, 'conversation_history'):
+                    self.genesis.llm_client.conversation_history.append({
+                        'prompt': enhanced_message,
+                        'response': f"[SIMULATED] Resposta simulada para: {enhanced_message}",
+                        'timestamp': time.time()
+                    })
+                    
+                    # Salvar estado automaticamente após adicionar ao histórico
+                    try:
+                        self.genesis.save_agent_state_v2()
+                        self.logger.debug("State saved automatically in simulation mode")
+                    except Exception as save_error:
+                        self.logger.warning(f"Failed to save state in simulation mode: {save_error}")
+                
+                # Retorna resposta simulada
+                simulated_response = f"""🎭 [MODO SIMULAÇÃO] 
+
+Olá! Sou o {getattr(self.genesis, 'current_agent', 'AgentCreator_Agent')} em modo simulação.
+
+Recebi sua mensagem: "{enhanced_message}"
+
+Esta é uma resposta simulada que não chama o provider real. O contexto da conversa está sendo mantido para que você possa usar o comando 'debug' para ver todo o histórico acumulado.
+
+Para ver o contexto completo, digite 'debug' no REPL.
+
+---
+💡 Dica: Use 'debug' para ver todo o contexto que seria enviado ao provider
+📊 Use 'history' para ver o histórico de conversas simuladas
+"""
+                self.logger.info(f"SIMULATION: Generated simulated response for: {enhanced_message[:50]}...")
+                return simulated_response
+            
+            response = self.genesis.chat(enhanced_message)
             self.logger.info(f"Chat response received: {len(response) if response else 0} chars")
             return response
         except Exception as e:
@@ -235,6 +279,7 @@ def main():
         epilog="""
 Examples:
     python scripts/admin.py --agent AgentCreator_Agent --repl
+    python scripts/admin.py --agent AgentCreator_Agent --repl --simulate-chat
     python scripts/admin.py --agent AgentCreator_Agent --destination-path "/path/to/new/agent" --input "Create an agent"
     python scripts/admin.py --agent migrate_agents_v2
         """
@@ -256,7 +301,27 @@ Examples:
                         help='Timeout in seconds for AI operations (default: 90)')
     parser.add_argument('--debug-input', action='store_true',
                         help='DEBUG: Salva input completo sem chamar provider')
+    parser.add_argument('--simulate-chat', action='store_true',
+                        help='Simula respostas do agente sem chamar o provider (útil para construir contexto)')
     args = parser.parse_args()
+    
+    # Explicação do modo simulação
+    if args.simulate_chat:
+        print("""
+🎭 MODO SIMULAÇÃO ATIVADO
+
+Este modo permite:
+- Simular conversas sem chamar o provider real
+- Manter contexto da conversa para análise
+- Usar 'debug' para ver todo o contexto acumulado
+- Testar fluxos de conversa sem custo de API
+
+Uso recomendado:
+1. Inicie com --simulate-chat --repl
+2. Faça várias interações para construir contexto
+3. Use 'debug' para ver todo o contexto que seria enviado
+4. Use 'history' para ver o histórico de conversas simuladas
+""")
     logger = setup_admin_logging(debug_mode=args.debug)
     try:
         print(f"🚀 Iniciando Admin Executor")
@@ -275,6 +340,12 @@ Examples:
             print(f"❌ Failed to embody meta-agent: {args.agent}")
             logger.error(f"Failed to embody meta-agent: {args.agent}")
             exit(1)
+        
+        # Configurar modo de simulação se ativado
+        if args.simulate_chat:
+            agent.simulate_mode = True
+            print(f"🎭 Modo simulação ativado - respostas simuladas sem chamar provider")
+        
         print(f"🔓 No output restrictions (meta-agent)")
         logger.info("Admin Agent successfully initialized")
     except Exception as e:
@@ -283,6 +354,9 @@ Examples:
         exit(1)
     if args.repl:
         logger.info("Starting REPL session")
+        # Passar informação sobre modo de simulação para o REPL
+        if args.simulate_chat:
+            print(f"🎭 REPL iniciado em modo simulação - use 'debug' para ver contexto completo")
         start_repl_session(agent, "admin")
         logger.info("REPL session completed")
     elif args.input and agent.embodied:
@@ -310,6 +384,10 @@ Examples:
         try:
             # Ativar modo debug para interceptar input
             debug_mode = "--debug-input" in sys.argv
+            # Verificar se modo simulação está ativo
+            if args.simulate_chat:
+                agent.simulate_mode = True
+                print(f"🎭 Modo simulação ativado para input único")
             response = agent.chat(enhanced_input, debug_save_input=debug_mode)
             print("\n📄 Response:")
             print("=" * 60)
