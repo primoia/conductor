@@ -26,7 +26,7 @@ import yaml
 
 # Importar funcionalidade do Genesis Agent V2 para execução real de agentes
 try:
-    from genesis_agent_v2 import GenesisAgent
+    from core import GenesisAgent
     from agent_common import resolve_agent_paths, load_agent_config_v2
     GENESIS_AVAILABLE = True
 except ImportError:
@@ -36,7 +36,7 @@ except ImportError:
     if script_dir not in sys.path:
         sys.path.insert(0, script_dir)
     try:
-        from genesis_agent_v2 import GenesisAgent
+        from core import GenesisAgent
         from agent_common import resolve_agent_paths, load_agent_config_v2
         GENESIS_AVAILABLE = True
     except ImportError as e:

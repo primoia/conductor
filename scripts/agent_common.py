@@ -160,6 +160,38 @@ def load_agent_config_v2(agent_home_path: Path) -> Dict[str, Any]:
     with open(agent_yaml_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
+def load_workspaces_config() -> Dict[str, str]:
+    """
+    Carrega a configuração de workspaces do arquivo config/workspaces.yaml.
+    
+    Returns:
+        Dict com mapeamento environment -> path
+        
+    Raises:
+        FileNotFoundError: Se o arquivo de configuração não existir
+        yaml.YAMLError: Se houver erro de parsing do YAML
+    """
+    WORKSPACES_CONFIG_PATH = "config/workspaces.yaml"
+    
+    config_path = Path(__file__).parent.parent / WORKSPACES_CONFIG_PATH
+    
+    if not config_path.exists():
+        raise FileNotFoundError(
+            f"Arquivo de configuração de workspaces não encontrado: {config_path}\n"
+            f"Crie o arquivo com o mapeamento de ambientes para seus diretórios."
+        )
+    
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        if not config or 'workspaces' not in config:
+            raise ValueError("Arquivo workspaces.yaml deve conter uma seção 'workspaces'")
+        
+        return config['workspaces']
+    except yaml.YAMLError as e:
+        raise yaml.YAMLError(f"Erro ao fazer parse do workspaces.yaml: {e}")
+
 def start_repl_session(agent, agent_name: str = "admin"):
     # ... (existing implementation)
     pass
