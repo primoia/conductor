@@ -30,7 +30,7 @@ from agent_common import (
 )
 
 # Import GenesisAgent class for meta-agent execution
-from genesis_agent_v2 import GenesisAgent
+from core import GenesisAgent
 
 # Configure admin logging
 def setup_admin_logging(debug_mode: bool = False):
