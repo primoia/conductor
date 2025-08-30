@@ -7,7 +7,10 @@ services:
     ports:
       - "8001:8000"
     volumes:
-      - .:/app
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./logs:/app/logs
+      - ./projects:/app/projects
     env_file:
       - .env
     logging:
