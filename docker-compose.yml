@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  conductor:
+    build: .
+    # Monta o código fonte para desenvolvimento com hot-reload
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./logs:/app/logs
+    # Passa variáveis de ambiente para o container
+    env_file:
+      - .env
+    # Sobrescreve o entrypoint para modo interativo
+    entrypoint: ["tail", "-f", "/dev/null"]
+    
+  # Serviço opcional para MongoDB (se usando mongo state provider)
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: conductor_state
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+volumes:
+  mongodb_data:

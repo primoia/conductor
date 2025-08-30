@@ -1,4 +1,5 @@
 ai_provider: claude
+name: AgentCreator_Agent
 available_tools:
 - Write
 - Read
