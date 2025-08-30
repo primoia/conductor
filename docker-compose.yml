@@ -1,29 +1,24 @@
 version: '3.8'
 
 services:
-  conductor:
+  conductor-api:
     build: .
-    # Monta o código fonte para desenvolvimento com hot-reload
+    container_name: conductor-api-1
+    ports:
+      - "8001:8000"
     volumes:
-      - ./src:/app/src
-      - ./config:/app/config
-      - ./logs:/app/logs
-    # Passa variáveis de ambiente para o container
+      - .:/app
     env_file:
       - .env
-    # Sobrescreve o entrypoint para modo interativo
-    entrypoint: ["tail", "-f", "/dev/null"]
-    
-  # Serviço opcional para MongoDB (se usando mongo state provider)
-  mongodb:
-    image: mongo:7
-    restart: unless-stopped
-    environment:
-      MONGO_INITDB_DATABASE: conductor_state
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
+    logging:
+      driver: loki
+      options:
+        loki-url: "http://loki:3100/loki/api/v1/push"
+        loki-external-labels: "container_name={{.Name}}"
+    networks:
+      - primoia-network
 
-volumes:
-  mongodb_data:
+networks:
+  primoia-network:
+    name: primoia-monorepo_primoia-network
+    external: true
