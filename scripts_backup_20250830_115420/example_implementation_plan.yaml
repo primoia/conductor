@@ -1,0 +1,20 @@
+storyId: "TEST-001"
+description: "Example implementation plan to test Conductor refactoring"
+tasks:
+  - name: "Create test file"
+    description: "Create a simple test file to validate functionality"
+    agent: "KotlinEntityCreator_Agent"
+    inputs: []
+    outputs: ["test_output.txt"]
+
+  - name: "Create configuration file"
+    description: "Create a configuration file based on the test file"
+    agent: "KotlinRepositoryCreator_Agent"
+    inputs: ["test_output.txt"]
+    outputs: ["config_output.txt"]
+    depends_on: "Create test file"
+
+validationCriteria:
+  - "All output files must be created"
+  - "Files must not be empty"
+  - "Dependency structure must be respected"

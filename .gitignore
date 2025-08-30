@@ -24,13 +24,16 @@
 .DS_Store
 Thumbs.db
 
-# Future: when we add real implementation
+# Python environment and dependencies
 node_modules/
 venv/
+.venv/
 __pycache__/
 *.pyc
 .env
 .env.local
+.pytest_cache/
+*.egg-info/
 
 # Docker
 docker-compose.override.yml
@@ -46,3 +49,6 @@ docker-compose.override.yml
 
 # Diretório para instruções de tarefa de IA temporárias e descartáveis
 .workspace/
+
+# Template projects (example implementations)
+templates/desafio-meli-entrega/
