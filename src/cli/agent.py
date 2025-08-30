@@ -38,7 +38,7 @@ class AgentCLI:
                  ai_provider: str = None, timeout: int = 120, 
                  state_provider: str = 'file', debug_mode: bool = False):
         """Initialize Agent CLI."""
-        self.logger = configure_logging(debug_mode, f"agent_{agent_id}")
+        self.logger = configure_logging(debug_mode, f"agent_{agent_id}", agent_id)
         self.debug_mode = debug_mode
         
         # Get agent logic from container

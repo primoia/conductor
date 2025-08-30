@@ -42,13 +42,14 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(log_entry, ensure_ascii=False)
 
 
-def configure_logging(debug_mode: bool = False, agent_name: str = "conductor") -> logging.Logger:
+def configure_logging(debug_mode: bool = False, agent_name: str = "conductor", agent_id: str = None) -> logging.Logger:
     """
     Configure structured logging for the application.
     
     Args:
         debug_mode: Whether to enable debug mode with console output
         agent_name: Name of the agent for log file naming
+        agent_id: ID of the agent for context filtering
         
     Returns:
         Configured logger instance
@@ -89,6 +90,10 @@ def configure_logging(debug_mode: bool = False, agent_name: str = "conductor") -
     
     # Create application-specific logger
     app_logger = logging.getLogger(f'conductor.{agent_name}')
+    
+    # Add agent context if agent_id is provided
+    if agent_id:
+        add_context_to_logger(app_logger, {'agent': agent_id})
     
     return app_logger
 
