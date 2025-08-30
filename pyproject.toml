@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "conductor"
+version = "2.0.0"
+description = "Conductor Framework: Professional AI Agent Management"
+authors = ["Primo AI Team"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = ">=3.11"
+pyyaml = "^6.0.2"
+pydantic = "^2.11.7"
+pydantic-settings = "^2.10.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.1"
+pymongo = "^4.14.1"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+conductor-admin = "src.cli.admin:main"
+conductor-agent = "src.cli.agent:main"

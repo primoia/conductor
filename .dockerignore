@@ -1,0 +1,36 @@
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Ambiente
+.venv/
+.env
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+logs/
+
+# Backups
+scripts_backup_*/
+
+# Test files
+tests/
+test_*.py
+
+# Documentation
+docs/
+README.md
+*.md
