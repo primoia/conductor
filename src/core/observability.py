@@ -1,110 +1,84 @@
-import json
 import logging
 import sys
-from datetime import datetime
 from typing import Dict, Any
 
+from pythonjsonlogger.json import JsonFormatter
 from src.config import settings
 
+class SmartFormatter(logging.Formatter):
+    """
+    A smart formatter that chooses between JSON and plain text format.
+    
+    It detects if it's running in an interactive terminal (TTY).
+    - If TTY: formats logs as plain, readable text for the user.
+    - If not TTY (e.g., piped to Docker logs): formats logs as JSON
+      for structured logging platforms like Loki/Grafana.
+    """
+    def __init__(self):
+        super().__init__()
+        self.json_formatter = JsonFormatter()
+        self.plain_formatter = logging.Formatter('%(message)s')
 
-class JSONFormatter(logging.Formatter):
-    """
-    JSON formatter for structured logging.
-    
-    This formatter converts log records to JSON format for better
-    integration with monitoring and observability platforms.
-    """
-    
     def format(self, record: logging.LogRecord) -> str:
-        """Format log record as JSON."""
-        log_entry = {
-            'timestamp': datetime.fromtimestamp(record.created).isoformat(),
-            'level': record.levelname,
-            'logger': record.name,
-            'message': record.getMessage(),
-            'module': record.module,
-            'function': record.funcName,
-            'line': record.lineno,
-        }
-        
-        # Add exception information if present
-        if record.exc_info:
-            log_entry['exception'] = self.formatException(record.exc_info)
-        
-        # Add extra fields if present
-        for key, value in record.__dict__.items():
-            if key not in ['name', 'msg', 'args', 'levelname', 'levelno', 'pathname',
-                          'filename', 'module', 'exc_info', 'exc_text', 'stack_info',
-                          'lineno', 'funcName', 'created', 'msecs', 'relativeCreated',
-                          'thread', 'threadName', 'processName', 'process', 'getMessage']:
-                log_entry[key] = value
-        
-        return json.dumps(log_entry, ensure_ascii=False)
-
+        if sys.stdout.isatty():
+            # REPL mode: clean output
+            # Only show INFO messages and above in the clean format
+            if record.levelno >= logging.INFO:
+                return self.plain_formatter.format(record)
+            return ""  # Discard DEBUG messages in clean mode
+        else:
+            # Docker/Loki mode: structured JSON output
+            return self.json_formatter.format(record)
 
 def configure_logging(debug_mode: bool = False, agent_name: str = "conductor", agent_id: str = None) -> logging.Logger:
     """
-    Configure structured logging for the application.
+    Configure structured and context-aware logging.
     
     Args:
-        debug_mode: Whether to enable debug mode with console output
-        agent_name: Name of the agent for log file naming
-        agent_id: ID of the agent for context filtering
+        debug_mode: If True, sets log level to DEBUG, otherwise INFO.
+        agent_name: Name of the agent for logger naming.
+        agent_id: ID of the agent to be added as context to logs.
         
     Returns:
-        Configured logger instance
+        Configured logger instance for the application.
     """
-    # Create logs directory
-    from pathlib import Path
-    logs_dir = Path("logs")
-    logs_dir.mkdir(exist_ok=True)
-    
+    # Clear any existing handlers from all loggers to avoid duplication
+    for logger_name in logging.root.manager.loggerDict:
+        logger = logging.getLogger(logger_name)
+        if logger.hasHandlers():
+            logger.handlers.clear()
+
     # Configure root logger
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG if debug_mode else logging.INFO)
-    root_logger.handlers.clear()
+    root_logger.setLevel(logging.DEBUG)
     
-    # File handler with JSON formatting
-    log_file = logs_dir / f"{agent_name}_{datetime.now().strftime('%Y%m%d')}.log"
-    file_handler = logging.FileHandler(log_file, encoding='utf-8')
-    file_handler.setLevel(logging.DEBUG)
+    # Create a single handler that writes to standard output
+    handler = logging.StreamHandler(sys.stdout)
     
-    if settings.json_logging:
-        file_handler.setFormatter(JSONFormatter())
-    else:
-        file_handler.setFormatter(logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
-        ))
+    # Apply the smart formatter
+    handler.setFormatter(SmartFormatter())
     
-    root_logger.addHandler(file_handler)
+    root_logger.addHandler(handler)
     
-    # Console handler for debug mode
-    if debug_mode:
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
-        root_logger.addHandler(console_handler)
-    
-    # Prevent propagation to avoid duplicate logs
+    # Prevent propagation from the root logger
     root_logger.propagate = False
     
-    # Create application-specific logger
+    # Get the specific application logger
     app_logger = logging.getLogger(f'conductor.{agent_name}')
     
-    # Add agent context if agent_id is provided
+    # Add agent context for structured logs
     if agent_id:
         add_context_to_logger(app_logger, {'agent': agent_id})
     
     return app_logger
 
-
 def add_context_to_logger(logger: logging.Logger, context: Dict[str, Any]):
     """
-    Add context information to logger for structured logging.
+    Add context information to a logger using a filter.
     
     Args:
-        logger: Logger instance
-        context: Context dictionary to add to log records
+        logger: Logger instance to which the filter will be added.
+        context: Dictionary with context information to add to log records.
     """
     class ContextFilter(logging.Filter):
         def filter(self, record):
@@ -112,4 +86,6 @@ def add_context_to_logger(logger: logging.Logger, context: Dict[str, Any]):
                 setattr(record, key, value)
             return True
     
-    logger.addFilter(ContextFilter())
+    # Clear existing filters to prevent duplication if called multiple times
+    logger.filters.clear()
+    logger.addFilter(ContextFilter(context))
