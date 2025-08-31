@@ -114,7 +114,7 @@ class AdminCLI:
                 return self._simulate_response(enhanced_message)
             
             # Normal chat interaction
-            self.logger.info(f"Processing chat message: {message[:100]}...")
+            #self.logger.info(f"Processing chat message: {message[:100]}...")
             response = self.agent_logic.chat(enhanced_message)
             self.logger.info(f"Chat response received: {len(response) if response else 0} chars")
             

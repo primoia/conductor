@@ -97,7 +97,7 @@ class AgentCLI:
             return "❌ No agent embodied."
         
         try:
-            self.logger.info(f"Processing chat message: {message[:100]}...")
+            #self.logger.info(f"Processing chat message: {message[:100]}...")
             response = self.agent_logic.chat(message)
             self.logger.info(f"Chat response received: {len(response) if response else 0} chars")
             
