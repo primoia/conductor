@@ -1,0 +1,9 @@
+docker compose run --rm \
+--entrypoint="python -m src.cli.agent" \
+-v "/mnt/ramdisk/primoia-main/primoia-monorepo/projects/conductor:/app/projects" \
+conductor-api \
+--environment primoia-main \
+--project desafio-meli \
+--agent KotlinEntityCreator_Agent \
+--ai-provider gemini \
+--repl
