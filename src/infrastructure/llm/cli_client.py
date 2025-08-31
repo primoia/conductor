@@ -121,34 +121,47 @@ class GeminiCLIClient(BaseCLIClient):
     
     def __init__(self, working_directory: str = None, timeout: int = 120):
         super().__init__(working_directory, timeout)
-        self.gemini_command = "gemini"  # Assuming a similar CLI interface
+        self.gemini_command = "gemini"
         logger.debug("GeminiCLIClient initialized")
 
     def invoke(self, prompt: str) -> str:
         """Invoke Gemini CLI with the given prompt."""
-        # For now, this is a placeholder implementation
-        # In a real scenario, you would implement the actual Gemini CLI integration
         try:
             full_prompt = self._build_full_prompt_with_persona(prompt)
             
-            # This is a simplified implementation - replace with actual Gemini CLI calls
-            logger.info("GeminiCLIClient: Processing prompt (placeholder implementation)")
+            # Gemini CLI takes the prompt via the -p argument
+            cmd = [self.gemini_command, "-p", full_prompt]
             
-            # Simulate response (replace with real Gemini CLI call)
-            response = f"[Gemini Response to: {prompt[:50]}...]"
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=self.timeout,
+                cwd=self.working_directory,
+                check=True  # Raise CalledProcessError on non-zero exit codes
+            )
             
-            # Add to conversation history
+            response = result.stdout.strip()
             self.conversation_history.append({
                 'prompt': prompt, 
                 'response': response, 
                 'timestamp': time.time()
             })
-            
             return response
             
+        except subprocess.TimeoutExpired:
+            logger.error(f"Gemini CLI timed out after {self.timeout} seconds")
+            raise LLMClientError(f"Gemini CLI timed out after {self.timeout} seconds.")
+        except subprocess.CalledProcessError as e:
+            error_message = e.stderr.strip() if e.stderr else str(e)
+            logger.error(f"Gemini CLI failed with exit code {e.returncode}: {error_message}")
+            raise LLMClientError(f"Gemini CLI failed: {error_message}")
+        except FileNotFoundError:
+            logger.error(f"Gemini command not found: '{self.gemini_command}'. Make sure it's installed and in the PATH.")
+            raise LLMClientError(f"Gemini command not found: '{self.gemini_command}'.")
         except Exception as e:
-            logger.error(f"Gemini CLI error: {e}")
-            raise LLMClientError(f"Gemini CLI error: {e}")
+            logger.error(f"An unexpected error occurred with Gemini CLI: {e}")
+            raise LLMClientError(f"An unexpected error occurred with Gemini CLI: {e}")
 
 
 def create_llm_client(ai_provider: str, working_directory: str = None, timeout: int = 120) -> LLMClient:

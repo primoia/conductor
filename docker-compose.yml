@@ -11,6 +11,12 @@ services:
       - ./config:/app/config
       - ./logs:/app/logs
       - ./projects:/app/projects
+      - /home/cezar/.gcp/keys/conductor-key.json:/gcp_key.json
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/gcp_key.json
+      - GOOGLE_GENAI_USE_VERTEXAI=true
+      - GOOGLE_CLOUD_PROJECT=gen-lang-client-0338424173
+      - GOOGLE_CLOUD_LOCATION=us-central1
     env_file:
       - .env
     logging:
