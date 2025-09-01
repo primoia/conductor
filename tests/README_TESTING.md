@@ -15,26 +15,34 @@ python -m pytest --cov=src --cov-report=html
 
 ## 🏷️ Categorias de Testes
 
-### ✅ Testes Automáticos (CI/CD)
+### ✅ Testes Automáticos (CI/CD) - 32 testes
 ```bash
-# Testes que rodam automaticamente
-python -m pytest -m "not manual and not e2e and not slow"
+# Testes que rodam automaticamente (PADRÃO)
+python -m pytest
+
+# Configuração explícita (já aplicada em pytest.ini)
+python -m pytest -m "not manual and not e2e and not mongo"
 ```
 
 **Incluem:**
-- `tests/core/` - Componentes principais
-- `tests/test_container.py` - Injeção de dependência  
-- `tests/test_core.py` - Lógica de agentes
-- `tests/test_state_management.py` - Gerenciamento de estado (file)
+- `tests/core/test_prompt_engine.py` - PromptEngine (14 testes) ✅
+- `tests/test_container.py` - Container/DI (6 testes) ✅
+- `tests/test_core.py` - Agent Logic (7 testes) ✅  
+- `tests/test_state_management.py` - File State Management (5 testes) ✅
+
+**Performance:** 0.25 segundos ⚡
 
 ### 🔧 Testes Manuais (Sob Demanda)
 
-#### E2E - End-to-End
+#### E2E - End-to-End (1 teste)
 ```bash
 # Executar teste E2E completo
 python -m pytest tests/e2e/ -v
 
-# Ou diretamente
+# Ou incluir na execução padrão
+python -m pytest -m "e2e" -v
+
+# Ou executar diretamente 
 python tests/e2e/test_full_lifecycle.py
 ```
 
@@ -51,23 +59,27 @@ python tests/e2e/test_full_lifecycle.py
 - Permissões de escrita no filesystem
 - Timeout de 2+ minutos
 
-#### MongoDB Tests  
+#### MongoDB Tests (8 testes)  
 ```bash
 # Instalar dependência primeiro
 pip install pymongo
 
-# Executar testes MongoDB
-python -m pytest tests/ -k "mongo" -v
+# Executar apenas testes MongoDB
+python -m pytest -m "mongo" -v
+
+# Ou filtro específico (comando antigo)
+python -m pytest -k "mongo" -v
 ```
 
 **O que testa:**
-- Conexão MongoDB
-- Save/Load de estado
-- Integração com repositórios
+- Conexão MongoDB (MongoStateRepository)
+- Save/Load de estado com MongoDB
+- Integração file + mongo repositories
+- Error handling para pymongo
 
 **Requisitos:**
 - `pymongo` instalado
-- MongoDB running (para testes reais)
+- MongoDB running (para testes reais, mocks para unitários)
 
 ### 🔍 Testes de Integração
 ```bash  
@@ -80,14 +92,18 @@ python scripts_backup_20250830_115420/demo_integration.py
 
 ```bash
 # Excluir testes específicos
-python -m pytest -m "not e2e"          # Sem E2E
-python -m pytest -m "not manual"       # Sem manuais  
-python -m pytest -m "not slow"         # Sem lentos
-python -m pytest -m "not mongo"        # Sem MongoDB
+python -m pytest -m "not e2e"          # Sem E2E (32 testes)
+python -m pytest -m "not manual"       # Sem manuais (40 testes)  
+python -m pytest -m "not mongo"        # Sem MongoDB (33 testes)
 
 # Executar apenas testes específicos
-python -m pytest -m "e2e"              # Apenas E2E
-python -m pytest -m "integration"      # Apenas integração
+python -m pytest -m "e2e"              # Apenas E2E (1 teste)
+python -m pytest -m "mongo"            # Apenas MongoDB (8 testes)
+python -m pytest -m "manual"           # Apenas manuais (1 teste)
+
+# Combinações úteis
+python -m pytest -m "not manual"       # Automáticos + MongoDB (40 testes)
+python -m pytest -m "manual or e2e"    # Todos os manuais (1 teste)
 ```
 
 ## 📊 Configuração de CI/CD
@@ -95,21 +111,27 @@ python -m pytest -m "integration"      # Apenas integração
 ### GitHub Actions / GitLab CI
 ```yaml
 # .github/workflows/tests.yml
-- name: Run Unit Tests
-  run: python -m pytest -m "not manual and not e2e and not slow"
+- name: Run Unit Tests (Fast)
+  run: python -m pytest  # Usa configuração padrão do pytest.ini
+  
+- name: Run Unit + MongoDB Tests  
+  run: python -m pytest -m "not manual and not e2e"
   
 - name: Run E2E Tests (Manual Trigger Only)
-  if: github.event_name == 'workflow_dispatch'
-  run: python -m pytest tests/e2e/ -v
+  if: github.event_name == 'workflow_dispatch' 
+  run: python -m pytest tests/e2e/ -v --timeout=300
 ```
 
 ### Configuração Local
 ```bash
-# Configurar para desenvolvimento
-export PYTEST_ADDOPTS="-v --tb=short -m 'not manual'"
+# Testes padrão (usando pytest.ini automático)
+python -m pytest
 
-# Executar testes completos (manual)
-unset PYTEST_ADDOPTS && python -m pytest tests/
+# Override configuração padrão para incluir tudo
+python -m pytest --override-ini addopts="-v --tb=short"
+
+# Ou temporariamente com variável de ambiente  
+PYTEST_ADDOPTS="-v" python -m pytest tests/
 ```
 
 ## 🚫 Quando NÃO Executar E2E
@@ -166,8 +188,17 @@ python -m pytest --cov=src --cov-report=term-missing
 
 ## 🎯 Recomendações
 
-1. **Desenvolvimento:** Execute apenas testes unitários
-2. **Pre-commit:** Execute testes rápidos + lint
-3. **Release:** Execute testes completos including E2E
-4. **CI/CD:** Configure exclusão de testes manuais
-5. **Local:** Use marcadores para controle fino
+1. **Desenvolvimento:** `python -m pytest` (32 testes, 0.25s) ⚡
+2. **Pre-commit:** `python -m pytest` + lint
+3. **Release:** `python -m pytest tests/e2e/ -v` (validação completa)
+4. **CI/CD:** Padrão automático (pytest.ini cuida da configuração)
+5. **Debug:** Use `-v -s --tb=long` para logs detalhados
+
+## 📊 Resumo dos Comandos
+
+| Situação | Comando | Testes | Tempo |
+|----------|---------|--------|-------|
+| **Desenvolvimento (padrão)** | `python -m pytest` | 32 unitários | 0.25s ⚡ |
+| **Com MongoDB** | `python -m pytest -m "not manual and not e2e"` | 40 (unit+mongo) | ~1s |
+| **E2E Manual** | `python -m pytest tests/e2e/ -v` | 1 end-to-end | ~30s+ |
+| **Tudo** | `python -m pytest --override-ini addopts="-v"` | 41 completos | ~30s+ |
