@@ -17,7 +17,8 @@ from datetime import datetime
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
 
-from core.state_repository import FileStateRepository, MongoStateRepository, StateRepository
+from src.infrastructure.persistence.state_repository import FileStateRepository, MongoStateRepository
+from src.ports.state_repository import StateRepository
 
 
 class TestFileStateRepository:
