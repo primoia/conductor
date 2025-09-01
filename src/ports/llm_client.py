@@ -19,12 +19,3 @@ class LLMClient(ABC):
         """
         pass
 
-    @abstractmethod
-    def set_persona(self, persona: str) -> None:
-        """
-        Define a persona do agente para o cliente LLM.
-
-        Args:
-            persona: Texto da persona do agente
-        """
-        pass

@@ -19,47 +19,10 @@ class BaseCLIClient(LLMClient):
         self.working_directory = working_directory or os.getcwd()
         self.timeout = timeout
         self.conversation_history = []
-        self.agent_persona = None
         self.genesis_agent = None  # Reference to parent agent for access to tools and config
         logger.debug(f"BaseCLIClient initialized with working directory: {self.working_directory}")
 
-    def set_persona(self, persona: str) -> None:
-        """Set the agent persona."""
-        self.agent_persona = persona
-        logger.debug("Agent persona set in LLM client")
 
-    def _build_full_prompt_with_persona(self, new_prompt: str) -> str:
-        """Build the full prompt including persona, config, and context."""
-        prompt_parts = []
-        
-        # 1. PERSONA (contexto)
-        if self.agent_persona:
-            prompt_parts.append("### PERSONA:")
-            prompt_parts.append(self.agent_persona)
-            prompt_parts.append("\n")
-        
-        # 2. AGENT_CONFIG (configuração do agente)
-        if hasattr(self, 'genesis_agent') and hasattr(self.genesis_agent, 'agent_config'):
-            prompt_parts.append("### AGENT_CONFIG:")
-            prompt_parts.append(json.dumps(self.genesis_agent.agent_config, indent=2, ensure_ascii=False))
-            prompt_parts.append("\n")
-        
-        # 3. CONTEXT (histórico de conversas para contexto)
-        if self.conversation_history:
-            prompt_parts.append("### CONTEXT:")
-            for msg in self.conversation_history:
-                prompt_parts.append(f"User: {msg.get('prompt', 'N/A')}")
-                prompt_parts.append(f"Assistant: {msg.get('response', 'N/A')}")
-                prompt_parts.append("")
-            prompt_parts.append("")
-        
-        # 4. COMMAND (comando atual - sempre no final)
-        prompt_parts.append("### COMMAND:")
-        prompt_parts.append(new_prompt)
-        prompt_parts.append("")
-        prompt_parts.append("IMPORTANTE: Responda APENAS ao comando acima, usando o contexto fornecido.")
-        
-        return "\n".join(prompt_parts)
 
 
 class ClaudeCLIClient(BaseCLIClient):
@@ -75,7 +38,6 @@ class ClaudeCLIClient(BaseCLIClient):
     def invoke(self, prompt: str) -> str:
         """Invoke Claude CLI with the given prompt."""
         try:
-            full_prompt = self._build_full_prompt_with_persona(prompt)
             cmd = [self.claude_command, "--print", "--dangerously-skip-permissions"]
             
             # Add available tools if genesis_agent is available
@@ -86,7 +48,7 @@ class ClaudeCLIClient(BaseCLIClient):
             
             result = subprocess.run(
                 cmd,
-                input=full_prompt,
+                input=prompt,
                 capture_output=True,
                 text=True,
                 timeout=self.timeout,
@@ -96,6 +58,7 @@ class ClaudeCLIClient(BaseCLIClient):
             if result.returncode == 0:
                 response = result.stdout.strip()
                 # Add to conversation history AFTER receiving response from Claude
+                # Note: We store the original user input, not the full prompt
                 self.conversation_history.append({
                     'prompt': prompt, 
                     'response': response, 
@@ -127,10 +90,8 @@ class GeminiCLIClient(BaseCLIClient):
     def invoke(self, prompt: str) -> str:
         """Invoke Gemini CLI with the given prompt."""
         try:
-            full_prompt = self._build_full_prompt_with_persona(prompt)
-            
             # Gemini CLI takes the prompt via the -p argument
-            cmd = [self.gemini_command, "-p", full_prompt]
+            cmd = [self.gemini_command, "-p", prompt]
             
             result = subprocess.run(
                 cmd,

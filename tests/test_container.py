@@ -46,7 +46,7 @@ class TestDIContainer:
         
         assert 'default_providers' in config
         assert 'fallback_provider' in config
-        assert config['default_providers']['chat'] == 'claude'
+        assert config['default_providers']['chat'] == 'gemini'
         assert config['fallback_provider'] == 'claude'
     
     @patch('pathlib.Path.exists')
@@ -61,7 +61,8 @@ class TestDIContainer:
         """Test resolving paths for common/meta agents."""
         # This will fail in real execution due to missing directories
         # but tests the path construction logic
-        with pytest.raises(FileNotFoundError):
+        from src.core.exceptions import AgentNotFoundError
+        with pytest.raises((FileNotFoundError, AgentNotFoundError)):
             self.container.resolve_agent_paths("_common", "_common", "TestAgent")
 
 

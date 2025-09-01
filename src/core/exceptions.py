@@ -6,9 +6,7 @@ class ConductorException(Exception):
 
 class AgentNotFoundError(ConductorException):
     """Raised when a specified agent is not found."""
-    def __init__(self, agent_id: str):
-        self.agent_id = agent_id
-        super().__init__(f"Agent '{agent_id}' not found.")
+    pass
 
 class LLMClientError(ConductorException):
     """Raised for errors related to the LLM client."""
@@ -16,4 +14,8 @@ class LLMClientError(ConductorException):
 
 class StatePersistenceError(ConductorException):
     """Raised for errors related to state persistence."""
+    pass
+
+class ConfigurationError(ConductorException):
+    """Raised for errors related to agent configuration."""
     pass

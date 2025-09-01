@@ -131,17 +131,36 @@ class TestAgentLogic:
     
     def test_chat_after_embodiment(self):
         """Test chat functionality after embodiment."""
-        # Setup embodied state manually for testing
-        self.agent_logic.embodied = True
-        self.agent_logic.current_agent = "testagent"
-        self.agent_logic.agent_home_path = Path("/test")
-        self.agent_logic.agent_config = {"state_file_path": "state.json"}
+        import tempfile
+        import yaml
         
-        response = self.agent_logic.chat("Hello")
-        
-        assert response == "Mock response"
-        assert len(self.mock_llm_client.conversation_history) == 1
-        assert self.mock_llm_client.conversation_history[0]['prompt'] == "Hello"
+        # Create a temporary agent directory with real files for PromptEngine
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            agent_path = Path(tmp_dir)
+            
+            # Create agent.yaml
+            agent_config = {'name': 'TestAgent', 'description': 'Test agent'}
+            with open(agent_path / 'agent.yaml', 'w') as f:
+                yaml.dump(agent_config, f)
+                
+            # Create persona.md
+            with open(agent_path / 'persona.md', 'w') as f:
+                f.write("You are a helpful test assistant.")
+            
+            # Setup embodied state with real path
+            self.agent_logic.embodied = True
+            self.agent_logic.current_agent = "testagent"
+            self.agent_logic.agent_home_path = agent_path
+            self.agent_logic.agent_config = {"state_file_path": "state.json"}
+            
+            response = self.agent_logic.chat("Hello")
+            
+            assert response == "Mock response"
+            assert len(self.mock_llm_client.conversation_history) == 1
+            # Now the LLM receives the full prompt built by PromptEngine
+            full_prompt = self.mock_llm_client.conversation_history[0]['prompt']
+            assert "Hello" in full_prompt  # The user input should be in the final prompt
+            assert "### NOVA INSTRUÇÃO DO USUÁRIO" in full_prompt  # PromptEngine structure
 
 
 class TestStateRepository:
