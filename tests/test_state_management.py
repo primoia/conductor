@@ -110,6 +110,7 @@ class TestFileStateRepository:
         assert os.path.exists(state_file_path)
 
 
+@pytest.mark.mongo
 class TestMongoStateRepository:
     """Testes unitários para MongoStateRepository."""
 
@@ -330,6 +331,7 @@ class TestStateRepositoryIntegration:
         # Verificar que o estado foi preservado
         assert loaded_state == original_state
 
+    @pytest.mark.mongo
     @patch('pymongo.MongoClient')
     @patch.dict(os.environ, {'MONGO_URI': 'mongodb://localhost:27017'})
     def test_mongo_repository_roundtrip(self, mock_mongo_client):

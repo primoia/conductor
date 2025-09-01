@@ -20,6 +20,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+import pytest
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -27,12 +28,21 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.core.exceptions import ConductorException, AgentNotFoundError
 
 
+@pytest.mark.e2e
+@pytest.mark.slow
+@pytest.mark.manual  
 class TestFullAgentLifecycle(unittest.TestCase):
     """
     End-to-End test that validates the complete agent lifecycle.
     
     This test uses subprocess to call the CLI commands directly,
     ensuring a true integration test that mirrors real user interaction.
+    
+    MARKED AS MANUAL - Run only when needed:
+    - Requires AgentCreator_Agent to be available
+    - Creates/deletes files in filesystem  
+    - Makes actual CLI calls with subprocess
+    - Takes longer to run (network calls, file operations)
     """
     
     @classmethod
