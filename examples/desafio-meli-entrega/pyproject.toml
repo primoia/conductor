@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "desafio_meli"
+version = "0.1.0"
+description = "API para o desafio de backend do Mercado Livre."
+authors = ["Cezar Fuhr <cezar@nextar.com.br>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.116.1"
+uvicorn = {extras = ["standard"], version = "^0.35.0"}
+pydantic-settings = "^2.10.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.1"
+httpx = "^0.28.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

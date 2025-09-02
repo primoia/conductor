@@ -1,0 +1,16 @@
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Ambiente
+.venv/
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.pytest_cache/
