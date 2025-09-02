@@ -1,9 +1,19 @@
 docker compose run --rm \
 --entrypoint="python -m src.cli.agent" \
--v "/mnt/ramdisk/primoia-main/primoia-monorepo/projects/conductor:/app/projects" \
+-v "/mnt/ramdisk/primoia-main/primoia-monorepo/projects/conductor:/app" \
 conductor-api \
 --environment primoia-main \
 --project desafio-meli \
 --agent KotlinEntityCreator_Agent \
+--ai-provider gemini \
+--repl
+
+docker compose run --rm \
+--entrypoint="python -m src.cli.agent" \
+-v "/mnt/ramdisk/develop/nex-web-backend:/app/projects/src" \
+conductor-api \
+--environment develop \
+--project nex-web-backend \
+--agent ProblemRefiner_Agent \
 --ai-provider gemini \
 --repl
