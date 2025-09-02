@@ -1,0 +1,26 @@
+[
+  {
+    "id": "MLB123456789",
+    "title": "iPhone 14 Pro Max 128GB Azul Sierra",
+    "price": 6499.99,
+    "currency_id": "BRL",
+    "description": "iPhone 14 Pro Max com tela Super Retina XDR de 6,7 polegadas, sistema de camera Pro avancado e chip A16 Bionic para performance excepcional.",
+    "condition": "new"
+  },
+  {
+    "id": "MLB987654321",
+    "title": "Notebook Dell Inspiron 15 3000 Intel Core i5",
+    "price": 2899.90,
+    "currency_id": "BRL",
+    "description": "Notebook Dell com processador Intel Core i5, 8GB RAM, SSD 256GB e tela de 15.6 polegadas Full HD. Ideal para trabalho e estudos.",
+    "condition": "new"
+  },
+  {
+    "id": "MLB555444333",
+    "title": "Tenis Nike Air Max 90 Masculino",
+    "price": 599.99,
+    "currency_id": "BRL",
+    "description": "Tenis Nike Air Max 90 classico, confortavel e duravel. Perfeito para corridas e uso casual. Disponivel em varias cores e tamanhos.",
+    "condition": "used"
+  }
+]

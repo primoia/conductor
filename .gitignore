@@ -1,54 +1,70 @@
-# Logs
+# --- Python & Virtual Environments ---
+# Virtual environment folders
+.venv/
+venv/
+# Python cache
+__pycache__/
+*.pyc
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# --- IDE & Editor Config ---
+# JetBrains
+.idea/
+# VSCode
+.vscode/
+# Vim
+*.swp
+*.swo
+# Other
+.claude/
+.cursor/
+.gemini/
+.workspace/
+
+# --- OS & System Files ---
+.DS_Store
+Thumbs.db
+
+# --- Logs & Temporary Files ---
+# Log files
+logs/
 *.log
 /tmp/conductor-*.log
-
-# Runtime states (preserve demo states)
-# demo/*/state.json
-
 # Temporary files
 *.tmp
 *.backup
 
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Pastas de configuração de IDEs e Agentes de IA
-.claude/
-.cursor/
-.gemini/
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Python environment and dependencies
-node_modules/
-venv/
-.venv/
-__pycache__/
-*.pyc
-.env
-.env.local
+# --- Testing & Coverage ---
 .pytest_cache/
-*.egg-info/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
 
-# Docker
+# --- Docker ---
 docker-compose.override.yml
 
-# Future: when we add monitoring
-/logs/
-/metrics/
-
-# Build artifacts (future)
-/build/
-/dist/
-/target/
-
-# Diretório para instruções de tarefa de IA temporárias e descartáveis
-.workspace/
-
-# Template projects (example implementations)
-templates/desafio-meli-entrega/
+# --- Project Specific ---
+# Example template projects that should not be tracked
+templates/desafio-eli-entrega/
