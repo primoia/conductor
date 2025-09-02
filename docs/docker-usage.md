@@ -5,31 +5,59 @@ Este guia documenta como usar o Conductor Framework com Docker, incluindo config
 ## Construção da Imagem
 
 ```bash
-# Construir a imagem
+# Construir a imagem (com cache)
 docker compose build
 
-# Ou construir apenas a imagem conductor
-docker build -t conductor .
+# Forçar reconstrução da imagem (sem cache)
+docker compose build --no-cache
 ```
 
 ## Execução Básica
 
 ### Admin CLI
 
-```bash
 # Help do Admin CLI
-docker compose run --rm --entrypoint="" conductor python -m src.cli.admin --help
+docker compose run --rm --entrypoint="" conductor-api python -m src.cli.admin --help
 
-# Executar meta-agent em modo simulação
-docker compose run --rm --entrypoint="" conductor \
-  python -m src.cli.admin --agent AgentCreator_Agent --simulate-chat --repl
-```
+# Executar meta-agent (ex: AgentCreator_Agent) em modo REPL
+# O Admin CLI opera em meta-agentes do framework, não em projetos externos.
+docker compose run --rm \
+  --entrypoint="python -m src.cli.admin" \
+  conductor-api \
+  --agent AgentCreator_Agent --ai-provider gemini --repl --timeout 300
+
+# Executar meta-agent com input direto (não interativo)
+docker compose run --rm \
+  --entrypoint="python -m src.cli.admin" \
+  conductor-api \
+  --agent AgentCreator_Agent --ai-provider gemini --input "Crie um novo agente chamado TesteAgent." --timeout 300
+
+# Executar meta-agent em modo simulação (sem chamar o provedor de IA real)
+docker compose run --rm \
+  --entrypoint="python -m src.cli.admin" \
+  conductor-api \
+  --agent AgentCreator_Agent --ai-provider gemini --simulate-chat --repl --timeout 300
+
+
 
 ### Agent CLI
 
 ```bash
 # Help do Agent CLI  
-docker compose run --rm --entrypoint="" conductor python -m src.cli.agent --help
+docker compose run --rm --entrypoint="" conductor-api python -m src.cli.agent --help
+
+# Executar agente de projeto (ex: ProblemRefiner_Agent) em modo REPL com projeto alvo montado
+# O projeto alvo é montado em /app/projects/src para acesso pelos scripts do agente.
+docker compose run --rm \
+  --entrypoint="python -m src.cli.agent" \
+  -v "/mnt/ramdisk/develop/nex-web-backend:/app/projects/src" \
+  conductor-api \
+  --environment develop \
+  --project nex-web-backend \
+  --agent ProblemRefiner_Agent \
+  --ai-provider gemini \
+  --repl --timeout 300
+
 ```
 
 ## Integração com Google Cloud Vertex AI
@@ -46,7 +74,7 @@ docker run --rm \
   -e "GOOGLE_GENAI_USE_VERTEXAI=true" \
   -e "GOOGLE_CLOUD_PROJECT=your-project-id" \
   -e "GOOGLE_CLOUD_LOCATION=us-central1" \
-  conductor \
+  conductor-api \
   npx https://github.com/google-gemini/gemini-cli -p "Seu prompt aqui file: /app/arquivo.md"
 ```
 
@@ -61,7 +89,7 @@ docker run --rm \
   -e "GOOGLE_GENAI_USE_VERTEXAI=true" \
   -e "GOOGLE_CLOUD_PROJECT=gen-lang-client-0338424173" \
   -e "GOOGLE_CLOUD_LOCATION=us-central1" \
-  conductor \
+  conductor-api \
   npx https://github.com/google-gemini/gemini-cli -p "Crie uma persona com dois parágrafos file: /app/README.md"
 ```
 
@@ -99,23 +127,20 @@ GOOGLE_API_KEY=your-api-key
 ### Estrutura de Volumes Recomendada
 
 ```bash
-# Para desenvolvimento
+# Para desenvolvimento: montar o diretório raiz do projeto 'conductor' em /app
+# Isso permite hot-reload e acesso a todos os arquivos do projeto.
 docker run --rm \
-  -v "$(pwd)/src:/app/src" \
-  -v "$(pwd)/config:/app/config" \
-  -v "$(pwd)/logs:/app/logs" \
-  -v "/path/to/project:/workspace" \
+  -v "$(pwd):/app" \
   -v "/path/to/gcp-key.json:/gcp_key.json" \
-  conductor
+  conductor-api
 ```
 
 ### Montagens Específicas
 
-- **Código fonte**: `-v "$(pwd)/src:/app/src"` para hot-reload durante desenvolvimento
-- **Configuração**: `-v "$(pwd)/config:/app/config"` para configurações dos agentes
-- **Logs**: `-v "$(pwd)/logs:/app/logs"` para persistir logs
-- **Projeto alvo**: `-v "/path/to/target/project:/workspace"` para trabalhar em projetos externos
-- **Chaves GCP**: `-v "/path/to/key.json:/gcp_key.json"` para autenticação
+- **Projeto Conductor**: `-v "$(pwd):/app"` para hot-reload durante desenvolvimento e acesso completo ao código.
+- **Logs**: `-v "$(pwd)/logs:/app/logs"` para persistir logs.
+- **Projeto alvo**: `-v "/path/to/target/project:/app/projects/src"` para trabalhar em projetos externos (o agente espera o código-fonte do projeto alvo em `/app/projects/src`).
+- **Chaves GCP**: `-v "/path/to/key.json:/gcp_key.json"` para autenticação.
 
 ## Docker Compose com Serviços
 
@@ -127,8 +152,7 @@ services:
   conductor:
     build: .
     volumes:
-      - ./src:/app/src
-      - ./config:/app/config  
+      - .:/app  # Monta o diretório raiz do projeto 'conductor' em /app
       - ./logs:/app/logs
       - /path/to/gcp-key.json:/gcp_key.json
     environment:
@@ -197,15 +221,15 @@ class Settings(BaseSettings):
 ## Comandos Úteis
 
 ```bash
-# Executar bash interativo no container
-docker run --rm -it conductor bash
+# Executar bash interativo no container (via docker compose)
+docker compose run --rm --entrypoint="" conductor-api bash
 
 # Verificar instalações
-docker run --rm conductor node --version
+docker run --rm conductor-api node --version
 docker run --rm conductor npm list -g
 
 # Executar testes no container
-docker run --rm -v "$(pwd):/app" conductor poetry run pytest
+docker run --rm -v "$(pwd):/app" conductor-api poetry run pytest
 
 # Logs do container
 docker compose logs conductor
@@ -223,21 +247,25 @@ docker system prune
 2. **Arquivo não encontrado**: Verificar se os volumes estão montados corretamente
 3. **Timeout**: Ajustar variável `DEFAULT_TIMEOUT` para operações longas
 4. **Memória**: Para projetos grandes, pode ser necessário aumentar memória do Docker
+5. **ModuleNotFoundError (Dependências Python)**:
+   - Se um módulo Python não for encontrado, verifique se a dependência está listada corretamente no `pyproject.toml`.
+   - Execute `poetry update` localmente para atualizar o `poetry.lock`.
+   - Reconstrua a imagem Docker com `docker compose build --no-cache` para garantir que a dependência seja instalada no contêiner.
 
 ### Debug
 
 ```bash
 # Executar com debug habilitado
-docker run --rm -e DEBUG_MODE=true conductor python -m src.cli.admin --debug --agent TestAgent
+docker run --rm -e DEBUG_MODE=true conductor-api python -m src.cli.admin --debug --agent TestAgent
 
 # Verificar variáveis de ambiente
-docker run --rm conductor env | grep GOOGLE
+docker run --rm conductor-api env | grep GOOGLE
 
 # Testar conectividade com Vertex AI
 docker run --rm \
   -v "/path/to/key.json:/gcp_key.json" \
   -e "GOOGLE_APPLICATION_CREDENTIALS=/gcp_key.json" \
-  conductor \
+  conductor-api \
   gcloud auth application-default print-access-token
 ```
 
