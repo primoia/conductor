@@ -38,11 +38,12 @@ class AdminCLI:
         self.logger = configure_logging(debug_mode, f"admin_{agent_id}", agent_id)
         self.debug_mode = debug_mode
         
-        # Get agent logic from container
+        # Get agent logic from container (admin agents get unrestricted access)
         self.agent_logic = container.create_agent_logic(
             state_provider=state_provider,
             ai_provider=ai_provider or 'claude',
-            timeout=timeout
+            timeout=timeout,
+            is_admin_agent=True
         )
         
         # Store CLI-specific state

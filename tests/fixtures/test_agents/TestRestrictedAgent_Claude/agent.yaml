@@ -1,0 +1,12 @@
+ai_provider: claude
+available_tools:
+- Read
+description: Agente de teste com permissões restritas - apenas leitura permitida
+execution_mode: project_resident
+execution_task: 'Teste de permissões restritivas: este agente pode apenas ler arquivos'
+id: TestRestrictedAgent_Claude
+output_artifact: test_output.txt
+output_directory: tests/fixtures/output
+persona_prompt_path: persona.md
+state_file_path: state.json
+version: '2.0'

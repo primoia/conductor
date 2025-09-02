@@ -39,17 +39,18 @@ class DIContainer:
             return FileStateRepository()
     
     def get_llm_client(self, ai_provider: str, working_directory: str = None, 
-                      timeout: int = None) -> LLMClient:
+                      timeout: int = None, is_admin_agent: bool = False) -> LLMClient:
         """Get LLM client instance for the specified provider."""
         if timeout is None:
             timeout = self.settings.default_timeout
         
-        return create_llm_client(ai_provider, working_directory, timeout)
+        return create_llm_client(ai_provider, working_directory, timeout, is_admin_agent)
     
     def create_agent_logic(self, state_provider: str = 'file', 
                           ai_provider: str = 'claude',
                           working_directory: str = None,
-                          timeout: int = None) -> AgentLogic:
+                          timeout: int = None,
+                          is_admin_agent: bool = False) -> AgentLogic:
         """
         Create a fully configured AgentLogic instance.
         
@@ -58,13 +59,14 @@ class DIContainer:
             ai_provider: AI provider ('claude' or 'gemini')
             working_directory: Working directory for the LLM client
             timeout: Timeout for LLM operations
+            is_admin_agent: Whether this is an admin agent (gets unrestricted access)
             
         Returns:
             Configured AgentLogic instance with injected dependencies
         """
         # Get dependencies
         state_repository = self.get_state_repository(state_provider)
-        llm_client = self.get_llm_client(ai_provider, working_directory, timeout)
+        llm_client = self.get_llm_client(ai_provider, working_directory, timeout, is_admin_agent)
         
         # Create and return AgentLogic with injected dependencies
         return AgentLogic(state_repository, llm_client)
