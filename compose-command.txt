@@ -17,3 +17,13 @@ conductor-api \
 --agent ProblemRefiner_Agent \
 --ai-provider gemini \
 --repl
+
+docker compose run --rm \
+--entrypoint="python -m src.cli.agent" \
+-v "/mnt/ramdisk/develop/nex-web-backend:/app/projects/src" \
+conductor-api \
+--environment develop \
+--project nex-web-backend \
+--agent QADocumentationAgent_Agent \
+--ai-provider gemini \
+--repl --timeout 300
