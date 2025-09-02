@@ -42,8 +42,21 @@ class PromptEngine:
         formatted_history = self._format_history(conversation_history)
         agent_instructions = self.agent_config.get('prompt', '')
         
+        # SAFETY: Truncate persona if too long to prevent system errors
+        MAX_PERSONA_LENGTH = 20000  # Reasonable limit for persona content
+        persona_content = self.persona_content
+        if len(persona_content) > MAX_PERSONA_LENGTH:
+            logger.warning(f"Persona content too long ({len(persona_content)} chars), truncating")
+            persona_content = persona_content[:MAX_PERSONA_LENGTH] + "\n\n[PERSONA TRUNCADA PARA EVITAR ERROS DE SISTEMA]"
+        
+        # SAFETY: Truncate instructions if too long
+        MAX_INSTRUCTIONS_LENGTH = 5000
+        if len(agent_instructions) > MAX_INSTRUCTIONS_LENGTH:
+            logger.warning(f"Agent instructions too long ({len(agent_instructions)} chars), truncating")
+            agent_instructions = agent_instructions[:MAX_INSTRUCTIONS_LENGTH] + "\n\n[INSTRUÇÕES TRUNCADAS]"
+        
         final_prompt = f"""
-{self.persona_content}
+{persona_content}
 
 ### INSTRUÇÕES DO AGENTE
 {agent_instructions}
@@ -53,7 +66,12 @@ class PromptEngine:
 ### NOVA INSTRUÇÃO DO USUÁRIO
 {user_input}
 """
-        logger.info("Prompt final construído com sucesso.")
+        
+        # Final safety check on complete prompt
+        if len(final_prompt) > 40000:  # Conservative limit
+            logger.warning(f"Final prompt very long ({len(final_prompt)} chars) - may cause system errors")
+        
+        logger.info(f"Prompt final construído com sucesso ({len(final_prompt)} chars).")
         return final_prompt
 
     def get_available_tools(self) -> List[str]:
@@ -149,14 +167,32 @@ class PromptEngine:
     def _format_history(self, history: List[Dict[str, Any]]) -> str:
         """
         Formata o histórico da conversa em uma string legível.
+        Limita o histórico para evitar prompts muito longos que causam erros de sistema.
         """
         if not history:
             return "Nenhum histórico de conversa para esta tarefa ainda."
         
+        # Limitar histórico para evitar "Argument list too long" 
+        # Manter apenas as últimas 5 interações para contexto
+        MAX_HISTORY_TURNS = 5
+        recent_history = history[-MAX_HISTORY_TURNS:] if len(history) > MAX_HISTORY_TURNS else history
+        
         formatted_lines = []
-        for turn in history:
+        for turn in recent_history:
             prompt = turn.get("prompt", "")
             response = turn.get("response", "")
+            
+            # Truncar mensagens muito longas
+            MAX_MESSAGE_LENGTH = 1000
+            if len(prompt) > MAX_MESSAGE_LENGTH:
+                prompt = prompt[:MAX_MESSAGE_LENGTH] + "... [truncado]"
+            if len(response) > MAX_MESSAGE_LENGTH:
+                response = response[:MAX_MESSAGE_LENGTH] + "... [truncado]"
+                
             formatted_lines.append(f"Usuário: {prompt}\nIA: {response}")
+        
+        # Adicionar indicador se histórico foi truncado
+        if len(history) > MAX_HISTORY_TURNS:
+            formatted_lines.insert(0, f"[Mostrando últimas {MAX_HISTORY_TURNS} de {len(history)} interações]")
         
         return "\n---\n".join(formatted_lines)

@@ -23,6 +23,14 @@ class BaseCLIClient(LLMClient):
         self.genesis_agent = None  # Reference to parent agent for access to tools and config
         self.is_admin_agent = is_admin_agent  # Flag to identify admin agents
         logger.debug(f"BaseCLIClient initialized with working directory: {self.working_directory}, admin: {is_admin_agent}")
+    
+    def add_to_conversation_history(self, user_input: str, ai_response: str):
+        """Add user input and AI response to conversation history (not the full prompt)."""
+        self.conversation_history.append({
+            'prompt': user_input,  # Store only the actual user input
+            'response': ai_response,
+            'timestamp': time.time()
+        })
 
 
 
@@ -59,13 +67,8 @@ class ClaudeCLIClient(BaseCLIClient):
             
             if result.returncode == 0:
                 response = result.stdout.strip()
-                # Add to conversation history AFTER receiving response from Claude
-                # Note: We store the original user input, not the full prompt
-                self.conversation_history.append({
-                    'prompt': prompt, 
-                    'response': response, 
-                    'timestamp': time.time()
-                })
+                # ARCHITECTURE FIX: Don't store here - AgentLogic will handle it properly
+                # Only the actual user input and AI response should be stored, not the full prompt
                 return response
             else:
                 logger.error(f"Claude CLI failed: {result.stderr}")
@@ -92,6 +95,12 @@ class GeminiCLIClient(BaseCLIClient):
     def invoke(self, prompt: str) -> str:
         """Invoke Gemini CLI with the given prompt."""
         try:
+            # Check for extremely long prompts that could cause system errors
+            MAX_PROMPT_LENGTH = 50000  # Reasonable limit to prevent "Argument list too long"
+            if len(prompt) > MAX_PROMPT_LENGTH:
+                logger.warning(f"Prompt too long ({len(prompt)} chars), truncating to prevent system errors")
+                prompt = prompt[:MAX_PROMPT_LENGTH] + "\n\n[PROMPT TRUNCADO PARA EVITAR ERRO DE SISTEMA]"
+            
             # Gemini CLI takes the prompt via the -p argument
             cmd = [self.gemini_command, "-p", prompt]
             
@@ -115,11 +124,8 @@ class GeminiCLIClient(BaseCLIClient):
             )
             
             response = result.stdout.strip()
-            self.conversation_history.append({
-                'prompt': prompt, 
-                'response': response, 
-                'timestamp': time.time()
-            })
+            # ARCHITECTURE FIX: Don't store here - AgentLogic will handle it properly
+            # Only the actual user input and AI response should be stored, not the full prompt
             return response
             
         except subprocess.TimeoutExpired:
