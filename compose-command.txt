@@ -27,3 +27,21 @@ conductor-api \
 --agent QADocumentationAgent_Agent \
 --ai-provider gemini \
 --repl --timeout 300
+
+docker compose run --rm \
+--entrypoint="python -m src.cli.admin" \
+-v "/mnt/ramdisk/primoia-main/primoia-monorepo/projects/conductor:/app/projects/src" \
+conductor-api \
+--agent AgentCreator_Agent \
+--ai-provider gemini \
+--repl --timeout 300
+
+docker compose run --rm \
+--entrypoint="python -m src.cli.agent" \
+-v "/mnt/ramdisk/develop/nex-web-backend:/app/projects/src" \
+conductor-api \
+--environment develop \
+--project nex-web-backend \
+--agent PythonApiAgent \
+--ai-provider gemini \
+--repl --timeout 300
