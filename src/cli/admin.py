@@ -33,10 +33,24 @@ class AdminCLI:
     """
     
     def __init__(self, agent_id: str, ai_provider: str = None, timeout: int = 90, 
-                 state_provider: str = 'file', debug_mode: bool = False):
+                 state_provider: str = 'file', debug_mode: bool = False,
+                 meta: bool = False, environment: str = None, project: str = None, 
+                 new_agent_id: str = None, destination_path: str = None):
         """Initialize Admin CLI."""
         self.logger = configure_logging(debug_mode, f"admin_{agent_id}", agent_id)
         self.debug_mode = debug_mode
+        
+        # Store new agent creation parameters
+        self.meta = meta
+        self.new_agent_id = new_agent_id
+        
+        # Set environment and project based on meta flag
+        if self.meta:
+            self.environment = "_common"
+            self.project = "_common"
+        else:
+            self.environment = environment
+            self.project = project
         
         # Get agent logic from container (admin agents get unrestricted access)
         self.agent_logic = container.create_agent_logic(
@@ -46,8 +60,8 @@ class AdminCLI:
             is_admin_agent=True
         )
         
-        # Store CLI-specific state
-        self.destination_path = None
+        # Store CLI-specific state (legacy support)
+        self.destination_path = destination_path
         self.simulate_mode = False
         
         # Initialize shared components
@@ -101,11 +115,8 @@ class AdminCLI:
             return "❌ No agent embodied."
         
         try:
-            # Add destination path if available
-            enhanced_message = message
-            if self.destination_path:
-                enhanced_message = f"DESTINATION_PATH={self.destination_path}\n\n{message}"
-                self.logger.info(f"Enhanced message with destination path: {self.destination_path}")
+            # Build enhanced message with context
+            enhanced_message = self._build_enhanced_message(message)
             
             # Handle debug mode - save input without calling provider
             if debug_save_input:
@@ -128,6 +139,39 @@ class AdminCLI:
         except Exception as e:
             self.logger.error(f"Chat error: {e}")
             return f"❌ Error in chat: {e}"
+    
+    def _build_enhanced_message(self, message: str) -> str:
+        """Build enhanced message with agent creation context."""
+        context_parts = []
+        
+        # Add environment and project context
+        if self.environment and self.project:
+            context_parts.append(f"AGENT_ENVIRONMENT={self.environment}")
+            context_parts.append(f"AGENT_PROJECT={self.project}")
+        
+        # Add new agent ID if specified
+        if self.new_agent_id:
+            context_parts.append(f"NEW_AGENT_ID={self.new_agent_id}")
+        
+        # Add meta flag context
+        if self.meta:
+            context_parts.append("AGENT_TYPE=meta")
+        else:
+            context_parts.append("AGENT_TYPE=project")
+        
+        # Legacy destination path support
+        if self.destination_path:
+            context_parts.append(f"DESTINATION_PATH={self.destination_path}")
+            self.logger.info(f"Enhanced message with destination path: {self.destination_path}")
+        
+        # Build final message
+        if context_parts:
+            context_header = "\n".join(context_parts)
+            enhanced_message = f"{context_header}\n\n{message}"
+            self.logger.info(f"Enhanced message with context: {len(context_parts)} context items")
+            return enhanced_message
+        else:
+            return message
     
     def save_agent_state(self):
         """Save agent state using StateManager."""
@@ -164,6 +208,10 @@ def main():
     parser = CLIArgumentParser.create_admin_parser()
     args = parser.parse_args()
     
+    # Validate arguments
+    if not CLIArgumentParser.validate_admin_args(args):
+        sys.exit(1)
+    
     if args.simulate_chat:
         print("""
 🎭 MODO SIMULAÇÃO ATIVADO
@@ -174,16 +222,34 @@ mantendo o contexto da conversa para análise.
     
     print(f"🚀 Iniciando Admin CLI")
     print(f"   Meta-agent: {args.agent}")
+    if args.meta:
+        print(f"   Agent Type: meta-agent")
+        print(f"   Target: _common/agents/")
+    else:
+        print(f"   Agent Type: project-agent")
+        print(f"   Environment: {args.environment}")
+        print(f"   Project: {args.project}")
+    
+    if args.new_agent_id:
+        print(f"   New Agent ID: {args.new_agent_id}")
+    else:
+        print(f"   New Agent ID: will suggest name")
+    
     if args.debug:
         print(f"   Debug mode: enabled")
     
-    # Initialize admin CLI
+    # Initialize admin CLI with new parameters
     admin_cli = AdminCLI(
         agent_id=args.agent,
         ai_provider=args.ai_provider,
         timeout=args.timeout,
         state_provider=args.state_provider,
-        debug_mode=args.debug
+        debug_mode=args.debug,
+        meta=args.meta,
+        environment=args.environment,
+        project=args.project,
+        new_agent_id=args.new_agent_id,
+        destination_path=args.destination_path
     )
     
     if not admin_cli.embodied:
@@ -195,10 +261,6 @@ mantendo o contexto da conversa para análise.
         admin_cli.simulate_mode = True
         print(f"🎭 Modo simulação ativado")
     
-    # Set destination path for AgentCreator_Agent
-    if args.destination_path:
-        admin_cli.destination_path = args.destination_path
-    
     print(f"🔓 No output restrictions (meta-agent)")
     
     # Handle different execution modes
@@ -207,8 +269,6 @@ mantendo o contexto da conversa para análise.
     elif args.input:
         print(f"\n🤖 Processing input for {args.agent}:")
         print(f"📝 Input: {args.input}")
-        if args.destination_path:
-            print(f"📍 Destination: {args.destination_path}")
         print("-" * 60)
         
         response = admin_cli.chat(args.input, debug_save_input=args.debug_input)

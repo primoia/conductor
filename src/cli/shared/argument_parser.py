@@ -52,8 +52,17 @@ class CLIArgumentParser:
         """Create argument parser for admin CLI."""
         epilog = """
 Examples:
-    python -m src.cli.admin --agent AgentCreator_Agent --repl
-    python -m src.cli.admin --agent AgentCreator_Agent --input "Create an agent"
+    # Create meta-agent with specific ID
+    python -m src.cli.admin --agent AgentCreator_Agent --meta --new-agent-id MyMetaAgent --repl
+    
+    # Create project agent with specific ID
+    python -m src.cli.admin --agent AgentCreator_Agent --new-agent-id MyAgent --environment develop --project myproject --repl
+    
+    # Create meta-agent with name suggestion dialog
+    python -m src.cli.admin --agent AgentCreator_Agent --meta --repl
+    
+    # Create project agent with name suggestion dialog
+    python -m src.cli.admin --agent AgentCreator_Agent --environment develop --project myproject --repl
         """
         
         parser = CLIArgumentParser.create_base_parser(
@@ -64,8 +73,22 @@ Examples:
         # Admin-specific options
         parser.add_argument('--agent', type=str, required=True,
                           help='Meta-agent ID to embody (required)')
+        
+        # New smart agent creation options
+        parser.add_argument('--meta', action='store_true',
+                          help='Create a meta-agent (resides in _common/agents/)')
+        parser.add_argument('--new-agent-id', type=str, default=None,
+                          help='ID of the new agent to create (optional - will suggest if not provided)')
+        
+        # Environment and project arguments (conditionally required)
+        parser.add_argument('--environment', type=str, default=None,
+                          help='Environment name (required when --meta is False)')
+        parser.add_argument('--project', type=str, default=None,
+                          help='Project name (required when --meta is False)')
+        
+        # Legacy options (keeping for backward compatibility)
         parser.add_argument('--destination-path', type=str, default=None,
-                          help='Destination path for agent creation')
+                          help='Destination path for agent creation (legacy - will be inferred)')
         parser.add_argument('--debug-input', action='store_true',
                           help='DEBUG: Save input without calling provider')
         parser.add_argument('--simulate-chat', action='store_true',
@@ -118,5 +141,30 @@ Examples:
                     for req_arg in required_args:
                         if not hasattr(args, req_arg) or not getattr(args, req_arg):
                             return False
+        
+        return True
+    
+    @staticmethod
+    def validate_admin_args(args: argparse.Namespace) -> bool:
+        """
+        Validate admin CLI argument combinations.
+        
+        Args:
+            args: Parsed arguments
+            
+        Returns:
+            True if valid, False otherwise
+        """
+        # If --meta is True, environment and project should be prohibited
+        if args.meta:
+            if args.environment is not None or args.project is not None:
+                print("❌ Error: --meta flag cannot be used with --environment or --project")
+                return False
+        
+        # If --meta is False (default), environment and project are required
+        else:
+            if args.environment is None or args.project is None:
+                print("❌ Error: --environment and --project are required when creating project agents (not meta-agents)")
+                return False
         
         return True
