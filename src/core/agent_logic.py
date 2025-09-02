@@ -150,7 +150,9 @@ class AgentLogic:
                     self.prompt_engine = PromptEngine(self.agent_home_path)
                     self.prompt_engine.load_context()
                 else:
-                    raise ValueError("PromptEngine not initialized and no agent home path available")
+                    error_msg = "PromptEngine not initialized and no agent home path available"
+                    logger.error(error_msg)
+                    return f"❌ Configuration error: {error_msg}"
             
             final_prompt = self.prompt_engine.build_prompt(
                 self.llm_client.conversation_history,
@@ -158,13 +160,18 @@ class AgentLogic:
             )
             response = self.llm_client.invoke(final_prompt)
             
+            # ARCHITECTURE FIX: Store only user input and AI response, not full prompt
+            self.llm_client.add_to_conversation_history(message, response)
+            
             # Save state after interaction
             self.save_agent_state()
             
             return response or "No response from agent."
         except Exception as e:
-            logger.error(f"Chat failed: {e}")
-            raise
+            error_msg = f"Chat failed: {e}"
+            logger.error(error_msg)
+            # CRITICAL FIX: Return error instead of raising to prevent infinite loops
+            return f"❌ {error_msg}"
     
     def save_agent_state(self) -> bool:
         """
