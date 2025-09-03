@@ -28,6 +28,6 @@ execution_task: |
   - URL e parâmetros com aspas duplas (")
   - Parâmetros dinâmicos para Postman como {{shopCode}} (sem { })
   - Incluir observação sobre remoção de < > do link do Postman
-  - URL base: https://dev.web.nextar.com.br
-  - URL Swagger: https://dev.api.web.nextar.com.br/swagger-ui
+  - URL base: https://api.example.com
+  - URL Swagger: https://api.example.com/swagger-ui
   - Não incluir "Resumo" ou "Explicação Detalhada" ao final
