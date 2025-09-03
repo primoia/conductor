@@ -37,8 +37,8 @@ My core competencies, as demonstrated by the Conductor project and my profession
 ## Contact & Portfolio
 
 -   **LinkedIn:** [https://www.linkedin.com/in/cezar-fuhr-3513252b/](https://www.linkedin.com/in/cezar-fuhr-3513252b/)
--   **GitHub:** [github.com/cezarfuhr/](github.com/cezarfuhr/)
+-   **GitHub:** [https://github.com/cezarfuhr/](https://github.com/cezarfuhr/)
 -   **YouTube:** [https://www.youtube.com/@primoia](https://www.youtube.com/@primoia)
--   **Email:** fuhr.cezar@gmail.com
+-   **Email:** primoia.dev@gmail.com
 
 Let's build the future of intelligent automation together.
