@@ -92,6 +92,22 @@ Conductor uses a simple CLI to interact with agents. The main entry point is `sr
 -   **[Configuration Guide](docs/guides/configuration.md):** Learn how to configure workspaces, AI providers, and workflows.
 -   **[Agent Design Patterns](docs/guides/AGENT_DESIGN_PATTERNS.md):** Best practices for creating effective agents.
 
+## ❤️ Support Conductor
+
+Conductor is an open-source project driven by passion and innovation. Your support helps us maintain the project, develop new features, improve documentation, and grow our community.
+
+### Ways to Support:
+
+-   **Become a GitHub Sponsor:** Support us with recurring contributions directly through GitHub.
+    [![Sponsor](https://img.shields.io/github/sponsors/cezarfuhr?style=flat&label=Sponsor)](https://github.com/sponsors/cezarfuhr)
+    *(You'll need to set up GitHub Sponsors on your profile.)*
+-   **Buy Me a Coffee:** Make a one-time or recurring donation to support our work.
+    *(Please replace this with your actual Buy Me a Coffee link once you set it up.)*
+-   **Direct Contributions:** For larger contributions or corporate partnerships, please reach out via our [Consulting & Advisory Services](project-management/CONSULTING.md) page.
+-   **Spread the Word:** Star our repository, share it with your network, and use Conductor in your projects!
+
+Thank you for being a part of our journey!
+
 ## 🤝 Contributing
 
 We welcome contributions from the community! Please read our **[Contributing Guide](CONTRIBUTING.md)** to learn how you can get involved.
