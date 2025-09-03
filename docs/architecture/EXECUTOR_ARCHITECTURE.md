@@ -1,176 +1,175 @@
-# Executor Architecture - Separação de Responsabilidades
+# Executor Architecture - Separation of Responsibilities
 
-## Visão Geral
+## Overview
 
-A arquitetura de executores foi refatorada seguindo o **Princípio da Responsabilidade Única** para separar claramente as responsabilidades entre agentes de projeto e meta-agentes.
+The executor architecture has been refactored following the **Single Responsibility Principle** to clearly separate responsibilities between project agents and meta-agents.
 
-## Executores
+## Executors
 
-### 1. `genesis_agent.py` - Executor de Projeto
+### 1. `src/cli/agent.py` - Project Executor
 
-**Responsabilidade:** Executar agentes que operam em projetos alvo específicos.
+**Responsibility:** Execute agents that operate on specific target projects.
 
-**Características:**
-- Requer contexto de ambiente e projeto (`--environment`, `--project`)
-- Agentes residem em `projects/<environment>/<project>/agents/`
-- Muda para o diretório do projeto alvo (Project Resident Mode)
-- Aplica restrições de `output_scope` quando configurado
+**Characteristics:**
+- Requires environment and project context (`--environment`, `--project`)
+- Agents reside in `projects/<environment>/<project>/agents/`
+- Changes to the target project directory (Project Resident Mode)
+- Applies `output_scope` restrictions when configured
 
-**Uso:**
+**Usage:**
 ```bash
-python scripts/genesis_agent.py --environment develop --project your-project-name --agent KotlinEntityCreator_Agent --repl
+poetry run python src/cli/agent.py --environment develop --project your-project-name --agent KotlinEntityCreator_Agent --repl
 ```
 
-**Exemplos de Agentes:**
+**Examples of Agents:**
 - `KotlinEntityCreator_Agent`
 - `ProblemRefiner_Agent`
 - `TestGenerator_Agent`
 
-### 2. `admin.py` - Executor de Administração
+### 2. `src/cli/admin.py` - Administration Executor
 
-**Responsabilidade:** Executar meta-agentes que gerenciam o próprio framework.
+**Responsibility:** Execute meta-agents that manage the framework itself.
 
-**Características:**
-- Não requer contexto de projeto/ambiente
-- Agentes residem em `projects/_common/agents/`
-- Trabalha no diretório raiz do framework
-- Sem restrições de output (meta-agentes)
+**Characteristics:**
+- Does not require project/environment context
+- Agents reside in `projects/_common/agents/`
+- Works in the framework's root directory
+- No output restrictions (meta-agents)
 
-**Uso:**
+**Usage:**
 ```bash
-# Modo interativo
-python scripts/admin.py --agent AgentCreator_Agent --repl
+# Interactive mode
+poetry run python src/cli/admin.py --agent AgentCreator_Agent --repl
 
-# Modo não-interativo com caminho de destino (v2.1)
-python scripts/admin.py --agent AgentCreator_Agent --destination-path "/caminho/absoluto" --input "Descrição do agente"
+# Non-interactive mode with destination path (v2.1)
+poetry run python src/cli/admin.py --agent AgentCreator_Agent --destination-path "/absolute/path" --input "Agent description"
 ```
 
-**Exemplos de Meta-Agentes:**
-- `AgentCreator_Agent` - Criação automatizada de novos agentes
-- `migrate_agents_v2` - Migração de agentes para nova arquitetura
-- `update_agents_help_system` - Atualização do sistema de ajuda
+**Examples of Meta-Agents:**
+- `AgentCreator_Agent` - Automated creation of new agents
+- `migrate_agents_v2` - Agent migration to new architecture
+- `update_agents_help_system` - Help system update
 
-**Exemplo Prático - Criação de Agente QA:**
+**Practical Example - QA Agent Creation:**
 ```bash
-python scripts/admin.py \
+poetry run python src/cli/admin.py \
   --agent AgentCreator_Agent \
   --destination-path "/projects/conductor/projects/_common/agents/QAAgent_01" \
-  --input "Crie um agente para automatizar testes de QA com foco em APIs REST" \
+  --input "Create an agent to automate QA tests focusing on REST APIs" \
   --ai-provider claude
 ```
 
-**Resultado:** Cria automaticamente:
-- `agent.yaml` - Configuração com ferramentas apropriadas
-- `persona.md` - Persona especializada em QA
-- `state.json` - Estado inicial limpo v2.0
+**Result:** Automatically creates:
+- `agent.yaml` - Configuration with appropriate tools
+- `persona.md` - QA specialized persona
+- `state.json` - Clean initial state v2.0
 
-## Módulo Compartilhado
+## Shared Module
 
-### `agent_common.py`
+### Core Components
 
-Contém funções comuns utilizadas por ambos os executores:
+Contains common functions used by both executors, such as:
 
-- `load_ai_providers_config()` - Carregamento de configuração de IA
-- `load_agent_config_v2()` - Carregamento de configuração de agente
-- `resolve_agent_paths()` - Resolução de caminhos de agente
-- `create_llm_client()` - Criação de cliente LLM com classes LLM refatoradas
-- `start_repl_session()` - Loop de sessão REPL
-- `validate_agent_config()` - Validação de configuração
+- Loading AI providers configuration
+- Loading agent configuration
+- Resolving agent paths
+- Creating LLM clients with refactored LLM classes
+- Starting REPL sessions
+- Validating configuration
 
-**Classes LLM (v2.1):**
-- `LLMClient` - Interface base para provedores de IA
-- `ClaudeCLIClient` - Implementação do cliente Claude CLI
-- `GeminiCLIClient` - Implementação do cliente Gemini CLI
+**LLM Classes (v2.1):**
+- `LLMClient` - Base interface for AI providers
+- `ClaudeCLIClient` - Claude CLI client implementation
+- `GeminiCLIClient` - Gemini CLI client implementation
 
-> **Nota:** As classes LLM foram movidas do `genesis_agent_v2.py` para evitar duplicação e centralizar a lógica de comunicação com provedores de IA.
+> **Note:** LLM classes were moved to avoid duplication and centralize AI provider communication logic.
 
-## Benefícios da Separação
+## Benefits of Separation
 
-### 1. Alta Coesão
-- Cada executor tem uma responsabilidade clara e única
-- Código mais focado e fácil de entender
+### 1. High Cohesion
+- Each executor has a clear and single responsibility
+- More focused and easier to understand code
 
-### 2. Código Mais Limpo
-- Elimina lógica condicional desnecessária
-- Reduz complexidade de cada executor
+### 2. Cleaner Code
+- Eliminates unnecessary conditional logic
+- Reduces complexity of each executor
 
-### 3. Clareza para o Usuário
-- Separação explícita entre "usar" e "administrar" o framework
-- Comandos mais intuitivos e específicos
+### 3. Clarity for the User
+- Explicit separation between "using" and "administering" the framework
+- More intuitive and specific commands
 
-### 4. Manutenibilidade
-- Mudanças em um executor não afetam o outro
-- Testes mais focados e isolados
+### 4. Maintainability
+- Changes in one executor do not affect the other
+- More focused and isolated tests
 
-## Fluxo de Decisão
+## Decision Flow
 
-### Quando usar `genesis_agent.py`:
-- Agente trabalha em um projeto específico
-- Precisa de contexto de ambiente/projeto
-- Agente está em `projects/<env>/<project>/agents/`
+### When to use `src/cli/agent.py`:
+- Agent works on a specific project
+- Needs environment/project context
+- Agent is in `projects/<env>/<project>/agents/`
 
-### Quando usar `admin.py`:
-- Agente gerencia o framework
-- Não precisa de contexto de projeto
-- Agente está em `projects/_common/agents/`
+### When to use `src/cli/admin.py`:
+- Agent manages the framework
+- Does not need project context
+- Agent is in `projects/_common/agents/`
 
-## Migração
+## Migration
 
-### Para Usuários Existentes:
-- **Agentes de Projeto:** Continue usando `genesis_agent.py` normalmente
-- **Meta-Agentes:** Migre para `admin.py`
+### For Existing Users:
+- **Project Agents:** Continue using `src/cli/agent.py` normally
+- **Meta-Agents:** Migrate to `src/cli/admin.py`
 
-### Exemplo de Migração:
+### Migration Example:
 ```bash
-# Antes (funcionava, mas não era ideal)
-python scripts/genesis_agent.py --environment _common --project _common --agent AgentCreator_Agent
+# Before (worked, but not ideal)
+poetry run python src/cli/agent.py --environment _common --project _common --agent AgentCreator_Agent
 
-# Depois (recomendado)
-python scripts/admin.py --agent AgentCreator_Agent --repl
+# After (recommended)
+poetry run python src/cli/admin.py --agent AgentCreator_Agent --repl
 
-# Novo (v2.1): Criação automática de agentes
-python scripts/admin.py --agent AgentCreator_Agent \
+# New (v2.1): Automated agent creation
+poetry run python src/cli/admin.py --agent AgentCreator_Agent \
   --destination-path "/path/to/new/agent" \
-  --input "Criar agente para documentação QA" \
+  --input "Create agent for QA documentation" \
   --ai-provider claude
 ```
 
-## Estrutura de Diretórios
+## Directory Structure
 
 ```
 conductor/
-├── scripts/
-│   ├── genesis_agent.py      # Executor de projeto
-│   ├── admin.py             # Executor de administração
-│   └── agent_common.py      # Módulo compartilhado
+├── src/cli/
+│   ├── agent.py             # Project executor
+│   └── admin.py             # Administration executor
 └── projects/
     ├── _common/
-    │   └── agents/          # Meta-agentes
+    │   └── agents/          # Meta-agents
     │       └── AgentCreator_Agent/
     └── develop/
         └── your-project-name/
-            └── agents/      # Agentes de projeto
+            └── agents/      # Project agents
                 └── KotlinEntityCreator_Agent/
 ```
 
-## Melhorias v2.1 (Recente)
+## v2.1 Improvements (Recent)
 
-### Criação Automatizada de Agentes
+### Automated Agent Creation
 
-O `admin.py` foi aprimorado com funcionalidades para criação automática de agentes:
+The `src/cli/admin.py` has been enhanced with automated agent creation functionalities:
 
-**Parâmetro `--destination-path`:**
-- Permite especificar caminho absoluto onde o agente deve ser criado
-- Elimina ambiguidade na criação de meta-agentes vs agentes de projeto
-- Suporte para automação e scripts
+**`--destination-path` Parameter:**
+- Allows specifying an absolute path where the agent should be created
+- Eliminates ambiguity in creating meta-agents vs. project agents
+- Supports automation and scripts
 
-**AgentCreator_Agent Refatorado:**
-- Nova persona baseada em caminhos absolutos diretos
-- Elimina perguntas sobre ambiente/projeto
-- Template de `state.json` v2.0 limpo e padronizado
-- Criação direta de arquivos no caminho especificado
+**Refactored AgentCreator_Agent:**
+- New persona based on direct absolute paths
+- Eliminates questions about environment/project
+- Clean and standardized `state.json` v2.0 template
+- Direct file creation at the specified path
 
-**Template state.json v2.0:**
+**state.json v2.0 Template:**
 ```json
 {
   "agent_id": "{{agent_id}}",
@@ -185,42 +184,42 @@ O `admin.py` foi aprimorado com funcionalidades para criação automática de ag
 }
 ```
 
-### Limpeza de Código
+### Code Cleanup
 
-- **Refatoração de Classes LLM:** Removidas duplicações entre `genesis_agent_v2.py` e `agent_common.py`
-- **Centralização:** Todas as classes LLM agora residem em `agent_common.py`
-- **Consistência:** Melhor organização e manutenibilidade do código
+- **LLM Class Refactoring:** Removed duplications
+- **Centralization:** All LLM classes now reside in core components
+- **Consistency:** Better organization and maintainability of the code
 
-### Benefícios das Melhorias v2.1
+### Benefits of v2.1 Improvements
 
-1. **Automação Completa:** Criação de agentes via linha de comando sem interação
-2. **Estado Limpo:** Agentes sempre começam com `state.json` vazio
-3. **Sem Ambiguidade:** Caminho explícito elimina confusão sobre localização
-4. **Manutenibilidade:** Código mais limpo e organizado
-5. **Testabilidade:** Processo deterministico e validável
+1. **Full Automation:** Agent creation via command line without interaction
+2. **Clean State:** Agents always start with an empty `state.json`
+3. **No Ambiguity:** Explicit path eliminates confusion about location
+4. **Maintainability:** Cleaner and more organized code
+5. **Testability:** Deterministic and verifiable process
 
-### Validação das Melhorias
+### Validation of Improvements
 
-O processo de criação automatizada foi validado com os seguintes critérios:
+The automated creation process was validated with the following criteria:
 
-✅ **Código de Saída 0:** Comando termina com sucesso  
-✅ **Diretório Criado:** Caminho especificado é criado corretamente  
-✅ **Arquivos Essenciais:** `agent.yaml`, `persona.md`, `state.json` são gerados  
-✅ **Estado Limpo:** `conversation_history: []` no `state.json`
+✅ **Exit Code 0:** Command terminates successfully
+✅ **Directory Created:** Specified path is created correctly
+✅ **Essential Files:** `agent.yaml`, `persona.md`, `state.json` are generated
+✅ **Clean State:** `conversation_history: []` in `state.json`
 
-**Comando de Teste:**
+**Test Command:**
 ```bash
-python3 scripts/admin.py \
+poetry run python src/cli/admin.py \
   --agent AgentCreator_Agent \
   --destination-path "/mnt/ramdisk/test-agent" \
-  --input "Agente de teste simples" \
+  --input "Simple test agent" \
   --ai-provider claude
 ```
 
-## Compatibilidade
+## Compatibility
 
-- ✅ Totalmente compatível com agentes existentes
-- ✅ Não quebra funcionalidade atual
-- ✅ Melhora organização e clareza
-- ✅ Facilita manutenção futura
-- ✅ **Novo:** Suporte à criação automatizada de agentes
+- ✅ Fully compatible with existing agents
+- ✅ Does not break current functionality
+- ✅ Improves organization and clarity
+- ✅ Facilitates future maintenance
+- ✅ **New:** Support for automated agent creation

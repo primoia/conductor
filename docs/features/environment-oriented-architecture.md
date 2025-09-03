@@ -1,9 +1,11 @@
-# Arquitetura Orientada a Ambientes
+# Environment-Oriented Architecture
 
-Para garantir segurança e organização, o framework opera com um conceito de **ambientes** e **workspaces**. Isso impede que um agente destinado a um ambiente de `desenvolvimento` modifique acidentalmente um ambiente de `produção`.
+To ensure security and organization, the framework operates with a concept of **environments** and **workspaces**. This prevents an agent intended for a `development` environment from accidentally modifying a `production` environment.
 
-**Configuração Chave:**
-- **`config/workspaces.yaml`**: Mapeia nomes de ambientes lógicos (ex: `develop`) para caminhos de diretório físicos no seu sistema.
+**Key Configuration:**
+- **`config/workspaces.yaml`**: Maps logical environment names (e.g., `develop`, `production`) to physical directory paths on your system.
 
-**Execução:**
-- O comando `genesis_agent.py` exige o parâmetro `--environment` para garantir que o agente seja carregado e executado no contexto correto e seguro.
+**Execution:**
+- The `src/cli/agent.py` command requires the `--environment` parameter to ensure that the agent is loaded and executed within the correct and secure context.
+
+This architecture provides a clear separation of concerns, allowing developers to work on different projects or different stages of the same project without interference. It enhances safety by restricting agent operations to their designated workspaces, preventing unintended modifications to critical systems.

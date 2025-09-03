@@ -1,9 +1,9 @@
-# Sessões Interativas com Agentes
+# Interactive Sessions with Agents
 
-O Maestro Framework permite a comunicação direta e interativa com agentes de IA através de uma interface de linha de comando (REPL - Read-Eval-Print Loop). Isso facilita o desenvolvimento, a depuração e o refinamento de tarefas complexas de forma colaborativa.
+The Conductor Framework allows direct and interactive communication with AI agents through a command-line interface (REPL - Read-Eval-Print Loop). This facilitates collaborative development, debugging, and refinement of complex tasks.
 
-**Como funciona:**
-- **Executor:** `genesis_agent.py` ou `admin.py`
-- **Comando:** `--repl`
+**How it works:**
+- **Executors:** `src/cli/agent.py` (for project-specific agents) or `src/cli/admin.py` (for framework administration agents).
+- **Command:** Use the `--repl` flag when invoking the agent.
 
-Durante uma sessão, você pode ter um diálogo contínuo com o agente, pedir para ele analisar problemas, sugerir soluções, gerar código e usar suas ferramentas disponíveis.
+During a session, you can have a continuous dialogue with the agent, ask it to analyze problems, suggest solutions, generate code, and use its available tools. This interactive mode provides a powerful way to guide the AI and iterate on solutions in real-time.

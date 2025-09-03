@@ -1,16 +1,16 @@
-# Suporte a Múltiplos Provedores de IA
+# Multi-Provider AI Support
 
-O framework é projetado para ser agnóstico em relação ao provedor de LLM, permitindo que você escolha o modelo mais adequado para cada agente ou tarefa.
+The Conductor framework is designed to be LLM provider-agnostic, allowing you to choose the most suitable model for each agent or task.
 
-**Provedores Suportados:**
+**Supported Providers:**
 - Anthropic Claude
 - Google Gemini
 
-**Configuração:**
-A escolha do provedor é feita no arquivo `agent.yaml` de cada agente, através da chave `ai_provider`.
+**Configuration:**
+The choice of provider is made in each agent's `agent.yaml` file, through the `ai_provider` key.
 
 ```yaml
-ai_provider: 'claude' # ou 'gemini'
+ai_provider: 'claude' # or 'gemini'
 ```
 
-Isso permite, por exemplo, usar o Claude para tarefas de diálogo e o Gemini para geração de código, otimizando custos e performance.
+This flexibility allows you to optimize costs and performance by, for example, using Claude for complex reasoning tasks and Gemini for faster code generation or summarization. The framework abstracts away the differences between providers, providing a unified interface for agent development.

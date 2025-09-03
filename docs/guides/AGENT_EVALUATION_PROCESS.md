@@ -1,91 +1,91 @@
-# Guia do Processo de Avaliação de Agentes
+# Agent Evaluation Process Guide
 
-**Status:** Ativo
-**Versão:** 2.0
+**Status:** Active
+**Version:** 2.0
 
-## 1. Objetivo
+## 1. Objective
 
-Este documento descreve o processo padrão e reutilizável para conduzir uma avaliação 360 do framework Conductor. O ciclo consiste em criar um agente dinamicamente, usar esse agente para executar uma tarefa (como criar um projeto), avaliar formalmente o desempenho do agente e registrar o resultado para análise de melhoria contínua.
-
----
-
-## 2. Fases de Execução
-
-O ciclo é dividido em 4 fases principais, orquestradas por um agente Orquestrador (como o Primo/Gemini) e executadas por um agente Executor (como o Claude).
-
-### Fase 0: Estudo e Preparação (Orquestrador)
-
-Antes de iniciar um novo ciclo, o orquestrador deve estudar os scripts (`admin.py`, `genesis_agent_v2.py`, `run_agent_evaluation.sh`) para garantir que os comandos e parâmetros a serem usados estão corretos e atualizados.
-
-### Fase 1: Criação do Agente
-
-- **Ferramenta:** `admin.py`
-- **Comando Padrão:**
-  ```bash
-  python projects/conductor/scripts/admin.py --agent AgentCreator_Agent --input "<PROMPT_PARA_CRIACAO_DO_AGENTE>" --destination-path "<CAMINHO_PARA_O_NOVO_AGENTE>" --ai-provider claude
-  ```
-
-### Fase 2: Execução do Agente Criado
-
-- **Ferramenta:** `genesis_agent_v2.py`
-- **Comando Padrão:**
-  ```bash
-  python projects/conductor/scripts/genesis_agent_v2.py --agent <NOME_DO_AGENTE_CRIADO> --environment <AMBIENTE_ALVO> --project <PROJETO_ALVO> --input "<PROMPT_PARA_EXECUCAO_DA_TAREFA>" --ai-provider claude
-  ```
-
-### Fase 3: Avaliação Formal
-
-- **Ferramenta:** `run_agent_evaluation.sh`
-- **Pré-requisito:** Um caso de teste (`.yaml`) deve ser criado em `projects/conductor/evaluation_cases/` para o agente em questão.
-- **Comando Padrão:**
-  ```bash
-  bash projects/conductor/scripts/run_agent_evaluation.sh --agent <NOME_DO_AGENTE_CRIADO>
-  ```
+This document describes the standard and reusable process for conducting a 360-degree evaluation of the Conductor framework. The cycle consists of dynamically creating an agent, using that agent to perform a task (such as creating a project), formally evaluating the agent's performance, and recording the result for continuous improvement analysis.
 
 ---
 
-## 3. Procedimento Pós-Ciclo
+## 2. Execution Phases
 
-Ao final de cada ciclo de execução, as seguintes etapas de verificação e registro são mandatórias.
+The cycle is divided into 4 main phases, orchestrated by an Orchestrator agent and executed by an Executor agent.
 
-1.  **Revisão dos Artefatos:** O orquestrador deve revisar todos os artefatos gerados durante o processo. Isso inclui os arquivos de configuração do novo agente, o projeto ou os arquivos criados pela tarefa, e os logs de execução para garantir a qualidade e consistência.
+### Phase 0: Study and Preparation (Orchestrator)
 
-2.  **Coleta de Resultados:** O orquestrador deve localizar o relatório de avaliação gerado em `projects/conductor/.evaluation_output/` e extrair a pontuação final consolidada.
+Before starting a new cycle, the orchestrator must study the scripts (`src/cli/admin.py`, `src/cli/agent.py`, `run_agent_evaluation.sh`) to ensure that the commands and parameters to be used are correct and up-to-date.
 
-3.  **Registro no LOG:** **A etapa final e obrigatória é registrar os resultados.** A data, o ID do ciclo, o agente testado, a nota final e as observações relevantes devem ser adicionados como uma nova linha na tabela do arquivo `360_EVALUATION_LOG.md`.
+### Phase 1: Agent Creation
+
+- **Tool:** `src/cli/admin.py`
+- **Standard Command:**
+  ```bash
+  poetry run python src/cli/admin.py --agent AgentCreator_Agent --input "<PROMPT_FOR_AGENT_CREATION>" --destination-path "<PATH_TO_NEW_AGENT>" --ai-provider claude
+  ```
+
+### Phase 2: Execution of the Created Agent
+
+- **Tool:** `src/cli/agent.py`
+- **Standard Command:**
+  ```bash
+  poetry run python src/cli/agent.py --agent <CREATED_AGENT_NAME> --environment <TARGET_ENVIRONMENT> --project <TARGET_PROJECT> --input "<PROMPT_FOR_TASK_EXECUTION>" --ai-provider claude
+  ```
+
+### Phase 3: Formal Evaluation
+
+- **Tool:** `run_agent_evaluation.sh`
+- **Prerequisite:** A test case (`.yaml`) must be created in `projects/conductor/evaluation_cases/` for the agent in question.
+- **Standard Command:**
+  ```bash
+  bash projects/conductor/scripts/run_agent_evaluation.sh --agent <CREATED_AGENT_NAME>
+  ```
 
 ---
 
-## 4. Referência de Parâmetros
+## 3. Post-Cycle Procedure
 
-Esta seção documenta os parâmetros dos scripts principais usados neste ciclo de avaliação.
+At the end of each execution cycle, the following verification and logging steps are mandatory.
 
-### `admin.py`
+1.  **Artifact Review:** The orchestrator must review all artifacts generated during the process. This includes the new agent's configuration files, the project or files created by the task, and the execution logs to ensure quality and consistency.
 
-- **Objetivo:** Executar meta-agentes que gerenciam o próprio framework (ex: `AgentCreator_Agent`).
-- **Parâmetros Relevantes:**
-  - `--agent <ID_DO_AGENTE>`: (Obrigatório) Especifica o meta-agente a ser executado.
-  - `--input "<INSTRUCAO>"`: (Opcional) Permite passar uma instrução para o agente de forma não-interativa para automação.
-  - `--destination-path <CAMINHO>`: (Opcional) Especifica o caminho de destino para a criação de agentes em modo não-interativo.
-  - `--ai-provider <claude|gemini>`: (Opcional) Força o uso de um provedor de IA específico.
-  - `--repl`: (Opcional) Inicia uma sessão de console interativa com o agente.
-  - `--debug`: (Opcional) Ativa logs detalhados no console.
-- **⚠️ Problema Conhecido:** A gestão de estado (`state.json`) pode não funcionar de forma confiável ao usar o modo não-interativo.
+2.  **Result Collection:** The orchestrator must locate the evaluation report generated in `projects/conductor/.evaluation_output/` and extract the consolidated final score.
 
-### `genesis_agent_v2.py`
+3.  **Log Recording:** **The final and mandatory step is to record the results.** The date, cycle ID, tested agent, final score, and relevant observations must be added as a new line in the table of the `360_EVALUATION_LOG.md` file.
 
-- **Objetivo:** Executar agentes de projeto que operam em bases de código externas.
-- **Parâmetros Relevantes:**
-  - `--environment <NOME_DO_AMBIENTE>`: (Obrigatório) Ambiente de trabalho (ex: `develop`).
-  - `--project <NOME_DO_PROJETO>`: (Obrigatório) Projeto alvo onde o agente irá operar.
-  - `--agent <ID_DO_AGENTE>`: (Obrigatório) Agente a ser executado.
-  - `--input "<INSTRUCAO>"`: (Opcional) Permite passar uma instrução para o agente de forma não-interativa.
-  - `--repl`: (Opcional) Inicia o modo interativo.
-  - `--ai-provider <claude|gemini>`: (Opcional) Força o uso de um provedor de IA.
-  - `--timeout <SEGUNDOS>`: (Opcional) Define o tempo máximo para a operação da IA.
+---
+
+## 4. Parameter Reference
+
+This section documents the parameters of the main scripts used in this evaluation cycle.
+
+### `src/cli/admin.py`
+
+- **Objective:** Execute meta-agents that manage the framework itself (e.g., `AgentCreator_Agent`).
+- **Relevant Parameters:**
+  - `--agent <AGENT_ID>`: (Required) Specifies the meta-agent to be executed.
+  - `--input "<INSTRUCTION>"`: (Optional) Allows passing an instruction to the agent non-interactively for automation.
+  - `--destination-path <PATH>`: (Optional) Specifies the destination path for agent creation in non-interactive mode.
+  - `--ai-provider <claude|gemini>`: (Optional) Forces the use of a specific AI provider.
+  - `--repl`: (Optional) Starts an interactive console session with the agent.
+  - `--debug`: (Optional) Activates detailed logs in the console.
+- **⚠️ Known Issue:** State management (`state.json`) may not work reliably when using non-interactive mode.
+
+### `src/cli/agent.py`
+
+- **Objective:** Execute project agents that operate on external codebases.
+- **Relevant Parameters:**
+  - `--environment <ENVIRONMENT_NAME>`: (Required) Working environment (e.g., `develop`).
+  - `--project <PROJECT_NAME>`: (Required) Target project where the agent will operate.
+  - `--agent <AGENT_ID>`: (Required) Agent to be executed.
+  - `--input "<INSTRUCTION>"`: (Optional) Allows passing an instruction to the agent non-interactively.
+  - `--repl`: (Optional) Starts interactive mode.
+  - `--ai-provider <claude|gemini>`: (Optional) Forces the use of an AI provider.
+  - `--timeout <SECONDS>`: (Optional) Sets the maximum time for AI operation.
 
 ### `run_agent_evaluation.sh`
 
-- **Objetivo:** Executar o framework de avaliação para um agente específico.
-- **Parâmetros Relevantes:**
-  - `--agent <NOME_DO_AGENTE>`: (Obrigatório) O nome do agente a ser avaliado, que deve corresponder a um caso de teste em `evaluation_cases/`.
+- **Objective:** Execute the evaluation framework for a specific agent.
+- **Relevant Parameters:**
+  - `--agent <AGENT_NAME>`: (Required) The name of the agent to be evaluated, which must correspond to a test case in `evaluation_cases/`.

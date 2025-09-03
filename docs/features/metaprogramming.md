@@ -1,13 +1,15 @@
-# Metaprogramação com AgentCreator
+# Metaprogramming with AgentCreator
 
-Metaprogramação é a capacidade de um programa escrever ou manipular outros programas. No Conductor, isso se manifesta através do `AgentCreator_Agent`.
+Metaprogramming is the ability of a program to write or manipulate other programs. In Conductor, this is manifested through the `AgentCreator_Agent`.
 
-**O que é:**
-- O `AgentCreator_Agent` é um **meta-agente** (um agente que gerencia outros agentes).
-- Ele guia o usuário através de um diálogo para criar a estrutura de diretórios e os arquivos de configuração (`agent.yaml`, `persona.md`) para um novo agente.
+**What it is:**
+- The `AgentCreator_Agent` is a **meta-agent** (an agent that manages other agents).
+- It guides the user through a dialogue to create the directory structure and configuration files (`agent.yaml`, `persona.md`) for a new agent.
 
-**Como usar:**
-- Execute o `admin.py` para invocar o `AgentCreator_Agent`:
+**How to use:**
+- Execute `src/cli/admin.py` to invoke the `AgentCreator_Agent`:
   ```bash
-  python scripts/admin.py --agent AgentCreator_Agent --repl
+  poetry run python src/cli/admin.py --agent AgentCreator_Agent --repl
   ```
+
+This feature allows for the dynamic creation and customization of agents, enabling the Conductor framework to adapt and extend its capabilities without manual coding. It's a powerful way to bootstrap new agent functionalities and maintain a consistent agent ecosystem.

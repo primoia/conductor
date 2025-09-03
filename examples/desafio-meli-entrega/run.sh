@@ -1,8 +1,8 @@
 #!/bin/bash
-# Script para construir e iniciar a aplicação usando Docker Compose
+# Script to build and start the application using Docker Compose
 
-echo "Construindo e iniciando a aplicação..."
+echo "Building and starting the application..."
 docker compose up --build -d
 
-echo "Aplicação rodando em http://localhost:8000"
-echo "Documentação (Swagger UI) disponível em http://localhost:8000/docs"
+echo "Application running at http://localhost:8000"
+echo "Documentation (Swagger UI) available at http://localhost:8000/docs"

@@ -1,262 +1,262 @@
-# Casos de Uso Conductor
+# Conductor Use Cases
 
-## 🎯 Casos de Uso por Categoria
+## 🎯 Use Cases by Category
 
-### 📊 Categoria: Análise e Monitoramento
+### 📊 Category: Analysis and Monitoring
 
-#### Caso de Uso 1: Auditoria de Versões
-**Cenário**: 22 microserviços com potenciais inconsistências de versões (Gradle, Spring Boot, dependências)
+#### Use Case 1: Version Auditing
+**Scenario**: 22 microservices with potential version inconsistencies (Gradle, Spring Boot, dependencies)
 
-**Agentes**:
-- `version-checker-{service}` (22 agentes): Cada um monitora um microserviço
-- `version-analyzer`: Consolida dados e identifica inconsistências
-- `version-reporter`: Gera relatório com recomendações
+**Agents**:
+- `version-checker-{service}` (22 agents): Each monitors a microservice
+- `version-analyzer`: Consolidates data and identifies inconsistencies
+- `version-reporter`: Generates report with recommendations
 
-**Fluxo**:
-1. Trigger paralelo de todos os checkers
-2. Consolidação via analyzer
-3. Relatório detalhado com prioridades de upgrade
+**Flow**:
+1. Parallel trigger of all checkers
+2. Consolidation via analyzer
+3. Detailed report with upgrade priorities
 
-**Valor**: Visibilidade completa do ecossistema em minutos vs. horas de trabalho manual
-
----
-
-#### Caso de Uso 2: Health Check Distribuído
-**Cenário**: Monitoramento contínuo de saúde dos microserviços
-
-**Agentes**:
-- `health-monitor-{service}` (22 agentes): Verifica status individual
-- `dependency-checker`: Valida conectividade entre serviços
-- `alert-manager`: Escalona problemas críticos
-
-**Fluxo**:
-1. Monitoramento contínuo de todos os serviços
-2. Detecção de falhas e dependências quebradas
-3. Alertas automáticos com contexto específico
-
-**Valor**: Detecção proativa de problemas antes de afetar usuários
+**Value**: Full ecosystem visibility in minutes vs. hours of manual work
 
 ---
 
-### 🔄 Categoria: Desenvolvimento Coordenado
+#### Use Case 2: Distributed Health Check
+**Scenario**: Continuous health monitoring of microservices
 
-#### Caso de Uso 3: Feature Multi-Serviço
-**Cenário**: Implementar feature que requer mudanças em 5 microserviços
+**Agents**:
+- `health-monitor-{service}` (22 agents): Checks individual status
+- `dependency-checker`: Validates connectivity between services
+- `alert-manager`: Escalates critical issues
 
-**Agentes**:
-- `feature-implementer-{service}` (5 agentes): Implementa parte específica
-- `integration-tester`: Testa integração entre serviços
-- `documentation-writer`: Atualiza documentação técnica
-- `deployment-coordinator`: Gerencia ordem de deploy
+**Flow**:
+1. Continuous monitoring of all services
+2. Detection of failures and broken dependencies
+3. Automatic alerts with specific context
 
-**Fluxo**:
-1. Implementação paralela nos 5 serviços
-2. Testes de integração conforme serviços ficam prontos
-3. Documentação atualizada automaticamente
-4. Deploy coordenado respeitando dependências
-
-**Valor**: Feature complexa implementada em fração do tempo tradicional
+**Value**: Proactive problem detection before affecting users
 
 ---
 
-#### Caso de Uso 4: Refactoring em Massa
-**Cenário**: Renomear classe/método usado em múltiplos serviços
+### 🔄 Category: Coordinated Development
 
-**Agentes**:
-- `code-scanner-{service}`: Identifica uso da classe/método
-- `refactor-executor-{service}`: Executa mudanças específicas
-- `test-runner-{service}`: Valida que testes continuam passando
-- `impact-analyzer`: Verifica impactos não óbvios
+#### Use Case 3: Multi-Service Feature
+**Scenario**: Implement a feature requiring changes in 5 microservices
 
-**Fluxo**:
-1. Scan completo para identificar todas as ocorrências
-2. Refactoring coordenado mantendo compatibilidade
-3. Validação através de testes automatizados
-4. Análise de impacto em runtime
+**Agents**:
+- `feature-implementer-{service}` (5 agents): Implements specific part
+- `integration-tester`: Tests integration between services
+- `documentation-writer`: Updates technical documentation
+- `deployment-coordinator`: Manages deployment order
 
-**Valor**: Refactoring seguro e coordenado sem quebrar sistema
+**Flow**:
+1. Parallel implementation across 5 services
+2. Integration tests as services become ready
+3. Documentation updated automatically
+4. Coordinated deployment respecting dependencies
 
----
-
-### 🧪 Categoria: Testing e Quality Assurance
-
-#### Caso de Uso 5: TDD Distribuído para API
-**Cenário**: Desenvolver nova API com TDD rigoroso
-
-**Agentes**:
-- `tdd-writer`: Cria testes baseados em especificações
-- `api-implementer`: Implementa código para fazer testes passarem
-- `integration-tester`: Cria testes de integração
-- `contract-validator`: Valida contratos de API
-- `documentation-generator`: Gera docs baseado em testes
-
-**Fluxo**:
-1. TDD writer cria testes com base em specs
-2. API implementer desenvolve código iterativamente
-3. Testes de integração validam workflow completo
-4. Contratos são validados automaticamente
-5. Documentação é gerada a partir dos testes
-
-**Valor**: API desenvolvida com cobertura completa e documentação sincronizada
+**Value**: Complex feature implemented in a fraction of the traditional time
 
 ---
 
-#### Caso de Uso 6: Test Suite Paralelo
-**Cenário**: 400 testes lentos executando serialmente
+#### Use Case 4: Mass Refactoring
+**Scenario**: Rename a class/method used in multiple services
 
-**Agentes**:
-- `test-runner-{n}` (400 agentes): Cada um executa um teste específico
-- `result-collector`: Consolida resultados
-- `failure-analyzer`: Analisa padrões de falha
-- `performance-tracker`: Monitora tempo de execução
+**Agents**:
+- `code-scanner-{service}`: Identifies class/method usage
+- `refactor-executor-{service}`: Executes specific changes
+- `test-runner-{service}`: Validates that tests continue to pass
+- `impact-analyzer`: Checks for non-obvious impacts
 
-**Fluxo**:
-1. Trigger broadcast para todos os test runners
-2. Execução paralela de todos os testes
-3. Consolidação de resultados em tempo real
-4. Análise automática de falhas e performance
+**Flow**:
+1. Full scan to identify all occurrences
+2. Coordinated refactoring maintaining compatibility
+3. Validation through automated tests
+4. Runtime impact analysis
 
-**Valor**: Suite de 400 testes executada em 5 minutos vs. 2 horas
-
----
-
-### 🚀 Categoria: CI/CD e Deploy
-
-#### Caso de Uso 7: Deploy Blue/Green Coordenado
-**Cenário**: Deploy de múltiplos serviços com estratégia Blue/Green
-
-**Agentes**:
-- `deployer-{service}`: Gerencia deploy de serviço específico
-- `health-validator`: Valida saúde após deploy
-- `traffic-controller`: Gerencia mudança de tráfego
-- `rollback-coordinator`: Executa rollback se necessário
-
-**Fluxo**:
-1. Deploy paralelo na stack Green
-2. Validação de saúde de todos os serviços
-3. Mudança gradual de tráfego Blue→Green
-4. Rollback automático se problemas detectados
-
-**Valor**: Deploy coordenado e seguro com rollback automático
+**Value**: Safe and coordinated refactoring without breaking the system
 
 ---
 
-#### Caso de Uso 8: Hotfix Emergency
-**Cenário**: Bug crítico em produção afetando múltiplos serviços
+### 🧪 Category: Testing and Quality Assurance
 
-**Agentes**:
-- `bug-identifier`: Identifica root cause do problema
-- `hotfix-creator-{service}`: Cria fix específico por serviço
-- `test-validator`: Executa testes críticos
-- `emergency-deployer`: Deploy fast-track para produção
+#### Use Case 5: Distributed TDD for API
+**Scenario**: Develop a new API with strict TDD
 
-**Fluxo**:
-1. Identificação automática da causa raiz
-2. Criação de hotfixes coordenados
-3. Validação através de testes críticos
-4. Deploy emergency em produção
+**Agents**:
+- `tdd-writer`: Creates tests based on specifications
+- `api-implementer`: Implements code to make tests pass
+- `integration-tester`: Creates integration tests
+- `contract-validator`: Validates API contracts
+- `documentation-generator`: Generates docs based on tests
 
-**Valor**: Problema crítico resolvido em minutos vs. horas
+**Flow**:
+1. TDD writer creates tests based on specs
+2. API implementer develops code iteratively
+3. Integration tests validate full workflow
+4. Contracts are automatically validated
+5. Documentation is generated from tests
 
----
-
-### 📋 Categoria: Governança e Compliance
-
-#### Caso de Uso 9: Security Audit
-**Cenário**: Auditoria de segurança em todo o ecossistema
-
-**Agentes**:
-- `security-scanner-{service}`: Scan de vulnerabilidades por serviço
-- `dependency-auditor`: Verifica dependências vulneráveis
-- `compliance-checker`: Valida conformidade com políticas
-- `security-reporter`: Gera relatório consolidado
-
-**Fluxo**:
-1. Scan paralelo de segurança em todos os serviços
-2. Auditoria de dependências e bibliotecas
-3. Verificação de compliance com padrões
-4. Relatório consolidado com prioridades
-
-**Valor**: Auditoria completa de segurança em horas vs. semanas
+**Value**: API developed with full coverage and synchronized documentation
 
 ---
 
-#### Caso de Uso 10: License Compliance
-**Cenário**: Verificar compliance de licenças em todo ecossistema
+#### Use Case 6: Parallel Test Suite
+**Scenario**: 400 slow tests running serially
 
-**Agentes**:
-- `license-scanner-{service}`: Identifica licenças por serviço
-- `license-analyzer`: Analisa compatibilidade entre licenças
-- `risk-assessor`: Avalia riscos legais
-- `compliance-reporter`: Gera relatório para legal team
+**Agents**:
+- `test-runner-{n}` (400 agents): Each executes a specific test
+- `result-collector`: Consolidates results
+- `failure-analyzer`: Analyzes failure patterns
+- `performance-tracker`: Monitors execution time
 
-**Fluxo**:
-1. Scan de todas as dependências e licenças
-2. Análise de compatibilidade e conflitos
-3. Avaliação de riscos legais
-4. Relatório detalhado para time jurídico
+**Flow**:
+1. Broadcast trigger to all test runners
+2. Parallel execution of all tests
+3. Real-time result consolidation
+4. Automatic failure and performance analysis
 
-**Valor**: Compliance de licenças garantida e documentada
+**Value**: Suite of 400 tests executed in 5 minutes vs. 2 hours
 
 ---
 
-## 🎭 Padrões de Uso Recorrentes
+### 🚀 Category: CI/CD and Deploy
 
-### Padrão 1: Fan-Out/Fan-In
+#### Use Case 7: Coordinated Blue/Green Deploy
+**Scenario**: Deploy multiple services with a Blue/Green strategy
+
+**Agents**:
+- `deployer-{service}`: Manages specific service deployment
+- `health-validator`: Validates health after deployment
+- `traffic-controller`: Manages traffic shift
+- `rollback-coordinator`: Executes rollback if necessary
+
+**Flow**:
+1. Parallel deployment to Green stack
+2. Health validation of all services
+3. Gradual traffic shift Blue→Green
+4. Automatic rollback if problems detected
+
+**Value**: Coordinated and secure deployment with automatic rollback
+
+---
+
+#### Use Case 8: Emergency Hotfix
+**Scenario**: Critical production bug affecting multiple services
+
+**Agents**:
+- `bug-identifier`: Identifies root cause of the problem
+- `hotfix-creator-{service}`: Creates service-specific fix
+- `test-validator`: Executes critical tests
+- `emergency-deployer`: Fast-track deployment to production
+
+**Flow**:
+1. Automatic root cause identification
+2. Coordinated hotfix creation
+3. Validation through critical tests
+4. Emergency deployment to production
+
+**Value**: Critical problem resolved in minutes vs. hours
+
+---
+
+### 📋 Category: Governance and Compliance
+
+#### Use Case 9: Security Audit
+**Scenario**: Security audit across the entire ecosystem
+
+**Agents**:
+- `security-scanner-{service}`: Vulnerability scan per service
+- `dependency-auditor`: Checks vulnerable dependencies
+- `compliance-checker`: Validates policy compliance
+- `security-reporter`: Generates consolidated report
+
+**Flow**:
+1. Parallel security scan across all services
+2. Dependency and library auditing
+3. Compliance verification with standards
+4. Consolidated report with priorities
+
+**Value**: Full security audit in hours vs. weeks
+
+---
+
+#### Use Case 10: License Compliance
+**Scenario**: Verify license compliance across the entire ecosystem
+
+**Agents**:
+- `license-scanner-{service}`: Identifies licenses per service
+- `license-analyzer`: Analyzes license compatibility
+- `risk-assessor`: Evaluates legal risks
+- `compliance-reporter`: Generates report for legal team
+
+**Flow**:
+1. Scan all dependencies and licenses
+2. Compatibility and conflict analysis
+3. Legal risk assessment
+4. Detailed report for legal team
+
+**Value**: Guaranteed and documented license compliance
+
+---
+
+## 🎭 Recurring Usage Patterns
+
+### Pattern 1: Fan-Out/Fan-In
 ```
 Trigger → [Multiple Specialized Agents] → Consolidator Agent → Report
 ```
-**Exemplo**: Version checking, security scanning, testing
+**Example**: Version checking, security scanning, testing
 
-### Padrão 2: Pipeline Sequential
+### Pattern 2: Sequential Pipeline
 ```
 Agent A → Agent B → Agent C → Final Output
 ```
-**Exemplo**: TDD → Implementation → Documentation → Deployment
+**Example**: TDD → Implementation → Documentation → Deployment
 
-### Padrão 3: Feedback Loop
+### Pattern 3: Feedback Loop
 ```
 Agent A ⟷ Agent B (iterative refinement)
 ```
-**Exemplo**: TDD writer ⟷ Code implementer
+**Example**: TDD writer ⟷ Code implementer
 
-### Padrão 4: Hierarchical Coordination
+### Pattern 4: Hierarchical Coordination
 ```
 Meta-Agent → [Sub-agents] → [Sub-sub-agents]
 ```
-**Exemplo**: Deploy coordinator → Service deployers → Health checkers
+**Example**: Deploy coordinator → Service deployers → Health checkers
 
 ---
 
-## 📊 Métricas de Valor por Caso de Uso
+## 📊 Value Metrics per Use Case
 
-| Caso de Uso | Tempo Manual | Tempo Conductor | Redução | Qualidade |
+| Use Case | Manual Time | Conductor Time | Reduction | Quality |
 |-------------|--------------|-----------------|---------|-----------|
-| Auditoria Versões | 4-8 horas | 10-20 min | 85-95% | +40% precisão |
-| Feature Multi-Serviço | 2-4 semanas | 3-7 dias | 70-85% | +60% consistência |
-| Test Suite Paralelo | 2 horas | 5 min | 95% | +30% confiabilidade |
-| Deploy Coordenado | 4-6 horas | 30-60 min | 80-90% | +50% segurança |
-| Security Audit | 1-2 semanas | 2-4 horas | 90-95% | +70% cobertura |
+| Version Auditing | 4-8 hours | 10-20 min | 85-95% | +40% accuracy |
+| Multi-Service Feature | 2-4 weeks | 3-7 days | 70-85% | +60% consistency |
+| Parallel Test Suite | 2 hours | 5 min | 95% | +30% reliability |
+| Coordinated Deploy | 4-6 hours | 30-60 min | 80-90% | +50% security |
+| Security Audit | 1-2 weeks | 2-4 hours | 90-95% | +70% coverage |
 
 ---
 
-## 🚀 Casos de Uso Futuros (Roadmap)
+## 🚀 Future Use Cases (Roadmap)
 
-### Near-Term (3-6 meses)
-- **Database Migration Coordinator**: Migrar schemas em múltiplos DBs
-- **Performance Regression Detector**: Identificar degradação de performance
-- **API Backward Compatibility Validator**: Garantir compatibilidade de APIs
+### Near-Term (3-6 months)
+- **Database Migration Coordinator**: Migrate schemas across multiple DBs
+- **Performance Regression Detector**: Identify performance degradation
+- **API Backward Compatibility Validator**: Ensure API compatibility
 
-### Medium-Term (6-12 meses)
-- **Auto-Scaling Optimizer**: Otimizar configurações de auto-scaling
-- **Cost Analyzer**: Analisar custos de infraestrutura
-- **Disaster Recovery Tester**: Testar procedimentos de DR
+### Medium-Term (6-12 months)
+- **Auto-Scaling Optimizer**: Optimize auto-scaling configurations
+- **Cost Analyzer**: Analyze infrastructure costs
+- **Disaster Recovery Tester**: Test DR procedures
 
-### Long-Term (12+ meses)
-- **Architecture Evolution Planner**: Sugerir evoluções arquiteturais
-- **Predictive Failure Analyzer**: Predizer falhas antes que ocorram
-- **Self-Healing Infrastructure**: Auto-remediar problemas comuns
+### Long-Term (12+ months)
+- **Architecture Evolution Planner**: Suggest architectural evolutions
+- **Predictive Failure Analyzer**: Predict failures before they occur
+- **Self-Healing Infrastructure**: Auto-remediate common problems
 
 ---
 
-**Cada caso de uso demonstra o poder da coordenação inteligente entre agentes especializados, transformando tarefas complexas e demoradas em operações rápidas e confiáveis.**
+**Each use case demonstrates the power of intelligent coordination among specialized agents, transforming complex and time-consuming tasks into fast and reliable operations.**

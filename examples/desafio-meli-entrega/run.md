@@ -1,36 +1,36 @@
-# Como Executar o Projeto
+# How to Run the Project
 
-Este projeto é totalmente containerizado, então o único pré-requisito é ter o Docker e o Docker Compose instalados.
+This project is fully containerized, so the only prerequisite is having Docker and Docker Compose installed.
 
-## Pré-requisitos
+## Prerequisites
 - Docker Engine
 - Docker Compose
 
-## Execução
+## Execution
 
-1.  Clone este repositório para a sua máquina local.
-2.  Navegue até o diretório raiz do projeto pelo seu terminal.
-3.  Execute o script `run.sh` para construir a imagem e iniciar o container:
+1.  Clone this repository to your local machine.
+2.  Navigate to the project's root directory in your terminal.
+3.  Execute the `run.sh` script to build the image and start the container:
     ```sh
     ./run.sh
     ```
 
-Após a execução, a API estará rodando em segundo plano.
+After execution, the API will be running in the background.
 
-- **URL da API:** [http://localhost:8000](http://localhost:8000)
-- **Documentação Interativa (Swagger UI):** [http://localhost:8000/docs](http://localhost:8000/docs)
+- **API URL:** [http://localhost:8000](http://localhost:8000)
+- **Interactive Documentation (Swagger UI):** [http://localhost:8000/docs](http://localhost:8000/docs)
 
-## Parando a Aplicação
+## Stopping the Application
 
-Para parar o container, execute o seguinte comando no diretório raiz do projeto:
+To stop the container, execute the following command in the project's root directory:
 
 ```sh
 docker compose down
 ```
 
-## Executando os Testes
+## Running the Tests
 
-Para executar os testes, você pode usar o `docker compose` para rodar o `pytest` dentro do container de serviço:
+To run the tests, you can use `docker compose` to run `pytest` inside the service container:
 
 ```sh
 docker compose exec api pytest

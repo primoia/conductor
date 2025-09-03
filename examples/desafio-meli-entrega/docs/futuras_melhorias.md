@@ -1,35 +1,35 @@
-# Roadmap de Futuras Melhorias
+# Roadmap of Future Improvements
 
-Este documento descreve um roadmap de melhorias potenciais que poderiam ser implementadas para evoluir este projeto de um protótipo robusto para um sistema de produção completo, resiliente e escalável.
+This document outlines a roadmap of potential improvements that could be implemented to evolve this project from a robust prototype to a complete, resilient, and scalable production system.
 
 ---
 
-### 1. Aprimoramento da Camada de Persistência
+### 1. Persistence Layer Enhancement
 
--   **Banco de Dados Real:** Substituir o `ItemRepository` baseado em arquivo JSON por uma implementação que se conecte a um banco de dados real.
-    -   **SQL:** Usar PostgreSQL com SQLAlchemy para garantir transações atômicas e consistência forte.
-    -   **NoSQL:** Usar MongoDB para maior flexibilidade no esquema de dados.
--   **Cache Distribuído:** Introduzir uma camada de cache (como Redis) na frente do banco de dados para otimizar drasticamente as operações de leitura (`GET`), diminuindo a latência para itens frequentemente acessados.
+-   **Real Database:** Replace the JSON file-based `ItemRepository` with an implementation that connects to a real database.
+    -   **SQL:** Use PostgreSQL with SQLAlchemy to ensure atomic transactions and strong consistency.
+    -   **NoSQL:** Use MongoDB for greater data schema flexibility.
+-   **Distributed Cache:** Introduce a caching layer (like Redis) in front of the database to drastically optimize read operations (`GET`), reducing latency for frequently accessed items.
 
-### 2. Robustez da API e Segurança
+### 2. API Robustness and Security
 
--   **Autenticação e Autorização:** Implementar um mecanismo de autenticação (ex: OAuth2 com JWT) para proteger os endpoints de escrita (`POST`, `PUT`, `DELETE`), garantindo que apenas usuários/serviços autorizados possam modificar os dados.
--   **Rate Limiting:** Adicionar um limitador de requisições para prevenir abuso e ataques de negação de serviço (DoS).
--   **Versionamento de API:** Evoluir o versionamento da API (ex: de `/api/v1` para `/api/v2`) para permitir mudanças significativas sem quebrar a compatibilidade com clientes antigos.
+-   **Authentication and Authorization:** Implement an authentication mechanism (e.g., OAuth2 with JWT) to protect write endpoints (`POST`, `PUT`, `DELETE`), ensuring that only authorized users/services can modify data.
+-   **Rate Limiting:** Add a request limiter to prevent abuse and Denial of Service (DoS) attacks.
+-   **API Versioning:** Evolve API versioning (e.g., from `/api/v1` to `/api/v2`) to allow significant changes without breaking compatibility with old clients.
 
-### 3. Expansão da Cobertura de Testes
+### 3. Test Coverage Expansion
 
--   **Testes de Mutação:** Introduzir testes de mutação (com ferramentas como `mutmut`) para verificar a eficácia da nossa suíte de testes, garantindo que os testes falhem se a lógica do código for alterada indevidamente.
--   **Testes de Contrato:** Se esta API fosse consumida por outro serviço, poderíamos implementar testes de contrato (usando uma ferramenta como Pact) para garantir que as integrações não quebrem.
--   **Testes de Performance:** Realizar testes de carga e estresse (com ferramentas como Locust ou k6) para entender os limites da aplicação sob alta demanda e identificar gargalos de performance.
+-   **Mutation Testing:** Introduce mutation testing (with tools like `mutmut`) to verify the effectiveness of our test suite, ensuring that tests fail if code logic is improperly altered.
+-   **Contract Testing:** If this API were consumed by another service, we could implement contract testing (using a tool like Pact) to ensure integrations don't break.
+-   **Performance Testing:** Conduct load and stress tests (with tools like Locust or k6) to understand the application's limits under high demand and identify performance bottlenecks.
 
-### 4. Infraestrutura e Deploy (CI/CD)
+### 4. Infrastructure and Deploy (CI/CD)
 
--   **Proxy Reverso com Nginx:** Introduzir o Nginx como um proxy reverso na frente da aplicação para gerenciar o tráfego de entrada, servir arquivos estáticos e lidar com a terminação SSL (HTTPS), liberando o servidor de aplicação Python dessa responsabilidade.
--   **Pipeline de CI/CD:** Criar um pipeline automatizado (ex: com GitHub Actions) que, a cada push para a branch principal, execute o linting, os testes e, se passarem, construa e publique a imagem Docker em um registro (como o Docker Hub ou AWS ECR).
--   **Orquestração de Containers:** Para um ambiente de produção real, migrar do Docker Compose para um orquestrador mais robusto como Kubernetes, permitindo auto-scaling, rolling updates e alta disponibilidade.
+-   **Reverse Proxy with Nginx:** Introduce Nginx as a reverse proxy in front of the application to manage incoming traffic, serve static files, and handle SSL termination (HTTPS), freeing the Python application server from this responsibility.
+-   **CI/CD Pipeline:** Create an automated pipeline (e.g., with GitHub Actions) that, on each push to the main branch, executes linting, tests, and if they pass, builds and publishes the Docker image to a registry (like Docker Hub or AWS ECR).
+-   **Container Orchestration:** For a real production environment, migrate from Docker Compose to a more robust orchestrator like Kubernetes, allowing auto-scaling, rolling updates, and high availability.
 
-### 5. Observabilidade Avançada
+### 5. Advanced Observability
 
--   **Métricas:** Implementar a exportação de métricas (usando `Prometheus-FastAPI-Instrumentator`) para monitoramento em tempo real da saúde da aplicação (latência, taxa de erros, requisições por segundo) em dashboards (com Grafana).
--   **Tracing Distribuído:** Se o sistema evoluísse para uma arquitetura de microsserviços, integrar OpenTelemetry para permitir o rastreamento de requisições através dos diferentes serviços, facilitando a depuração de problemas complexos.
+-   **Metrics:** Implement metrics export (using `Prometheus-FastAPI-Instrumentator`) for real-time monitoring of application health (latency, error rate, requests per second) in dashboards (with Grafana).
+-   **Distributed Tracing:** If the system evolved into a microservices architecture, integrate OpenTelemetry to allow tracing requests across different services, facilitating the debugging of complex problems.

@@ -1,65 +1,65 @@
-# Guia de Design de Agentes: Padrões e Melhores Práticas
+# Agent Design Guide: Patterns and Best Practices
 
-**Versão:** 1.0
+**Version:** 1.0
 
-**Público-alvo:** Desenvolvedores, Arquitetos, Designers de Agentes
+**Audience:** Developers, Architects, Agent Designers
 
-## 1. Introdução
+## 1. Introduction
 
-Este documento estabelece os padrões e as melhores práticas para o design e a criação de Agentes Especialistas dentro do Framework Maestro. Aderir a estes padrões é crucial para garantir que o ecossistema seja manutenível, seguro e escalável.
+This document establishes the standards and best practices for designing and creating Specialist Agents within the Conductor Framework. Adhering to these patterns is crucial to ensure the ecosystem is maintainable, secure, and scalable.
 
-## 2. A Filosofia do Agente Especialista
+## 2. The Specialist Agent Philosophy
 
-Um Agente Especialista não é uma IA de propósito geral. Ele é uma **ferramenta de precisão**. Cada agente deve ser projetado com uma **única e clara responsabilidade**. Evite criar agentes "faz-tudo".
+A Specialist Agent is not a general-purpose AI. It is a **precision tool**. Each agent should be designed with a **single, clear responsibility**. Avoid creating "jack-of-all-trades" agents.
 
-*   **Bom:** `KotlinEntityCreator_Agent` (cria entidades), `TerraformPlanValidator_Agent` (valida planos Terraform).
-*   **Ruim:** `Development_Agent` (muito genérico), `CodeAndDocs_Agent` (duas responsabilidades distintas).
+*   **Good:** `KotlinEntityCreator_Agent` (creates entities), `TerraformPlanValidator_Agent` (validates Terraform plans).
+*   **Bad:** `Development_Agent` (too generic), `CodeAndDocs_Agent` (two distinct responsibilities).
 
-## 3. Anatomia de um Agente
+## 3. Anatomy of an Agent
 
-Cada agente é definido por três arquivos principais. Entender o papel de cada um é o primeiro passo para um bom design.
+Each agent is defined by three main files. Understanding the role of each is the first step towards good design.
 
-*   `agent.yaml`: O **DNA**. Define os metadados, as capacidades e o provedor de IA. É a ficha técnica do agente.
-*   `persona.md`: A **Alma**. Define a personalidade, o comportamento, a filosofia e os comandos específicos do agente. É como o agente "pensa".
-*   `state.json`: A **Memória**. Armazena o estado da sessão, o histórico de conversas e o conhecimento adquirido. É a memória de curto e longo prazo do agente.
+*   `agent.yaml`: The **DNA**. Defines metadata, capabilities, and the AI provider. It's the agent's technical specification.
+*   `persona.md`: The **Soul**. Defines the agent's personality, behavior, philosophy, and specific commands. It's how the agent "thinks."
+*   `state.json`: The **Memory**. Stores session state, conversation history, and acquired knowledge. It's the agent's short-term and long-term memory.
 
-## 4. Padrões de Design de Persona
+## 4. Persona Design Patterns
 
-A `persona.md` é o componente mais crítico para o sucesso de um agente.
+The `persona.md` is the most critical component for an agent's success.
 
-*   **Seja Específico e Dê um Papel Claro:** Em vez de "Você é um assistente de IA", use "Você é um Engenheiro de QA Sênior especialista em testes de regressão".
-*   **Dê um Nome:** Ajuda a IA a manter o personagem. Ex: "Seu nome é 'Contexto'", "Seu nome é 'Estrategista'".
-*   **Defina uma Filosofia:** Dê ao agente 2-3 princípios que guiarão suas decisões. Ex: "Princípio 1: Segurança em primeiro lugar. Sempre questione o impacto de uma mudança."
-*   **Estruture o Comportamento:** Use seções claras (`## Identidade`, `## Filosofia`, `## Comportamento no Diálogo`) para organizar as instruções.
+*   **Be Specific and Give a Clear Role:** Instead of "You are an AI assistant," use "You are a Senior QA Engineer specializing in regression testing."
+*   **Give a Name:** Helps the AI maintain character. E.g., "Your name is 'Context'", "Your name is 'Strategist'".
+*   **Define a Philosophy:** Give the agent 2-3 principles that will guide its decisions. E.g., "Principle 1: Security first. Always question the impact of a change."
+*   **Structure Behavior:** Use clear sections (`## Identity`, `## Philosophy`, `## Dialogue Behavior`) to organize instructions.
 
-## 5. Padrões de Uso de Ferramentas (Poderes Especiais)
+## 5. Tool Usage Patterns (Special Powers)
 
-As ferramentas são as "mãos" do agente. Use-as com sabedoria.
+Tools are the agent's "hands." Use them wisely.
 
-*   **Princípio do Menor Privilégio:** No `agent.yaml`, na seção `available_tools`, liste **apenas** as ferramentas que o agente absolutamente precisa para sua função. Um agente que apenas lê código não precisa de `write_file` ou `run_shell_command`.
-*   **Segurança com `run_shell_command`:** Esta é a ferramenta mais poderosa e perigosa. Aderir à `allowlist` de comandos seguros definida no motor Gênesis é mandatório. A persona de um agente que usa esta ferramenta deve ser instruída a ser extremamente cautelosa.
-*   **Idempotência:** Sempre que possível, projete tarefas para serem idempotentes. Se uma tarefa for executada duas vezes, o resultado deve ser o mesmo. Isso torna o sistema mais resiliente.
+*   **Principle of Least Privilege:** In `agent.yaml`, under the `available_tools` section, list **only** the tools the agent absolutely needs for its function. An agent that only reads code does not need `write_file` or `run_shell_command`.
+*   **Security with `run_shell_command`:** This is the most powerful and dangerous tool. Adhering to the `allowlist` of safe commands defined in the Conductor engine is mandatory. The persona of an agent using this tool should be instructed to be extremely cautious.
+*   **Idempotence:** Whenever possible, design tasks to be idempotent. If a task is executed twice, the result should be the same. This makes the system more resilient.
 
-## 6. Escolhendo o Provedor de IA (`ai_provider`)
+## 6. Choosing the AI Provider (`ai_provider`)
 
-A escolha da IA no `agent.yaml` deve ser uma decisão de design consciente, baseada na tarefa do agente.
+The choice of AI in `agent.yaml` should be a conscious design decision, based on the agent's task.
 
-*   **Use `claude` (Claude 3.5 Sonnet ou superior) para:**
-    *   Tarefas de raciocínio complexo e multi-passo.
-    *   Geração de código de alta qualidade e complexidade.
-    *   Análise de segurança e arquitetura.
-    *   Agentes que precisam seguir instruções longas e detalhadas (como o `AgentCreator_Agent`).
+*   **Use `claude` (Claude 3.5 Sonnet or higher) for:**
+    *   Complex, multi-step reasoning tasks.
+    *   High-quality and complex code generation.
+    *   Security and architecture analysis.
+    *   Agents that need to follow long and detailed instructions (like the `AgentCreator_Agent`).
 
-*   **Use `gemini` (Gemini 1.5 Flash/Pro) para:**
-    *   Tarefas de extração de dados e sumarização.
-    *   Geração de documentação a partir de código.
-    *   Tradução de conteúdo.
-    *   Tarefas que exigem um custo menor e uma resposta mais rápida, com um raciocínio ligeiramente menos complexo.
+*   **Use `gemini` (Gemini 1.5 Flash/Pro) for:**
+    *   Data extraction and summarization tasks.
+    *   Documentation generation from code.
+    *   Content translation.
+    *   Tasks requiring lower cost and faster response, with slightly less complex reasoning.
 
-## 7. Gestão de Estado (`state.json`)
+## 7. State Management (`state.json`)
 
-O `state.json` é a memória do agente. Use-o para dar continuidade e contexto entre as sessões.
+The `state.json` is the agent's memory. Use it to provide continuity and context between sessions.
 
-*   **Defina um Esquema:** Use a chave opcional `state_schema` no `agent.yaml` para documentar a estrutura esperada do seu `state.json`. Isso ajuda na manutenção.
-*   **Não Armazene Segredos:** O estado é salvo em disco como texto puro. Nunca armazene senhas, chaves de API ou outras informações sensíveis no estado.
-*   **Mantenha-o Enxuto:** Evite salvar dados massivos (como o conteúdo de arquivos inteiros) no estado. Salve referências (caminhos de arquivo) ou resumos. A gestão de memória do Gênesis (sliding window) ajuda no histórico da conversa, mas o estado estruturado é responsabilidade do designer do agente.
+*   **Define a Schema:** Use the optional `state_schema` key in `agent.yaml` to document the expected structure of your `state.json`. This aids in maintenance.
+*   **Do Not Store Secrets:** The state is saved to disk as plain text. Never store passwords, API keys, or other sensitive information in the state.
+*   **Keep it Lean:** Avoid saving massive data (like the content of entire files) in the state. Save references (file paths) or summaries. Conductor's memory management (sliding window) helps with conversation history, but structured state is the agent designer's responsibility.

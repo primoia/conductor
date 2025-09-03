@@ -1,131 +1,131 @@
-# Padrões de Configuração de Saída para Agentes
+# Agent Output Configuration Patterns
 
-## Visão Geral
+## Overview
 
-O framework permite que cada agente configure seus artefatos de saída através dos parâmetros `output_artifact` e `output_directory` no `agent.yaml`. Isso torna o framework escalável e reutilizável.
+The framework allows each agent to configure its output artifacts through the `output_artifact` and `output_directory` parameters in `agent.yaml`. This makes the framework scalable and reusable.
 
-## Exemplos de Configuração
+## Configuration Examples
 
 ### 1. ProblemRefiner_Agent
 ```yaml
 output_artifact: "polished_problem.md"
 output_directory: "workspace/outbox"
 execution_task: |
-  Gere um documento Markdown (`${output_artifact}`) que descreve claramente...
+  Generate a Markdown document (`${output_artifact}`) that clearly describes...
 ```
 
-### 2. CodeGenerator_Agent (Hipotético)
+### 2. CodeGenerator_Agent (Hypothetical)
 ```yaml
 output_artifact: "generated_service.java"
 output_directory: "src/main/java/com/example/service"
 execution_task: |
-  Com base na especificação, gere uma classe Java (`${output_artifact}`) que implementa...
+  Based on the specification, generate a Java class (`${output_artifact}`) that implements...
 ```
 
-### 3. TestCreator_Agent (Hipotético)
+### 3. TestCreator_Agent (Hypothetical)
 ```yaml
 output_artifact: "IntegrationTest.java"
 output_directory: "src/test/java/com/example"
 execution_task: |
-  Crie testes automatizados (`${output_artifact}`) que validam...
+  Create automated tests (`${output_artifact}`) that validate...
 ```
 
-### 4. DocumentationAgent (Hipotético)
+### 4. DocumentationAgent (Hypothetical)
 ```yaml
 output_artifact: "API_Documentation.md"
 output_directory: "docs/api"
 execution_task: |
-  Consolide a documentação da API (`${output_artifact}`) incluindo...
+  Consolidate the API documentation (`${output_artifact}`) including...
 ```
 
-### 5. RequirementsAnalyzer_Agent (Hipotético)
+### 5. RequirementsAnalyzer_Agent (Hypothetical)
 ```yaml
 output_artifact: "requirements_specification.doc"
 output_directory: "project-docs/requirements"
 execution_task: |
-  Analise e documente os requisitos (`${output_artifact}`) cobrindo...
+  Analyze and document the requirements (`${output_artifact}`) covering...
 ```
 
-## Comandos Universais
+## Universal Commands
 
-Com essa parametrização, todos os agentes suportam:
+With this parameterization, all agents support:
 
-### 0. Help (Sistema de Ajuda)
+### 0. Help (Help System)
 ```bash
 help
 ajuda
 comandos
 ?
 ```
-**Resultado**: 
-- Exibe lista completa de comandos disponíveis
-- Instruções de uso do agente
-- Workflow recomendado
+**Result**: 
+- Displays full list of available commands
+- Agent usage instructions
+- Recommended workflow
 
-### 1. Preview (Visualizar sem Salvar)
+### 1. Preview (View without Saving)
 ```bash
 preview
-preview documento
-mostrar documento
+preview document
+show document
 ```
-**Resultado**: 
-- Exibe conteúdo completo no chat
-- NÃO salva arquivo
-- Permite revisar antes de salvar
+**Result**: 
+- Displays full content in chat
+- DOES NOT save file
+- Allows review before saving
 
-### 2. Geração/Mesclagem (Salvar com Versionamento)
+### 2. Generation/Merge (Save with Versioning)
 ```bash
-gerar documento
-criar artefato
-salvar documento
-executar tarefa
-consolidar
+generate document
+create artifact
+save document
+execute task
+consolidate
 ```
-**Resultado**: 
-- **Arquivo novo**: Cria v1.0 baseado no histórico completo
-- **Arquivo existente**: Mescla com novas conversas → v1.1, v1.2...
-- Salva no diretório configurado
-- Preserva contexto anterior + adiciona novos insights
+**Result**: 
+- **New file**: Creates v1.0 based on full history
+- **Existing file**: Merges with new conversations → v1.1, v1.2...
+- Saves to the configured directory
+- Preserves previous context + adds new insights
 
-### 3. Workflow Recomendado
+### 3. Recommended Workflow
 ```bash
-# 1. Primeira iteração
-"preview"                    # Ver como ficaria
-"gerar documento"           # Salvar v1.0
+# 1. First iteration
+"preview"                    # See how it would look
+"generate document"           # Save v1.0
 
-# 2. Mais conversas...
-"preview"                    # Ver como ficaria com mesclagem  
-"gerar documento"           # Salvar v1.1 (mesclado)
+# 2. More conversations...
+"preview"                    # See how it would look with merge
+"generate document"           # Save v1.1 (merged)
 
-# 3. Iterações subsequentes...
-"consolidar"                # Salvar v1.2, v1.3...
+# 3. Subsequent iterations...
+"consolidate"                # Save v1.2, v1.3...
 ```
 
-## Benefícios
+## Benefits
 
-1. **Escalabilidade**: Fácil criação de novos agentes
-2. **Consistência**: Mesmo padrão de comandos para todos
-3. **Flexibilidade**: Cada agente pode ter saída específica
-4. **Versionamento**: Mesclagem incremental automática
-5. **Preview**: Testar antes de salvar
+1. **Scalability**: Easy creation of new agents
+2. **Consistency**: Same command pattern for all
+3. **Flexibility**: Each agent can have specific output
+4. **Versioning**: Automatic incremental merging
+5. **Preview**: Test before saving
 
-## Implementação na Persona
+## Implementation in Persona
 
 ```markdown
-### 4.4 Configuração Dinâmica
-**O nome do arquivo e diretório de saída são configuráveis:**
-- **Arquivo**: Definido em `output_artifact` no agent.yaml
-- **Diretório**: Definido em `output_directory` no agent.yaml
-- **Para este agente**: `{output_artifact}` em `{output_directory}/`
+### 4.4 Dynamic Configuration
+**The output file name and directory are configurable:**
+- **File**: Defined in `output_artifact` in agent.yaml
+- **Directory**: Defined in `output_directory` in agent.yaml
+- **For this agent**: `{output_artifact}` in `{output_directory}/`
 ```
 
-## Padrão de Substituição
+## Substitution Pattern
 
-O `execution_task` usa `${output_artifact}` que é substituído pelo valor configurado:
+The `execution_task` uses `${output_artifact}` which is replaced by the configured value:
 
 ```yaml
 execution_task: |
-  Gere um documento (`${output_artifact}`) que...
+  Generate a document (`${output_artifact}`) that...
 ```
 
-Isso permite reutilização de templates de persona entre diferentes tipos de agentes.
+This allows reuse of persona templates across different agent types.

@@ -1,10 +1,10 @@
-# Execução Baseada em Planos
+# Plan-Based Execution
 
-Para automação e tarefas complexas de CI/CD, o framework utiliza o **Conductor Engine**, um executor não-interativo que segue um plano de implementação.
+For automation and complex CI/CD tasks, the framework utilizes the **Conductor Orchestrator**, a non-interactive executor that follows an implementation plan.
 
-**Como funciona:**
-1.  **Plano YAML**: Você define uma sequência de tarefas em um arquivo `.yaml`.
-2.  **Executor**: O `run_conductor.py` lê este arquivo.
-3.  **Orquestração**: O Conductor invoca os agentes necessários na ordem definida, passando os outputs de uma etapa como inputs para a próxima.
+**How it works:**
+1.  **YAML Plan**: You define a sequence of tasks in a `.yaml` file.
+2.  **Executor**: The Conductor Orchestrator reads this file.
+3.  **Orchestration**: The Conductor invokes the necessary agents in the defined order, passing the outputs of one step as inputs to the next.
 
-Isso permite a automação de cadeias de tarefas, como: `Analisar Requisito` -> `Gerar Código` -> `Criar Testes` -> `Documentar`.
+This enables the automation of task chains, such as: `Analyze Requirement` -> `Generate Code` -> `Create Tests` -> `Document`. This feature is crucial for automating repetitive development tasks, ensuring consistency, and accelerating the software delivery pipeline.

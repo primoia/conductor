@@ -1,35 +1,35 @@
-# Prompts Chave do Projeto
+# Key Project Prompts
 
-Este arquivo documenta os prompts e as conversas que guiaram as decisões de arquitetura e implementação deste projeto, conforme solicitado pelo briefing do desafio.
-
----
-
-### 1. Definição da Stack e Arquitetura Inicial
-
-**Prompt:**
-> "Esse é o objetivo do teste do Meli, penso que posso usar o koltin ou python. Como é uma API profissional precisamos fazer ser muito boa, que tal comecar a estruturar um plano? que acha de fazer uma um API de koltin com swaguer, ou python? A IA manja mais de python e eu manjo mais de kotlin. pensei em criar uma API em koltin e um projeto teste e2e em python? mas vc é meu planejador, o que sugere?"
-
-**Resultado:**
-Esta conversa levou à decisão fundamental de usar **Python com FastAPI** devido à sua velocidade de desenvolvimento, documentação automática com Swagger UI, e um ecossistema de testes unificado com `pytest`. Também estabeleceu a primeira versão da nossa arquitetura de camadas (API, Serviços, Repositório) e o plano de ação inicial.
+This file documents the prompts and conversations that guided the architecture and implementation decisions of this project, as requested by the challenge briefing.
 
 ---
 
-### 2. Estabelecimento do Processo de "Sagas"
+### 1. Stack Definition and Initial Architecture
 
 **Prompt:**
-> "Nao gostaria de pensar em APIs e nem produto ainda, que acha montarmos um plano agora documentado e formal para a concepsao do no projeto, talvez projetar até um hello world no container [...], que tal um estrutura de pastas auto incrementais, 001-project, 002-algo.. dentro do docs como se fosse sagas?"
+> "This is the goal of the Meli test, I think I can use Kotlin or Python. Since it's a professional API, we need to make it very good, how about starting to structure a plan? What do you think about making a Kotlin API with Swagger, or Python? The AI knows more about Python and I know more about Kotlin. I thought about creating a Kotlin API and an e2e test project in Python? But you are my planner, what do you suggest?"
 
-**Resultado:**
-Este prompt foi crucial para definir nosso **processo de desenvolvimento incremental**. A ideia das "Sagas de Arquitetura" nasceu aqui, estabelecendo o fluxo de trabalho onde o Arquiteto (Gemini) planeja e documenta formalmente cada marco, e o Implementador (Claude) executa com base nesse blueprint.
+**Result:**
+This conversation led to the fundamental decision to use **Python with FastAPI** due to its development speed, automatic documentation with Swagger UI, and a unified testing ecosystem with `pytest`. It also established the first version of our layered architecture (API, Services, Repository) and the initial action plan.
 
 ---
 
-### 3. Introdução da Observabilidade e Logging Estruturado
+### 2. Establishment of the "Sagas" Process
 
 **Prompt:**
-> "certo, quero impressionar mas nao complicar demais, o que sugere? o que seria facil e portavel? newrealic papertrails ou coisa simples, penseo com cuidado"
+> "I wouldn't want to think about APIs or products yet, what do you think about setting up a documented and formal plan now for the conception of the new project, maybe even designing a hello world in the container [...], how about an incremental folder structure, 001-project, 002-something.. inside docs as if they were sagas?"
 
-**Resultado:**
-Esta pergunta elevou o nível do projeto. A discussão levou à decisão de não acoplar a aplicação a nenhuma ferramenta específica, mas sim adotar a melhor prática de **logging estruturado (JSON) para `stdout`**. Isso tornou nossa aplicação "pronta para produção" e demonstrou um entendimento de arquiteturas "cloud-native", onde a aplicação é agnóstica em relação ao ambiente de execução.
+**Result:**
+This prompt was crucial in defining our **incremental development process**. The idea of "Architecture Sagas" was born here, establishing the workflow where the Architect (Gemini) formally plans and documents each milestone, and the Implementer (Claude) executes based on that blueprint.
+
+---
+
+### 3. Introduction of Observability and Structured Logging
+
+**Prompt:**
+> "Okay, I want to impress but not overcomplicate, what do you suggest? What would be easy and portable? NewRelic, Papertrails or something simple, think carefully"
+
+**Result:**
+This question raised the project's level. The discussion led to the decision not to couple the application to any specific tool, but rather to adopt the best practice of **structured logging (JSON) to `stdout`**. This made our application "production-ready" and demonstrated an understanding of "cloud-native" architectures, where the application is agnostic to the execution environment.
 
 ---
