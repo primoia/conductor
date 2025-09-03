@@ -1,7 +1,9 @@
 import logging
 
+
 class ContextFilter(logging.Filter):
-    """ Injeta informações de contexto, como o agent_id, nos registros de log. """
+    """Injeta informações de contexto, como o agent_id, nos registros de log."""
+
     def __init__(self, agent_id: str = "system"):
         super().__init__()
         self.agent_id = agent_id

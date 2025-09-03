@@ -18,4 +18,3 @@ class LLMClient(ABC):
             Resposta do modelo de linguagem
         """
         pass
-

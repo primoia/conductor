@@ -1,7 +1,7 @@
-
 import argparse
 import pytest
 from src.cli.shared.argument_parser import CLIArgumentParser
+
 
 class TestCLIArgumentParser:
     """Unit tests for the shared CLI argument parser."""

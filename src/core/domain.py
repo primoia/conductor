@@ -5,6 +5,7 @@ from datetime import datetime
 
 class AgentConfig(BaseModel):
     """Model for agent configuration."""
+
     name: str
     description: Optional[str] = None
     persona_prompt_path: str = "persona.md"
@@ -17,6 +18,7 @@ class AgentConfig(BaseModel):
 
 class ConversationMessage(BaseModel):
     """Model for conversation messages."""
+
     prompt: str
     response: str
     timestamp: float
@@ -24,6 +26,7 @@ class ConversationMessage(BaseModel):
 
 class AgentState(BaseModel):
     """Model for agent state."""
+
     agent_id: str
     environment: str
     project: str
@@ -34,19 +37,23 @@ class AgentState(BaseModel):
 
 class ConductorException(Exception):
     """Base exception for Conductor framework."""
+
     pass
 
 
 class AgentNotEmbodied(ConductorException):
     """Raised when trying to use an agent that hasn't been embodied."""
+
     pass
 
 
 class ConfigurationError(ConductorException):
     """Raised when there's a configuration error."""
+
     pass
 
 
 class StateRepositoryError(ConductorException):
     """Raised when there's an error with state persistence."""
+
     pass

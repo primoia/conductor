@@ -62,4 +62,5 @@ A fundação concluída da Saga 01.
      - Caso de falha com um ID inválido (retorno 404).
 
 **9. Registrar o Marco (Commit):**
+   - [X] Atualizar o `README.md` do projeto com as novas funcionalidades.
    - [X] Ao final de todos os passos, fazer um commit com uma mensagem clara, como `feat(items): implement get item details endpoint`.
