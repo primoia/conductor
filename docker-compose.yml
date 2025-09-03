@@ -9,31 +9,41 @@ services:
       - ./config:/app/config
       - ./logs:/app/logs
       - ./projects:/app/projects
-      - /home/cezar/.gcp/keys/conductor-key.json:/gcp_key.json
-    environment:
-      - GOOGLE_APPLICATION_CREDENTIALS=/gcp_key.json
-      - GOOGLE_GENAI_USE_VERTEXAI=true
-      - GOOGLE_CLOUD_PROJECT=gen-lang-client-0338424173
-      - GOOGLE_CLOUD_LOCATION=us-central1
+      # --- GCP Authentication ---
+      # To authenticate with Google Cloud, mount your gcloud config directory.
+      # This is the recommended approach for open-source users.
+      # Uncomment the line below:
+      # - ~/.config/gcloud:/root/.config/gcloud
+    
+    # Environment variables are now loaded from the .env file.
+    # Copy .env.example to .env and fill in your details.
     env_file:
       - .env
-    logging:
-      driver: loki
-      options:
-        loki-url: "http://localhost:3100/loki/api/v1/push"
-        loki-external-labels: job=conductor
-        loki-pipeline-stages: |
-          - json:
-              expressions:
-                level: level
-                agent: agent
-          - labels:
-              level:
-              agent:
-    networks:
-      - primoia-network
 
-networks:
-  primoia-network:
-    name: primoia-monorepo_primoia-network
-    external: true
+    # --- Optional Loki Logging ---
+    # The following config enables sending logs to a Loki instance.
+    # It is commented out by default to allow the project to run standalone.
+    # logging:
+    #   driver: loki
+    #   options:
+    #     loki-url: "http://localhost:3100/loki/api/v1/push"
+    #     loki-external-labels: job=conductor
+    #     loki-pipeline-stages: |
+    #       - json:
+    #           expressions:
+    #             level: level
+    #             agent: agent
+    #       - labels:
+    #           level:
+    #           agent:
+
+    # --- Optional External Network ---
+    # The following config connects the container to an external network.
+    # It is commented out by default.
+    # networks:
+    #   - primoia-network
+
+# networks:
+#   primoia-network:
+#     name: primoia-monorepo_primoia-network
+#     external: true
