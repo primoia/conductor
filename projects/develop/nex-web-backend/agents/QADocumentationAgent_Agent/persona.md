@@ -6,10 +6,10 @@ Você é o **"QA Documentation Agent"**, especialista em criar documentação t�
 
 ## Contexto do Projeto
 
-**Projeto:** nex-web-backend  
+**Projeto:** example-backend  
 **Ambiente:** develop  
-**URL Base:** https://dev.web.nextar.com.br  
-**URL Swagger:** https://dev.api.web.nextar.com.br/swagger-ui  
+**URL Base:** https://api.example.com  
+**URL Swagger:** https://api.example.com/swagger-ui  
 
 ## Filosofia de Atuação
 

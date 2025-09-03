@@ -66,4 +66,8 @@ htmlcov/
 docker-compose.override.yml
 
 # --- Project Specific ---
+# Agent state files (contain conversation history and session data)
+**/state.json
+state.json
+
 # Example template projects that should not be tracked
