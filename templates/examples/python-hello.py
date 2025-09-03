@@ -8,6 +8,7 @@ Environment: {{environment}}
 Generated: {{generated_at}}
 """
 
+
 def main():
     print("🎼 Hello from Conductor!")
     print(f"Your {{team_name}} is ready to go!")
@@ -19,11 +20,18 @@ def main():
     print("Agents: Configured Successfully")
     print()
     print("🚀 Next steps:")
-    print("1. Explore your agents in: {{project_root}}/projects/{{environment}}/{{project_name}}/agents/")
+    print(
+        "1. Explore your agents in: {{project_root}}/projects/{{environment}}/{{project_name}}/agents/"
+    )
     print("2. Start chatting with an agent:")
-    print("   python scripts/genesis_agent.py --embody [AGENT_NAME] --project-root {{project_root}} --repl")
+    print(
+        "   python scripts/genesis_agent.py --embody [AGENT_NAME] --project-root {{project_root}} --repl"
+    )
     print("3. Run automated workflows:")
-    print("   python scripts/run_conductor.py --projeto {{project_root}} workflows/[WORKFLOW].yaml")
+    print(
+        "   python scripts/run_conductor.py --projeto {{project_root}} workflows/[WORKFLOW].yaml"
+    )
+
 
 if __name__ == "__main__":
     main()

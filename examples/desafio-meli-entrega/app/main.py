@@ -18,16 +18,17 @@ app.include_router(items.router, prefix="/api/v1")
 
 
 @app.exception_handler(ItemNotFoundException)
-async def item_not_found_exception_handler(request: Request, exc: ItemNotFoundException):
+async def item_not_found_exception_handler(
+    request: Request, exc: ItemNotFoundException
+):
     """
     Handler para exceções de item não encontrado.
-    
+
     Converte ItemNotFoundException em resposta HTTP 404.
     """
     logger.warning(f"Item not found: {exc.item_id}")
     return JSONResponse(
-        status_code=404,
-        content={"detail": f"Item with ID '{exc.item_id}' not found"}
+        status_code=404, content={"detail": f"Item with ID '{exc.item_id}' not found"}
     )
 
 

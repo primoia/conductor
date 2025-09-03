@@ -22,7 +22,9 @@ class StateRepository(ABC):
         pass
 
     @abstractmethod
-    def save_state(self, agent_home_path: str, state_file_name: str, state_data: Dict[str, Any]) -> bool:
+    def save_state(
+        self, agent_home_path: str, state_file_name: str, state_data: Dict[str, Any]
+    ) -> bool:
         """
         Salva o estado de um agente.
 
