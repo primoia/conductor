@@ -1,94 +1,94 @@
-# Plano de Execução e Design: Agente Mestre (Gênesis)
+# Execution and Design Plan: Master Agent (Conductor)
 
-**Versão do Documento:** 2.1
+**Document Version:** 2.1
 
-**Status:** Proposta Final para Implementação (com mecanismo de comandos)
+**Status:** Final Proposal for Implementation (with command mechanism)
 
-**Autor:** CTO
+**Author:** CTO
 
-**Referência:** Este documento é o design de implementação para o **"Modo Incorporado"** descrito na [Especificação Arquitetural "Maestro"](./GEMINI_ARCH_SPEC.md) e incorpora as capacidades metaprogramáticas de criação de agentes.
-
----
-
-### 1. Objetivo e Filosofia
-
-O `genesis_agent.py` é o núcleo interativo do framework Maestro. Sua função é ser uma aplicação de linha de comando (CLI) stateful que **incorpora** um Agente Especialista, servindo como a principal interface para o Maestro (desenvolvedor) nas fases de análise, planejamento e depuração.
-
-### 2. Lógica de Inicialização e "Embodiment"
-
-**2.1. Análise de Argumentos de Linha de Comando:**
-*   `--embody <agent_id>`: **(Obrigatório)** O ID do Agente Especialista a ser incorporado.
-*   `--state <caminho_para_state>`: **(Opcional)** Carrega um arquivo de estado de uma sessão anterior.
-*   `--verbose`: **(Opcional)** Ativa logging detalhado.
-
-**2.2. Processo de Carregamento do Agente:**
-1.  **Localização:** Encontra o diretório `projects/develop/agents/<agent_id>/`.
-2.  **Leitura do DNA:** Faz o parse do `agent.yaml` para obter a configuração da sessão.
-3.  **Leitura da Persona:** Carrega o conteúdo do `persona.md`.
-4.  **Leitura da Memória:** Carrega o `state.json`.
-
-**2.3. Preparação do Motor de IA (Claude):**
-1.  **Construção do Prompt do Sistema:** O prompt do sistema será composto por:
-    *   **Instrução Mestre:** Define o papel do Gênesis como um incorporador de agentes.
-    *   **Persona do Agente:** O conteúdo do `persona.md` do agente incorporado.
-    *   **Instruções de Ferramentas e Comandos:** Descreve as ferramentas e os comandos de agente disponíveis e a sintaxe para usá-los (ver Seção 4).
-2.  **Inicialização do Cliente da API:** Prepara a conexão com a API do Claude.
-
-### 3. O Loop de Conversação Interativo (REPL)
-
-O coração da aplicação, um ciclo Read-Eval-Print-Loop.
-
-1.  **READ:** Exibe um prompt dinâmico (ex: `[ProblemRefiner_Agent] > `) e aguarda o input do Maestro.
-2.  **EVAL:** Processa o input:
-    *   **Comandos Internos (Gênesis):** Verifica se o input começa com `/`.
-        *   `/exit`: Encerra a sessão (com confirmação para salvar o estado).
-        *   `/save`: Força a persistência do `state.json` atual.
-        *   `/help`: Mostra os comandos internos do Gênesis.
-        *   `/agent_help`: Mostra os comandos específicos do agente incorporado (ver Seção 4.1).
-        *   `/new_agent`: Atalho para `genesis_agent.py --embody AgentCreator_Agent` (ver Seção 7).
-    *   **Comandos de Agente:** Verifica se o input começa com `*`. Se sim, tenta executar o comando específico do agente (ver Seção 4.1).
-    *   **Chamada de IA (Chat):** Se não for um comando, o input é tratado como uma mensagem de chat.
-        a. A mensagem é adicionada ao histórico da conversa no `state.json`.
-        b. O histórico completo é enviado ao Claude junto com o prompt do sistema.
-    *   **Análise da Resposta da IA:** A resposta do Claude é analisada em busca de uma chamada de ferramenta (`[TOOL_CALL: ...]`).
-        a. **Se encontrar uma ferramenta:** O Gênesis executa a ferramenta, adiciona o resultado ao histórico e faz uma nova chamada à IA com o resultado para interpretação.
-        b. **Se não encontrar:** A resposta é tratada como texto puro.
-3.  **PRINT:** Exibe a resposta final da IA para o Maestro.
-4.  **LOOP:** Retorna ao passo 1.
-
-### 4. Ferramentas e Comandos ("Poderes Especiais")
-
-**4.1. Ferramentas do Sistema (Invocadas pela IA):**
-*   **Definição:** Funções Python no Gênesis (ex: `_tool_read_file`), registradas em um `TOOL_REGISTRY`.
-*   **Disponibilidade:** O `agent.yaml` define quais ferramentas um agente pode solicitar via `available_tools`.
-*   **Execução:** A IA solicita a execução via `[TOOL_CALL: ...]`. O Gênesis valida e executa.
-
-**4.2. Comandos de Agente (Invocados pelo Usuário):**
-*   **Definição:** A `persona.md` de um agente pode conter uma seção `## Comandos` que lista ações específicas (iniciadas por `*`). Ex: `*create-prd: Inicia o processo de criação de um PRD.`.
-*   **Parse e Descoberta:** Ao incorporar um agente, o Gênesis deve fazer o parse da seção `## Comandos` da persona para saber quais comandos o agente oferece.
-*   **Execução:** Quando o Maestro digita um comando como `*create-prd`, o Gênesis adiciona uma instrução ao histórico da conversa antes de chamar a IA: `[USER_COMMAND: O usuário invocou o comando '*create-prd'. Prossiga com a lógica definida para este comando.]`. Isso instrui a IA a executar a tarefa associada ao comando.
-*   **Ajuda:** O comando `/agent_help` do Gênesis deve listar os comandos (`*`) encontrados na persona do agente atualmente incorporado.
-
-### 5. Gestão de Estado e Persistência
-
-O `state.json` é a memória da sessão, carregado no início e salvo via `/save` ou ao sair.
-
-### 6. Estrutura de Código Sugerida
-
-Uma estrutura de classes clara para guiar a implementação:
-
-*   `GenesisAgent`: A classe principal.
-*   `Toolbelt`: Módulo com as funções das ferramentas.
-*   `CommandParser`: Módulo para extrair comandos da `persona.md`.
-*   `LLMClient`: Wrapper para a API do Claude.
+**Reference:** This document is the implementation design for the **"Embodied Mode"** described in the [Conductor Architectural Specification](./GEMINI_ARCH_SPEC.md) and incorporates the metaprogramming capabilities for agent creation.
 
 ---
 
-### 7. Capacidades Metaprogramáticas: Criação de Agentes
+### 1. Objective and Philosophy
 
-**7.1. Filosofia:** A criação de agentes é uma tarefa especializada, delegada a um agente específico, o `AgentCreator_Agent` ("Agente Zero").
+The `src/cli/agent.py` is the interactive core of the Conductor framework. Its function is to be a stateful command-line application (CLI) that **embodies** a Specialist Agent, serving as the primary interface for the Conductor (developer) in the analysis, planning, and debugging phases.
 
-**7.2. Fluxo de Trabalho de Criação:**
-1.  **Invocação:** O Maestro executa `python genesis_agent.py --embody AgentCreator_Agent` (ou o atalho `/new_agent`).
-2.  **Diálogo de Design:** O `AgentCreator_Agent` (incorporado) guia o Maestro na definição da `id`, `description`, `persona`, `tools`, e `execution_task` do novo agente.
-3.  **Geração dos Artefatos:** Ao final, o `AgentCreator_Agent` usa suas ferramentas (`write_file`, `mkdir`) para gerar a estrutura de pastas e os arquivos do novo agente.
+### 2. Initialization Logic and "Embodiment"
+
+**2.1. Command-Line Argument Analysis:**
+*   `--agent <agent_id>`: **(Required)** The ID of the Specialist Agent to be embodied.
+*   `--state <path_to_state>`: **(Optional)** Loads a state file from a previous session.
+*   `--verbose`: **(Optional)** Activates detailed logging.
+
+**2.2. Agent Loading Process:**
+1.  **Location:** Finds the directory `projects/<environment>/<project>/agents/<agent_id>/`.
+2.  **DNA Reading:** Parses the `agent.yaml` to get the session configuration.
+3.  **Persona Reading:** Loads the content of `persona.md`.
+4.  **Memory Reading:** Loads the `state.json`.
+
+**2.3. AI Engine Preparation (LLM):**
+1.  **System Prompt Construction:** The system prompt will be composed of:
+    *   **Master Instruction:** Defines the role of the Conductor as an agent embosser.
+    *   **Agent Persona:** The content of the embodied agent's `persona.md`.
+    *   **Tool and Command Instructions:** Describes the available tools and agent commands and the syntax for using them (see Section 4).
+2.  **API Client Initialization:** Prepares the connection with the LLM API.
+
+### 3. The Interactive Conversation Loop (REPL)
+
+The heart of the application, a Read-Eval-Print-Loop cycle.
+
+1.  **READ:** Displays a dynamic prompt (e.g., `[ProblemRefiner_Agent] > `) and waits for the Conductor's input.
+2.  **EVAL:** Processes the input:
+    *   **Internal Commands (Conductor):** Checks if the input starts with `/`.
+        *   `/exit`: Ends the session (with confirmation to save state).
+        *   `/save`: Forces persistence of the current `state.json`.
+        *   `/help`: Shows Conductor's internal commands.
+        *   `/agent_help`: Shows the embodied agent's specific commands (see Section 4.1).
+        *   `/new_agent`: Shortcut for `src/cli/admin.py --agent AgentCreator_Agent` (see Section 7).
+    *   **Agent Commands:** Checks if the input starts with `*`. If so, attempts to execute the agent's specific command (see Section 4.1).
+    *   **AI Call (Chat):** If not a command, the input is treated as a chat message.
+        a. The message is added to the conversation history in `state.json`.
+        b. The complete history is sent to the LLM along with the system prompt.
+    *   **AI Response Analysis:** The LLM's response is analyzed for a tool call (`[TOOL_CALL: ...]`).
+        a. **If a tool is found:** The Conductor executes the tool, adds the result to the history, and makes a new call to the LLM with the result for interpretation.
+        b. **If not found:** The response is treated as plain text.
+3.  **PRINT:** Displays the final LLM response to the Conductor.
+4.  **LOOP:** Returns to step 1.
+
+### 4. Tools and Commands ("Special Powers")
+
+**4.1. System Tools (Invoked by AI):**
+*   **Definition:** Python functions in Conductor (e.g., `_tool_read_file`), registered in a `TOOL_REGISTRY`.
+*   **Availability:** The `agent.yaml` defines which tools an agent can request via `available_tools`.
+*   **Execution:** The AI requests execution via `[TOOL_CALL: ...]`. Conductor validates and executes.
+
+**4.2. Agent Commands (Invoked by User):**
+*   **Definition:** An agent's `persona.md` can contain a `## Commands` section that lists specific actions (starting with `*`). E.g., `*create-prd: Initiates the PRD creation process.`.
+*   **Parse and Discovery:** When embodying an agent, Conductor must parse the `## Commands` section of the persona to know which commands the agent offers.
+*   **Execution:** When the Conductor types a command like `*create-prd`, Conductor adds an instruction to the conversation history before calling the AI: `[USER_COMMAND: The user invoked the command '*create-prd'. Proceed with the logic defined for this command.]`. This instructs the AI to execute the task associated with the command.
+*   **Help:** The `/agent_help` command of Conductor should list the commands (`*`) found in the currently embodied agent's persona.
+
+### 5. State Management and Persistence
+
+The `state.json` is the session memory, loaded at startup and saved via `/save` or upon exit.
+
+### 6. Suggested Code Structure
+
+A clear class structure to guide implementation:
+
+*   `ConductorAgent`: The main class.
+*   `Toolbelt`: Module with tool functions.
+*   `CommandParser`: Module to extract commands from `persona.md`.
+*   `LLMClient`: Wrapper for the LLM API.
+
+---
+
+### 7. Metaprogramming Capabilities: Agent Creation
+
+**7.1. Philosophy:** Agent creation is a specialized task, delegated to a specific agent, the `AgentCreator_Agent` ("Agent Zero").
+
+**7.2. Creation Workflow:**
+1.  **Invocation:** The Conductor executes `poetry run python src/cli/admin.py --agent AgentCreator_Agent` (or the `/new_agent` shortcut).
+2.  **Design Dialogue:** The `AgentCreator_Agent` (embodied) guides the Conductor in defining the `id`, `description`, `persona`, `tools`, and `execution_task` of the new agent.
+3.  **Artifact Generation:** At the end, the `AgentCreator_Agent` uses its tools (`write_file`, `mkdir`) to generate the folder structure and files for the new agent.

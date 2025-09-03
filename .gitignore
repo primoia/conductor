@@ -67,4 +67,3 @@ docker-compose.override.yml
 
 # --- Project Specific ---
 # Example template projects that should not be tracked
-templates/desafio-eli-entrega/

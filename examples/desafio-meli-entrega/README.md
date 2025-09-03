@@ -1,27 +1,27 @@
-# Desafio Meli - API de Detalhes do Item
+# Meli Challenge - Item Details API
 
-API desenvolvida como parte do desafio técnico de backend do Mercado Livre.
+API developed as part of Mercado Livre's backend technical challenge.
 
-Este projeto cria uma API containerizada para servir detalhes de produtos, seguindo as melhores práticas de arquitetura de software, testes e automação.
+This project creates a containerized API to serve product details, following best practices in software architecture, testing, and automation.
 
-**Stack Tecnológica:**
+**Tech Stack:**
 *   Python 3.11+
 *   FastAPI
 *   Poetry
 *   Pytest
 *   Docker & Docker Compose
 
-## Como Executar
+## How to Run
 
-Este projeto é totalmente containerizado. O único pré-requisito é ter **Docker** e **Docker Compose** instalados.
+This project is fully containerized. The only prerequisite is having **Docker** and **Docker Compose** installed.
 
-Para instruções detalhadas de como construir a imagem, iniciar a aplicação, parar a aplicação e rodar os testes, por favor, consulte o documento:
+For detailed instructions on how to build the image, start the application, stop the application, and run the tests, please refer to the document:
 
 ➡️ **[./run.md](./run.md)**
 
-## Diagrama de Arquitetura
+## Architecture Diagram
 
-A aplicação segue uma arquitetura em camadas (Ports and Adapters) que separa claramente as responsabilidades:
+The application follows a layered architecture (Ports and Adapters) that clearly separates responsibilities:
 
 ```mermaid
 graph TD
@@ -83,24 +83,24 @@ graph TD
     B -.-> F3
 ```
 
-**Benefícios da Arquitetura:**
-- **Separação de Responsabilidades:** Cada camada tem uma função específica
-- **Testabilidade:** Camadas isoladas permitem testes unitários eficazes
-- **Manutenibilidade:** Mudanças em uma camada não afetam outras
-- **Escalabilidade:** Fácil substituição de componentes (ex: JSON → Database)
+**Architecture Benefits:**
+- **Separation of Responsibilities:** Each layer has a specific function
+- **Testability:** Isolated layers allow effective unit testing
+- **Maintainability:** Changes in one layer do not affect others
+- **Scalability:** Easy component replacement (e.g., JSON → Database)
 
-## Estratégia de Logging e Observabilidade
+## Logging and Observability Strategy
 
-Este projeto implementa uma estratégia de logging estruturado que facilita a integração com qualquer plataforma de observabilidade moderna.
+This project implements a structured logging strategy that facilitates integration with any modern observability platform.
 
-### Abordagem de Logging
+### Logging Approach
 
-**Formato Estruturado JSON:** Todos os logs são emitidos em formato JSON estruturado para `stdout`, facilitando:
-- Parsing automático por sistemas de agregação de logs
-- Filtragem e busca eficientes por campos específicos  
-- Integração nativa com stacks como ELK, Splunk, Datadog, etc.
+**Structured JSON Format:** All logs are emitted in structured JSON format to `stdout`, facilitating:
+- Automatic parsing by log aggregation systems
+- Efficient filtering and searching by specific fields
+- Native integration with stacks like ELK, Splunk, Datadog, etc.
 
-**Exemplo de saída de log:**
+**Example log output:**
 ```json
 {
   "timestamp": "2024-01-15T10:30:45.123456",
@@ -113,11 +113,11 @@ Este projeto implementa uma estratégia de logging estruturado que facilita a in
 }
 ```
 
-### Integração com Plataformas de Observabilidade
+### Integration with Observability Platforms
 
-O padrão de logging para `stdout` permite integração transparente com qualquer sistema:
+The `stdout` logging pattern allows seamless integration with any system:
 
-**Exemplo - Papertrail via Syslog Driver:**
+**Example - Papertrail via Syslog Driver:**
 ```yaml
 # docker-compose.yml
 version: '3.8'
@@ -133,102 +133,102 @@ services:
         tag: "desafio-meli-api"
 ```
 
-**Outras integrações suportadas:**
-- AWS CloudWatch Logs (driver `awslogs`)
-- Google Cloud Logging (driver `gcplogs`) 
-- Fluentd (driver `fluentd`)
-- Splunk (driver `splunk`)
+**Other supported integrations:**
+- AWS CloudWatch Logs (`awslogs` driver)
+- Google Cloud Logging (`gcplogs` driver)
+- Fluentd (`fluentd` driver)
+- Splunk (`splunk` driver)
 
-## Estrutura do Projeto
+## Project Structure
 
-### Saga 01 - Fundação
-A arquitetura do projeto estabelece a fundação para o desenvolvimento:
+### Saga 01 - Foundation
+The project architecture establishes the foundation for development:
 
--   `app/main.py`: Ponto de entrada da aplicação FastAPI e endpoint "Hello World".
--   `tests/test_api.py`: Teste de integração para o endpoint "Hello World".
--   `Dockerfile`: Receita para construir a imagem da aplicação.
--   `docker-compose.yml`: Orquestra a execução do container.
--   `pyproject.toml` / `poetry.lock`: Gerenciamento de dependências.
--   `docs/sagas/`: Documentação incremental da arquitetura e decisões de projeto.
+-   `app/main.py`: FastAPI application entry point and "Hello World" endpoint.
+-   `tests/test_api.py`: Integration test for the "Hello World" endpoint.
+-   `Dockerfile`: Recipe for building the application image.
+-   `docker-compose.yml`: Orchestrates container execution.
+-   `pyproject.toml` / `poetry.lock`: Dependency management.
+-   `docs/sagas/`: Incremental documentation of architecture and project decisions.
 
-## Decisões Arquitetônicas Chave
+## Key Architectural Decisions
 
-Este projeto foi construído com várias decisões de arquitetura intencionais para garantir robustez, manutenibilidade e alinhamento com as práticas modernas de engenharia de software:
+This project was built with several intentional architectural decisions to ensure robustness, maintainability, and alignment with modern software engineering practices:
 
-1.  **Arquitetura em Camadas (Ports and Adapters):** A aplicação é dividida em camadas distintas (API, Serviços, Repositório) para separar as responsabilidades. Isso garante que a lógica de negócio (`services`) não dependa de detalhes de implementação, como o framework web (`api`) ou o método de persistência (`repository`).
+1.  **Layered Architecture (Ports and Adapters):** The application is divided into distinct layers (API, Services, Repository) to separate responsibilities. This ensures that business logic (`services`) does not depend on implementation details, such as the web framework (`api`) or the persistence method (`repository`).
 
-2.  **Containerização com Docker:** Todo o ambiente de desenvolvimento e produção é containerizado. Isso resolve o problema de "funciona na minha máquina", garante consistência entre ambientes e simplifica drasticamente a execução do projeto para qualquer pessoa. O `Dockerfile` multi-stage cria uma imagem final otimizada, contendo apenas o necessário para a execução.
+2.  **Containerization with Docker:** The entire development and production environment is containerized. This solves the "it works on my machine" problem, ensures consistency across environments, and drastically simplifies project execution for anyone. The multi-stage `Dockerfile` creates an optimized final image, containing only what is necessary for execution.
 
-3.  **Logging Estruturado para `stdout`:** Seguindo a metodologia "Twelve-Factor App", a aplicação não escreve logs em arquivos. Em vez disso, emite logs estruturados (JSON) para a saída padrão, delegando a responsabilidade de coleta e armazenamento para o ambiente de execução (Docker). Isso torna a aplicação agnóstica em relação à plataforma de observabilidade e pronta para integração com sistemas de monitoramento de nível empresarial.
+3.  **Structured Logging to `stdout`:** Following the "Twelve-Factor App" methodology, the application does not write logs to files. Instead, it emits structured logs (JSON) to standard output, delegating the responsibility of collection and storage to the execution environment (Docker). This makes the application platform-agnostic regarding observability and ready for integration with enterprise-level monitoring systems.
 
-4.  **Gerenciamento de Dependências com Poetry:** Usamos Poetry e seu arquivo `poetry.lock` para garantir builds 100% reprodutíveis. Qualquer pessoa que construir o projeto terá o mesmo conjunto exato de dependências, eliminando conflitos de versão.
+4.  **Dependency Management with Poetry:** We use Poetry and its `poetry.lock` file to ensure 100% reproducible builds. Anyone building the project will have the exact same set of dependencies, eliminating version conflicts.
 
-## Estratégia Técnica e Uso de IA
+## Technical Strategy and AI Usage
 
-A eficiência do desenvolvimento foi aprimorada através de uma combinação de ferramentas modernas e um fluxo de trabalho assistido por IA.
+Development efficiency was enhanced through a combination of modern tools and an AI-assisted workflow.
 
--   **Stack Tecnológica:** A escolha por **Python/FastAPI** foi deliberada para maximizar a velocidade de desenvolvimento, aproveitar a validação de dados nativa com Pydantic e obter documentação de API (Swagger UI) automaticamente.
--   **Fluxo de Trabalho Arquiteto/Implementador:** Utilizamos um modelo de colaboração onde uma IA (Gemini) atua como o **Arquiteto de Software**, responsável pelo planejamento, design, documentação e revisão. Outra IA (Claude) atua como o **Implementador**, focada em traduzir os blueprints do arquiteto em código limpo e funcional. Este processo, documentado em `prompts.md`, permitiu uma separação clara de responsabilidades e acelerou o ciclo de desenvolvimento.
+-   **Tech Stack:** The choice of **Python/FastAPI** was deliberate to maximize development speed, leverage native data validation with Pydantic, and obtain API documentation (Swagger UI) automatically.
+-   **Architect/Implementer Workflow:** We used a collaboration model where an AI (Gemini) acts as the **Software Architect**, responsible for planning, design, documentation, and review. Another AI (Claude) acts as the **Implementer**, focused on translating the architect's blueprints into clean and functional code. This process, documented in `prompts.md`, allowed a clear separation of responsibilities and accelerated the development cycle.
 
-## Plano de Projeto
+## Project Plan
 
-Este projeto foi desenvolvido seguindo uma metodologia incremental documentada através de "sagas". Cada saga representa uma etapa de desenvolvimento com objetivos específicos e critérios de aceitação bem definidos.
+This project was developed following an incremental methodology documented through "sagas." Each saga represents a development stage with specific objectives and well-defined acceptance criteria.
 
-**Documentação Completa do Plano:** A pasta `docs/sagas/` contém a documentação detalhada de cada fase do projeto:
+**Complete Plan Documentation:** The `docs/sagas/` folder contains detailed documentation for each phase of the project:
 
-- **Saga 01 - Fundação:** Estrutura básica, containerização e "Hello World"
-- **Saga 02 - O Item:** Implementação da lógica de negócio com arquitetura limpa  
-- **Saga 02a - Observabilidade:** Logging estruturado JSON para monitoramento
-- **Saga 03 - Configuração e Modificação:** Configurações externas e endpoint POST
-- **Saga 03.1 - CRUD Completo:** Implementação de UPDATE e DELETE com testes E2E
-- **Saga 04 - Documentação Final:** Diagramas de arquitetura e empacotamento
+- **Saga 01 - Foundation:** Basic structure, containerization, and "Hello World"
+- **Saga 02 - The Item:** Implementation of business logic with clean architecture
+- **Saga 02a - Observability:** Structured JSON logging for monitoring
+- **Saga 03 - Configuration and Modification:** External configurations and POST endpoint
+- **Saga 03.1 - Complete CRUD:** Implementation of UPDATE and DELETE with E2E tests
+- **Saga 04 - Final Documentation:** Architecture diagrams and packaging
 
 ## API Endpoints
 
-A API oferece operações CRUD completas para gerenciamento de itens:
+The API offers complete CRUD operations for item management:
 
 ### **GET** `/api/v1/items/{item_id}`
-Busca um item específico pelo ID.
+Fetches a specific item by ID.
 - **Status**: `200 OK` | `404 Not Found`
-- **Response**: Objeto `Item` com todos os campos
+- **Response**: `Item` object with all fields
 
 ### **POST** `/api/v1/items`  
-Cria um novo item.
+Creates a new item.
 - **Status**: `201 Created` | `422 Validation Error`
-- **Payload**: `ItemCreateModel` (todos os campos exceto `id`)
-- **Response**: Objeto `Item` criado com `id` gerado automaticamente
+- **Payload**: `ItemCreateModel` (all fields except `id`)
+- **Response**: `Item` object created with automatically generated `id`
 
 ### **PUT** `/api/v1/items/{item_id}`
-Atualiza um item existente (atualização parcial suportada).
+Updates an existing item (partial update supported).
 - **Status**: `200 OK` | `404 Not Found` | `422 Validation Error`  
-- **Payload**: `ItemUpdateModel` (todos os campos opcionais)
-- **Response**: Objeto `Item` atualizado
+- **Payload**: `ItemUpdateModel` (all optional fields)
+- **Response**: Updated `Item` object
 
 ### **DELETE** `/api/v1/items/{item_id}`
-Remove um item.
+Removes an item.
 - **Status**: `204 No Content` | `404 Not Found`
-- **Response**: Corpo vazio
+- **Response**: Empty body
 
-### Estrutura do Projeto
+### Project Structure
 
-### Saga 01 - Fundação
-Estrutura básica e containerização:
+### Saga 01 - Foundation
+Basic structure and containerization:
 
--   `app/main.py`: Ponto de entrada da aplicação FastAPI e endpoint "Hello World"
--   `tests/test_api.py`: Suíte de testes de integração abrangente
--   `Dockerfile`: Receita para construir a imagem da aplicação  
--   `docker-compose.yml`: Orquestra a execução do container
--   `pyproject.toml` / `poetry.lock`: Gerenciamento de dependências
--   `docs/sagas/`: Documentação incremental da arquitetura e decisões
+-   `app/main.py`: FastAPI application entry point and "Hello World" endpoint
+-   `tests/test_api.py`: Comprehensive integration test suite
+-   `Dockerfile`: Recipe for building the application image
+-   `docker-compose.yml`: Orchestrates container execution
+-   `pyproject.toml` / `poetry.lock`: Dependency management
+-   `docs/sagas/`: Incremental documentation of architecture and decisions
 
-### Saga 02-04 - Implementação Completa  
-Funcionalidades completas com arquitetura limpa:
+### Saga 02-04 - Complete Implementation  
+Full functionalities with clean architecture:
 
--   `app/models/item.py`: Modelos Pydantic (Item, ItemCreateModel, ItemUpdateModel)
--   `app/repository/item_repository.py`: Camada de persistência com operações CRUD
--   `app/services/item_service.py`: Lógica de negócio e exceções customizadas  
--   `app/api/v1/items.py`: Endpoints REST completos com injeção de dependência
--   `app/core/config.py`: Configuração centralizada com pydantic-settings
--   `app/core/logging_config.py`: Logging estruturado JSON para observabilidade
--   `data/items.json`: Base de dados simulada para desenvolvimento
--   `tests/`: Suíte completa com testes unitários, integração e E2E
+-   `app/models/item.py`: Pydantic models (Item, ItemCreateModel, ItemUpdateModel)
+-   `app/repository/item_repository.py`: Persistence layer with CRUD operations
+-   `app/services/item_service.py`: Business logic and custom exceptions  
+-   `app/api/v1/items.py`: Complete REST endpoints with dependency injection
+-   `app/core/config.py`: Centralized configuration with pydantic-settings
+-   `app/core/logging_config.py`: Structured JSON logging for observability
+-   `data/items.json`: Simulated database for development
+-   `tests/`: Complete suite with unit, integration, and E2E tests

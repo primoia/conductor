@@ -1,11 +1,11 @@
-# Sistema de Ferramentas com Escopo de Escrita
+# Scoped Tool System
 
-Agentes podem receber "ferramentas" que lhes dão a capacidade de interagir com o sistema de arquivos e executar comandos.
+Agents can be granted "tools" that give them the ability to interact with the file system and execute commands.
 
-**Segurança em Primeiro Lugar:**
-Para evitar operações destrutivas ou indesejadas, a ferramenta de escrita (`Write`) é restrita por um **escopo de escrita**.
+**Security First:**
+To prevent destructive or unwanted operations, the writing tool (`write_file`) is restricted by a **write scope**.
 
-**Configuração:**
-- No arquivo `agent.yaml`, a chave `output_scope` define um padrão `glob` que restringe onde o agente pode escrever arquivos. Por exemplo: `src/main/kotlin/**/*.kt`.
+**Configuration:**
+- In the `agent.yaml` file, the `output_scope` key defines a `glob` pattern that restricts where the agent can write files. For example: `src/main/kotlin/**/*.kt`.
 
-Qualquer tentativa de escrita fora desse padrão será bloqueada, garantindo a integridade da base de código.
+Any attempt to write outside this pattern will be blocked, ensuring the integrity of the codebase. This granular control over file system access is a critical security feature, allowing developers to safely integrate AI agents into their development workflows without risking unintended modifications to sensitive areas of the project.

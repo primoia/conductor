@@ -1,69 +1,67 @@
-# Arquitetura de Agentes: O Modelo Híbrido de "Cache Local Estabilizado"
+# Agent Architecture: The Hybrid "Stabilized Local Cache" Model
 
-**Status:** Proposto e Aceito
-**Data:** 24 de agosto de 2025
+**Status:** Proposed and Accepted
+**Date:** August 24, 2025
 
-Este documento descreve a arquitetura de execução de agentes para o Framework Conductor. Ela foi projetada para ser robusta, escalável e para suportar fluxos de trabalho complexos tanto para equipes de desenvolvimento quanto para automação não-interativa.
+This document describes the agent execution architecture for the Conductor Framework. It was designed to be robust, scalable, and to support complex workflows for both development teams and non-interactive automation.
 
-> Para entender o processo de decisão e a jornada que levou a este design, consulte a SAGA-006 ("A Arquitetura Híbrida Definitiva").
+## 1. Overview and Principles
 
-## 1. Visão Geral e Princípios
+This architecture resolves the conflict between an agent's need for **access to a project's context** and, at the same time, maintaining its **identity and state**. It is based on three principles:
 
-Esta arquitetura resolve o conflito entre a necessidade de um agente ter **acesso ao contexto** de um projeto e, ao mesmo tempo, manter sua **identidade e estado**. Ela se baseia em três princípios:
+1.  **Centralization of Intelligence:** Agents are designed and maintained in a central location (the "Factory"), allowing intelligence to be enhanced and reused.
+2.  **Local Stabilization:** The version of an agent used by a team on a daily basis is versioned along with the project's code, ensuring compatibility and stability.
+3.  **Contextualized Execution:** Agent execution always occurs with the process running from within the target project directory, ensuring full and secure access to files.
 
-1.  **Centralização da Inteligência:** Os agentes são projetados e mantidos em um local central (a "Fábrica"), permitindo que a inteligência seja aprimorada e reutilizada.
-2.  **Estabilização Local:** A versão de um agente usada por uma equipe no dia-a-dia é versionada junto com o código do projeto, garantindo compatibilidade e estabilidade.
-3.  **Execução Contextualizada:** A execução de um agente sempre ocorre com o processo rodando de dentro do diretório do projeto alvo, garantindo acesso total e seguro aos arquivos.
+## 2. Architectural Components
 
-## 2. Componentes da Arquitetura
+### a. The "Agent Factory" (The Conductor Repository)
 
-### a. A "Fábrica de Agentes" (O Repositório Conductor)
+-   **Purpose:** It is the center for designing, creating, and maintaining all agents.
+-   **Key Components:**
+    -   `projects/_common/agents/`: Contains meta-agents.
+    -   `projects/<env>/<proj>/agents/`: Contains the "master" versions of project agents.
+    -   `src/cli/admin.py`: The CLI tool for the "Agent Engineer," used to create, test, and deploy agents.
+    -   The orchestrator for autonomous plan-based execution.
 
--   **Propósito:** É o centro de design, criação e manutenção de todos os agentes.
--   **Componentes Chave:**
-    -   `projects/_common/agents/`: Contém os meta-agentes.
-    -   `projects/<env>/<proj>/agents/`: Contém as versões "master" dos agentes de projeto.
-    -   `scripts/admin.py`: A ferramenta CLI para o "Engenheiro de Agentes", usada para criar, testar e implantar agentes.
-    -   `scripts/run_conductor.py`: O orquestrador para execução autônoma baseada em planos.
+### b. The Target Project (e.g., `nex-web-backend`)
 
-### b. O Projeto Alvo (ex: `nex-web-backend`)
+-   **Purpose:** It is the production environment for the agents. It is self-contained and autonomous.
+-   **Key Components:**
+    -   `agents/`: A folder versioned by the project's Git, which contains the **stabilized** copy of the agents that have been tested and approved for the current code version. This is the "Local Cache."
+    -   `.conductor/client.py`: A lightweight executor, also versioned, that the team uses to interact with agents in the "Local Cache."
+    -   `state.json` (inside each agent folder): Stores conversation history. It is recommended to add `**/state.json` to the project's `.gitignore`.
 
--   **Propósito:** É o ambiente de produção para os agentes. É autocontido e autônomo.
--   **Componentes Chave:**
-    -   `agents/`: Uma pasta versionada pelo Git do projeto, que contém a cópia **estabilizada** dos agentes que foram testados e aprovados para a versão atual do código. Este é o "Cache Local".
-    -   `.conductor/client.py`: Um executor leve, também versionado, que a equipe usa para interagir com os agentes no "Cache Local".
-    -   `state.json` (dentro de cada pasta de agente): Armazena o histórico de conversas. Recomenda-se adicionar `**/state.json` ao `.gitignore` do projeto.
+## 3. Actors and Workflows
 
-## 3. Atores e Fluxos de Trabalho
+### a. The "Agent Engineer/Curator" (e.g., Tech Lead)
 
-### a. O "Engenheiro/Curador de Agentes" (ex: Tech Lead)
+This is the workflow for updating an agent for a project.
 
-Este é o fluxo de trabalho para atualizar um agente para um projeto.
+1.  **Design in the Factory:** The Engineer works in the Conductor repository to create or improve an agent.
+2.  **Remote Testing:** Using `src/cli/admin.py`, they test the new agent version (from the Factory) against the target project's code, without modifying the project yet.
+    -   `poetry run python src/cli/admin.py test-agent --agent MyAgent-v1.3 --on-project /path/to/nex-web-backend`
+3.  **Publishing (Deploy):** Once satisfied, they "publish" the agent. The command copies the agent files from the Factory to the target project's `agents/` folder.
+    -   `poetry run python src/cli/admin.py deploy-agent --agent MyAgent-v1.3 --to-project /path/to/nex-web-backend`
+4.  **Stabilization and Commit:** The Engineer, now working in the target project repository, runs the project's regression tests to ensure the new agent hasn't broken anything. If all is OK, they **commit the new agent version** in the target project repository. The new version is now "stabilized."
 
-1.  **Design na Fábrica:** O Engenheiro trabalha no repositório Conductor para criar ou melhorar um agente.
-2.  **Teste Remoto:** Usando `admin.py`, ele testa a nova versão do agente (da Fábrica) contra o código do projeto alvo, sem modificar o projeto ainda.
-    -   `admin.py test-agent --agent MyAgent-v1.3 --on-project /path/to/nex-web-backend`
-3.  **Publicação (Deploy):** Uma vez satisfeito, ele "publica" o agente. O comando copia os arquivos do agente da Fábrica para a pasta `agents/` do projeto alvo.
-    -   `admin.py deploy-agent --agent MyAgent-v1.3 --to-project /path/to/nex-web-backend`
-4.  **Estabilização e Commit:** O Engenheiro, agora trabalhando no repositório do projeto alvo, roda os testes de regressão do projeto para garantir que o novo agente não quebrou nada. Se tudo estiver OK, ele **commita a nova versão do agente** no repositório do projeto alvo. A nova versão está agora "estabilizada".
+### b. The "Agent Consumer" (Team Developer)
 
-### b. O "Consumidor de Agentes" (Desenvolvedor da Equipe)
+-   **Workflow:** Simple and straightforward.
+    1.  `git pull` in the target project.
+    2.  Executes `python .conductor/client.py --agent MyAgent --repl` to interact with the agent version that is guaranteed to work with the code they just downloaded.
+    3.  They don't need to know about the "Factory" or Conductor.
 
--   **Fluxo de Trabalho:** Simples e direto.
-    1.  `git pull` no projeto alvo.
-    2.  Executa `python .conductor/client.py --agent MyAgent --repl` para interagir com a versão do agente que está garantida para funcionar com o código que ele acabou de baixar.
-    3.  Ele não precisa saber sobre a "Fábrica" ou o Conductor.
+### c. The Autonomous Orchestrator
 
-### c. O Orquestrador Autônomo (`run_conductor.py`)
+-   **Workflow:** The orchestrator executes a plan (`.yaml`) that specifies which agent to execute in which project. It has two operating modes, defined in the plan:
+    -   **`version: stable` (Default):** The orchestrator executes the agent that is in the target project's "Local Cache." This is the safe, predictable mode, ideal for production automation, as it uses the version that has been explicitly tested and committed with the code.
+    -   **`version: latest` (Experimental):** The orchestrator ignores the local cache and uses the "Launcher Pattern" to inject the latest agent version directly from the "Factory." Useful for continuous integration testing of the Agent Factory itself.
 
--   **Fluxo de Trabalho:** O orquestrador executa um plano (`.yaml`) que especifica qual agente executar em qual projeto. Ele possui dois modos de operação, definidos no plano:
-    -   **`version: stable` (Padrão):** O orquestrador executa o agente que está no "Cache Local" do projeto alvo. Este é o modo seguro, previsível e ideal para automação de produção, pois usa a versão que foi explicitamente testada e commitada com o código.
-    -   **`version: latest` (Experimental):** O orquestrador ignora o cache local e usa o "Padrão Lançador" para injetar a versão mais recente do agente diretamente da "Fábrica". Útil para testes de integração contínua da própria Fábrica de Agentes.
+## 4. Conclusion
 
-## 4. Conclusão
-
-Este modelo híbrido oferece um equilíbrio robusto entre centralização e distribuição. Ele garante que:
--   A **inteligência** dos agentes possa ser desenvolvida e mantida de forma centralizada.
--   A **estabilidade** seja garantida pelo versionamento dos agentes junto com o código que eles manipulam.
--   O **fluxo de trabalho da equipe** seja simples e desacoplado da complexidade do gerenciamento de IA.
--   A **automação** possa operar de forma segura e previsível, com a opção de usar recursos de ponta quando necessário.
+This hybrid model offers a robust balance between centralization and distribution. It ensures that:
+-   The **intelligence** of agents can be developed and maintained centrally.
+-   **Stability** is guaranteed by versioning agents along with the code they manipulate.
+-   The **team's workflow** is simple and decoupled from the complexity of AI management.
+-   **Automation** can operate safely and predictably, with the option to use cutting-edge features when needed.

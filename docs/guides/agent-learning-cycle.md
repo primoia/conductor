@@ -19,7 +19,7 @@ The cycle begins with a User Story (e.g., "Create CRUD for `Dog`"). Based on it,
 
 ### Step 2: The "Inner Loop" - Code Generation and PR
 
-The developer runs `python scripts/run_conductor.py` with the above plan. The Conductor orchestrates the agents to generate the feature's code. Once the automated tests pass locally, the developer commits the code to a *feature branch* and opens a **Pull Request** to the `main` branch.
+The developer runs Conductor with the above plan. Conductor orchestrates the agents to generate the feature's code. Once the automated tests pass locally, the developer commits the code to a *feature branch* and opens a **Pull Request** to the `main` branch.
 
 ### Step 3: The "Outer Loop" - AI-Assisted PR Review
 
@@ -30,7 +30,7 @@ The creation of the PR triggers a CI/CD pipeline that executes a specialized rev
     *   **Responsibility:** To run all unit and integration tests related to the PR's code. The agent posts a comment on the PR with the result: SUCCESS or FAILURE.
 
 2.  **Task: `Generate_Learning_Summary`**
-    *   **Assigned Agent:** `Gemini_Architect_Agent`
+    *   **Assigned Agent:** `Architect_Agent` (e.g., a Gemini-powered agent)
     *   **Responsibility:** To analyze the code *diff* in the PR, looking for patterns, adherence to architecture, and opportunities for improvement. This task depends on the success of `Execute_QA_Checks`.
     *   **Output Artifact:** The agent generates a report named `learning_summary.md` and attaches it to the PR. This report is the basis for the agent's learning.
 
@@ -39,7 +39,7 @@ The creation of the PR triggers a CI/CD pipeline that executes a specialized rev
 With the PR open, the human reviewer (Tech Lead or another developer) has at their disposal:
 1.  The source code.
 2.  The test results from the `Claude_QA_Agent`.
-3.  The `learning_summary.md` from the `Gemini_Architect_Agent`.
+3.  The `learning_summary.md` from the `Architect_Agent`.
 
 The human acts as the **Memory Curator**. They analyze the suggestions in the `learning_summary.md` and, using their professional judgment, decide what constitutes valid learning. They then **copy and paste** the learned lessons into the memory files of the original agents:
 
@@ -50,7 +50,7 @@ After curating the memory and approving the code, the PR is merged.
 
 ### Step 5: The Next Cycle (Learning in Action)
 
-In the following Sprint, a new related story is started (e.g., "Add endpoint to search for `Dog` by breed"). When the Conductor is run again, the `Creator` agents will load their updated memories. They will now be aware of the new patterns to follow and the new "scars" to avoid, resulting in higher-quality code, autonomously.
+In the following Sprint, a new related story is started (e.g., "Add endpoint to search for `Dog` by breed"). When Conductor is run again, the `Creator` agents will load their updated memories. They will now be aware of the new patterns to follow and the new "scars" to avoid, resulting in higher-quality code, autonomously.
 
 ---
 

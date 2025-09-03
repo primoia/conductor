@@ -1,99 +1,99 @@
-# Especificação Arquitetural: Framework de Agentes "Maestro"
+# Architectural Specification: Conductor Agent Framework
 
-**Versão:** 2.0
+**Version:** 2.0
 
-**Autor:** Gemini (em colaboração com o arquiteto do projeto)
+**Author:** Gemini (in collaboration with the project architect)
 
-## 1. Visão Geral e Filosofia
+## 1. Overview and Philosophy
 
-Este documento descreve a arquitetura de um framework de agentes de IA de nova geração, codinome "Maestro". O objetivo é superar as limitações de modelos lineares e baseados em templates, criando um ecossistema de desenvolvimento dinâmico, interativo e ciente do contexto.
+This document describes the architecture of a new generation AI agent framework, codenamed "Conductor". The goal is to overcome the limitations of linear and template-based models, creating a dynamic, interactive, and context-aware development ecosystem.
 
-### Filosofia Central
+### Core Philosophy
 
-O framework "Maestro" é projetado para **aumentar a capacidade de um único desenvolvedor (o "Maestro")**, servindo como um parceiro ativo e inteligente no ciclo de vida de desenvolvimento, em vez de tentar simular um time de desenvolvimento completo de forma rígida.
+The "Conductor" framework is designed to **augment the capacity of a single developer (the "Conductor")**, serving as an active and intelligent partner in the development lifecycle, rather than trying to simulate a complete development team rigidly.
 
-### Princípios Arquiteturais
+### Architectural Principles
 
-*   **Interação como Prioridade:** A interação conversacional (chat) é uma funcionalidade de primeira classe, essencial para as fases de análise, planejamento e depuração.
-*   **Consciência de Contexto:** Os agentes devem ter a capacidade de acessar e analisar o estado atual do código-fonte para informar suas decisões e diálogos.
-*   **Estado Persistente e Evolutivo:** Cada agente possui uma memória persistente (`state.json`) que representa sua compreensão atual do sistema. Este estado evolui à medida que o desenvolvimento progride.
-*   **Modelo de Agente Unificado:** Existe uma única maneira de definir um agente através de um arquivo de especificação (`agent.yaml`). Este agente pode, no entanto, ser executado de duas maneiras distintas: interativa ou automatizada.
-
----
-
-## 2. O Ciclo de Vida de Desenvolvimento "Maestro"
-
-O framework opera em um ciclo de vida contínuo e virtuoso, composto por quatro fases distintas.
-
-> **Metáfora Central:** "O estado é parte do problema, a evolução do estado é o plano, a conclusão do plano é a evolução do estado dentro dos agentes."
-
-### Fase 1: Imersão e Definição do Problema
-*   **Entrada:** Uma intenção ou objetivo do Maestro (ex: "Adicionar autenticação via Google").
-*   **Processo:** O Maestro inicia uma sessão interativa com um agente especialista (incorporado pelo Agente Mestre). O agente faz perguntas e, crucialmente, acessa o código-fonte para analisar o impacto, as dependências e o contexto técnico. O problema é refinado colaborativamente.
-*   **Saída:** Um "Problema Polido", um entendimento profundo e compartilhado do que precisa ser feito.
-
-### Fase 2: Colaboração e Criação do Plano
-*   **Entrada:** O "Problema Polido".
-*   **Processo:** A sessão interativa continua, focando agora na solução. O agente colabora com o Maestro para definir a abordagem técnica, os passos necessários e as tarefas específicas. O agente pode sugerir a criação de múltiplos agentes especialistas para a fase de execução.
-*   **Saída:** Um "Plano Polido", tipicamente na forma de um `implementation_plan.yaml`, pronto para ser executado.
-
-### Fase 3: Execução Orquestrada
-*   **Entrada:** O "Plano Polido" (`implementation_plan.yaml`).
-*   **Processo:** O Orquestrador `conductor` assume o controle. Ele lê o plano e executa as tarefas de forma não-interativa, chamando os Agentes Especialistas necessários em "Modo Orquestrado" para gerar código, rodar testes, etc.
-*   **Saída:** Código novo, testes passando e um Pull Request pronto para revisão.
-
-### Fase 4: Retroalimentação e Evolução do Estado
-*   **Entrada:** O Pull Request aprovado e integrado.
-*   **Processo:** Um processo (automatizado ou manual) analisa as mudanças e atualiza o `state.json` dos agentes relevantes, informando-os sobre a nova realidade do código-fonte.
-*   **Saída:** Agentes com um estado atualizado, prontos para o próximo ciclo de desenvolvimento.
+*   **Interaction as Priority:** Conversational interaction (chat) is a first-class functionality, essential for the analysis, planning, and debugging phases.
+*   **Context Awareness:** Agents must have the ability to access and analyze the current state of the source code to inform their decisions and dialogues.
+*   **Persistent and Evolving State:** Each agent has a persistent memory (`state.json`) that represents its current understanding of the system. This state evolves as development progresses.
+*   **Unified Agent Model:** There is a single way to define an agent through a specification file (`agent.yaml`). This agent can, however, be executed in two distinct ways: interactive or automated.
 
 ---
 
-## 3. Arquitetura de Componentes
+## 2. The Conductor Development Lifecycle
 
-1.  **O Maestro (Humano):** O desenvolvedor. O tomador de decisões final, que guia o processo, valida as sugestões da IA e detém o controle criativo.
-2.  **O Agente Mestre ("Gênesis"):** A interface de usuário principal para o modo interativo. É um agente especial cuja única função é **incorporar** outros agentes especialistas para permitir o diálogo, a análise e a depuração.
-3.  **Agentes Especialistas:** Os "fazedores". Cada um é um especialista em uma tarefa (ex: `KotlinEntityCreator_Agent`, `TerraformPlanner_Agent`). São definidos por um `agent.yaml`.
-4.  **O Orquestrador (`conductor`):** O motor de execução para o modo automático. Ele lê um plano e executa os agentes especialistas de forma eficiente e não-interativa.
-5.  **O Artefato de Definição (`agent.yaml`):** O "DNA" de um agente. Um arquivo de especificação que torna um agente compreensível tanto para o Agente Mestre (para incorporação) quanto para o Orquestrador (para execução).
+The framework operates in a continuous and virtuous lifecycle, composed of four distinct phases.
+
+> **Core Metaphor:** "State is part of the problem, state evolution is the plan, plan completion is state evolution within the agents."
+
+### Phase 1: Immersion and Problem Definition
+*   **Input:** An intention or objective from the Conductor (e.g., "Add Google authentication").
+*   **Process:** The Conductor initiates an interactive session with a specialist agent (embodied by the Master Agent). The agent asks questions and, crucially, accesses the source code to analyze the impact, dependencies, and technical context. The problem is collaboratively refined.
+*   **Output:** A "Polished Problem," a deep and shared understanding of what needs to be done.
+
+### Phase 2: Collaboration and Plan Creation
+*   **Input:** The "Polished Problem."
+*   **Process:** The interactive session continues, now focusing on the solution. The agent collaborates with the Conductor to define the technical approach, necessary steps, and specific tasks. The agent can suggest creating multiple specialist agents for the execution phase.
+*   **Output:** A "Polished Plan," typically in the form of an `implementation_plan.yaml`, ready for execution.
+
+### Phase 3: Orchestrated Execution
+*   **Input:** The "Polished Plan" (`implementation_plan.yaml`).
+*   **Process:** The Conductor orchestrator takes control. It reads the plan and executes the tasks non-interactively, calling the necessary Specialist Agents in "Orchestrated Mode" to generate code, run tests, etc.
+*   **Output:** New code, passing tests, and a Pull Request ready for review.
+
+### Phase 4: Feedback and State Evolution
+*   **Input:** The approved and integrated Pull Request.
+*   **Process:** An automated or manual process analyzes the changes and updates the `state.json` of the relevant agents, informing them about the new reality of the source code.
+*   **Output:** Agents with an updated state, ready for the next development cycle.
 
 ---
 
-## 4. O Artefato de Definição do Agente (`agent.yaml`)
+## 3. Component Architecture
 
-Este arquivo é o coração da arquitetura. Ele define tudo o que o sistema precisa saber sobre um agente.
+1.  **The Conductor (Human):** The developer. The final decision-maker, who guides the process, validates AI suggestions, and maintains creative control.
+2.  **The Master Agent:** The main user interface for interactive mode. It is a special agent whose sole function is to **embody** other specialist agents to allow dialogue, analysis, and debugging.
+3.  **Specialist Agents:** The "doers." Each is a specialist in a task (e.g., `KotlinEntityCreator_Agent`, `TerraformPlanner_Agent`). They are defined by an `agent.yaml`.
+4.  **The Orchestrator:** The execution engine for automatic mode. It reads a plan and executes specialist agents efficiently and non-interactively.
+5.  **The Definition Artifact (`agent.yaml`):** The "DNA" of an agent. A specification file that makes an agent understandable to both the Master Agent (for embodiment) and the Orchestrator (for execution).
+
+---
+
+## 4. The Agent Definition Artifact (`agent.yaml`)
+
+This file is the heart of the architecture. It defines everything the system needs to know about an agent.
 
 ```yaml
-# Exemplo: agent.yaml para um criador de entidades
+# Example: agent.yaml for an entity creator
 
 id: KotlinEntityCreator_Agent
 version: 1.0
-description: "Cria uma entidade de dados Kotlin com anotações JPA a partir de uma especificação."
+description: "Creates a Kotlin data entity with JPA annotations from a specification."
 
-# (NOVO) Define qual motor de IA usar para este agente.
-# Valores válidos: 'claude' ou 'gemini'.
+# (NEW) Defines which AI engine to use for this agent.
+# Valid values: 'claude' or 'gemini'.
 ai_provider: 'claude'
 
-# Caminho para o prompt que define a personalidade e o comportamento
+# Path to the prompt that defines the personality and behavior
 persona_prompt_path: "persona.md"
 
-# Caminho para o arquivo de estado (memória) do agente
+# Path to the agent's state file (memory)
 state_file_path: "state.json"
 
-# Tarefa a ser executada no modo automático (pelo Conductor)
-# A instrução pode ser um prompt direto ou um caminho para um arquivo de tarefa
+# Task to be executed in automatic mode (by the Conductor orchestrator)
+# The instruction can be a direct prompt or a path to a task file
 execution_task: |
-  Com base no `input_file` fornecido no plano, gere a entidade Kotlin.
-  O `input_file` contém a especificação dos campos.
-  Salve o resultado no `output_file` especificado no plano.
+  Based on the `input_file` provided in the plan, generate the Kotlin entity.
+  The `input_file` contains the field specification.
+  Save the result to the `output_file` specified in the plan.
 
-# Ferramentas disponíveis no modo interativo (pelo Agente Mestre)
+# Available tools in interactive mode (by the Master Agent)
 available_tools:
   - read_file
   - list_directory
   - run_shell_command
 
-# Esquema esperado para o state.json (opcional, para validação)
+# Expected schema for state.json (optional, for validation)
 state_schema:
   last_entity_created: string
   common_field_patterns: array
@@ -101,34 +101,34 @@ state_schema:
 
 ---
 
-## 5. Modos de Execução
+## 5. Execution Modes
 
-Um agente, definido por um único `agent.yaml`, pode operar de duas maneiras:
+An agent, defined by a single `agent.yaml`, can operate in two ways:
 
-### Modo Incorporado (Interativo)
-*   **Invocação:** `python genesis_agent.py --embody <agent_id> --project-root <caminho_para_o_projeto>`
-*   **Processo:** O Agente Mestre lê o `agent.yaml` do agente alvo. Ele carrega a persona, o estado e as ferramentas (`available_tools`) em uma sessão de chat. O Gênesis usa o `--project-root` para contextualizar todas as chamadas de ferramentas (ex: `read_file`), garantindo que o agente opere apenas dentro do projeto alvo.
-*   **Casos de Uso:** Análise de problemas, criação de planos, depuração interativa de um agente que falhou no modo automático, refatoração guiada.
+### Embodied Mode (Interactive)
+*   **Invocation:** `poetry run python src/cli/agent.py --agent <agent_id> --project-root <path_to_project>`
+*   **Process:** The Master Agent reads the `agent.yaml` of the target agent. It loads the persona, state, and tools (`available_tools`) into a chat session. The Conductor uses the `--project-root` to contextualize all tool calls (e.g., `read_file`), ensuring the agent operates only within the target project.
+*   **Use Cases:** Problem analysis, plan creation, interactive debugging of an agent that failed in automatic mode, guided refactoring.
 
-### Modo Orquestrado (Automático)
-*   **Invocação:** `python conductor.py --plan <plan.yaml>`
-*   **Processo:** O Orquestrador `conductor` lê o plano, identifica o `agent_id` para uma tarefa, carrega seu `agent.yaml` e usa a diretiva `execution_task` para executar a tarefa de forma não-interativa, passando os parâmetros definidos no plano (como `input_file` e `output_file`).
-*   **Casos de Uso:** Geração de código em massa, execução de testes, tarefas de CI/CD, automação de refatoração.
+### Orchestrated Mode (Automatic)
+*   **Invocation:** The Conductor orchestrator is run with a plan (e.g., `poetry run python src/cli/orchestrator.py --plan <plan.yaml>` if such a script exists, or through other means of triggering orchestrated execution).
+*   **Process:** The Conductor orchestrator reads the plan, identifies the `agent_id` for a task, loads its `agent.yaml`, and uses the `execution_task` directive to execute the task non-interactively, passing the parameters defined in the plan (such as `input_file` and `output_file`).
+*   **Use Cases:** Mass code generation, test execution, CI/CD tasks, refactoring automation.
 
 ---
 
-## 6. Exemplo de Fluxo de Trabalho
+## 6. Workflow Example
 
-1.  **Criação do Agente (se necessário):** O Maestro usa o `AgentCreator_Agent` para criar um novo agente especialista dentro do caminho de contexto correto, ex: `projects/develop/my-app/agents/MyNewTaskAgent`.
-2.  **Intenção:** O Maestro quer adicionar um campo `tags` à entidade `Product` no projeto `my-app`.
-3.  **Fase 1 (Análise):**
-    *   O Maestro inicia: `python genesis_agent.py --embody KotlinEntityCreator_Agent --project-root /path/to/my-app --repl`
-    *   Na sessão de chat, ele diz: "Preciso adicionar um campo `tags` à entidade `Product`. Pode analisar o arquivo `src/Product.kt` e me dizer o impacto?"
-    *   O agente (incorporado) usa sua ferramenta `read_file` (contextualizada pelo Gênesis para `/path/to/my-app/src/Product.kt`) e responde com os detalhes.
-4.  **Fase 2 (Planejamento):**
-    *   Eles colaboram e definem a abordagem. O resultado é um `implementation_plan.yaml`.
-5.  **Fase 3 (Execução):**
-    *   O Maestro executa: `python conductor.py --plan a_plan.yaml`
-    *   O `conductor` executa as tarefas, gerando o código dentro do projeto `my-app`.
-6.  **Fase 4 (Feedback):**
-    *   Após o PR ser aprovado, o `state.json` do `KotlinEntityCreator_Agent` é atualizado.
+1.  **Agent Creation (if necessary):** The Conductor uses the `AgentCreator_Agent` to create a new specialist agent within the correct context path, e.g., `projects/develop/my-app/agents/MyNewTaskAgent`.
+2.  **Intention:** The Conductor wants to add a `tags` field to the `Product` entity in the `my-app` project.
+3.  **Phase 1 (Analysis):**
+    *   The Conductor initiates: `poetry run python src/cli/agent.py --agent KotlinEntityCreator_Agent --project-root /path/to/my-app --repl`
+    *   In the chat session, they say: "I need to add a `tags` field to the `Product` entity. Can you analyze the `src/Product.kt` file and tell me the impact?"
+    *   The agent (embodied) uses its `read_file` tool (contextualized by Conductor for `/path/to/my-app/src/Product.kt`) and responds with the details.
+4.  **Phase 2 (Planning):**
+    *   They collaborate and define the approach. The result is an `implementation_plan.yaml`.
+5.  **Phase 3 (Execution):**
+    *   The Conductor executes the plan (e.g., by running the orchestrator with `a_plan.yaml`).
+    *   The orchestrator executes the tasks, generating the code within the `my-app` project.
+6.  **Phase 4 (Feedback):**
+    *   After the PR is approved, the `state.json` of the `KotlinEntityCreator_Agent` is updated.

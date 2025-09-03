@@ -1,10 +1,11 @@
 # 📊 Project Management - Conductor Framework
 
-Esta pasta centraliza os artefatos de **gestão de projeto** do Conductor.
+This folder centralizes the **project management** artifacts for Conductor.
 
-## 📁 Estrutura Atual
+## 📁 Current Structure
 
--   `README.md`: Este arquivo.
--   `new-features/`: Documentos que descrevem o planejamento de novas funcionalidades que ainda não foram implementadas.
--   `adr/`: (Architectural Decision Records) - Decisões de arquitetura que afetam o projeto.
--   `_archive/`: Um arquivo histórico de todos os documentos de gestão passados (bugs, planos de limpeza, integrações, etc.) que não estão mais ativos.
+-   `README.md`: This file.
+-   `new-features/`: Documents describing the planning of new features that have not yet been implemented.
+-   `adr/`: (Architectural Decision Records) - Architectural decisions that affect the project.
+-   `persona/`: Internal documentation regarding the AI agent personas and operational modes.
+-   `_archive/`: A historical archive of all past management documents (bugs, cleanup plans, integrations, etc.) that are no longer active.

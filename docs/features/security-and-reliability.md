@@ -1,9 +1,11 @@
-# Segurança e Confiabilidade
+# Security and Reliability
 
-A segurança é um pilar fundamental do design do framework.
+Security is a fundamental pillar of the framework's design.
 
-**Principais Medidas:**
-- **Escopo de Escrita (`output_scope`):** Impede que agentes modifiquem arquivos fora de seu diretório de trabalho designado.
-- **Confirmação Humana:** No modo interativo (`--repl`), qualquer operação de escrita de arquivo exige a confirmação explícita do usuário.
-- **Executores Separados:** A separação entre `admin.py` (tarefas do framework) e `genesis_agent.py` (tarefas de projeto) previne que um agente de projeto modifique a configuração do próprio framework.
-- **Arquitetura de Ambientes:** Isola logicamente os ambientes de `desenvolvimento` e `produção` através do `workspaces.yaml`.
+**Key Measures:**
+- **Write Scope (`output_scope`):** Prevents agents from modifying files outside their designated working directory.
+- **Human Confirmation:** In interactive mode (`--repl`), any file write operation requires explicit user confirmation.
+- **Separated Executors:** The separation between `src/cli/admin.py` (framework tasks) and `src/cli/agent.py` (project tasks) prevents a project agent from modifying the framework's own configuration.
+- **Environment Architecture:** Logically isolates `development` and `production` environments through `workspaces.yaml`.
+
+These measures collectively ensure a robust and secure environment for AI-assisted development, minimizing risks and maximizing reliability. The framework is built with a strong emphasis on preventing unintended actions and maintaining the integrity of your codebase.
