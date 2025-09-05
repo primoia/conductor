@@ -24,7 +24,7 @@ This architecture resolves the conflict between an agent's need for **access to 
     -   `src/cli/admin.py`: The CLI tool for the "Agent Engineer," used to create, test, and deploy agents.
     -   The orchestrator for autonomous plan-based execution.
 
-### b. The Target Project (e.g., `nex-web-backend`)
+### b. The Target Project (e.g., `desafio-meli`)
 
 -   **Purpose:** It is the production environment for the agents. It is self-contained and autonomous.
 -   **Key Components:**
@@ -40,9 +40,9 @@ This is the workflow for updating an agent for a project.
 
 1.  **Design in the Factory:** The Engineer works in the Conductor repository to create or improve an agent.
 2.  **Remote Testing:** Using `src/cli/admin.py`, they test the new agent version (from the Factory) against the target project's code, without modifying the project yet.
-    -   `poetry run python src/cli/admin.py test-agent --agent MyAgent-v1.3 --on-project /path/to/nex-web-backend`
+    -   `poetry run python src/cli/admin.py test-agent --agent MyAgent-v1.3 --on-project /path/to/desafio-meli`
 3.  **Publishing (Deploy):** Once satisfied, they "publish" the agent. The command copies the agent files from the Factory to the target project's `agents/` folder.
-    -   `poetry run python src/cli/admin.py deploy-agent --agent MyAgent-v1.3 --to-project /path/to/nex-web-backend`
+    -   `poetry run python src/cli/admin.py deploy-agent --agent MyAgent-v1.3 --to-project /path/to/desafio-meli`
 4.  **Stabilization and Commit:** The Engineer, now working in the target project repository, runs the project's regression tests to ensure the new agent hasn't broken anything. If all is OK, they **commit the new agent version** in the target project repository. The new version is now "stabilized."
 
 ### b. The "Agent Consumer" (Team Developer)

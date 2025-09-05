@@ -17,7 +17,7 @@ Elevar a robustez e a confiabilidade do framework `conductor` implementando duas
 
 ### Fase 1: Implementação do Tratamento de Exceções Global
 
-O objetivo é criar exceções customizadas no domínio e handlers na camada de apresentação (CLI), assim como o `desafio-meli-entrega` faz para a camada de API.
+O objetivo é criar exceções customizadas no domínio e handlers na camada de apresentação (CLI), assim como o `desafio-meli` faz para a camada de API.
 
 **Passo 1.1: Definir Exceções Customizadas do Domínio**
 *   **Ação:** Crie um novo arquivo `src/core/exceptions.py`.

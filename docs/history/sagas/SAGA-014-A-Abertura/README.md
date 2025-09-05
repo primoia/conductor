@@ -25,7 +25,7 @@ O objetivo desta fase é remover arquivos desnecessários, organizar a estrutura
     *   **Descrição:** Realizar uma varredura no código-fonte, comentários e documentação para traduzir todo o conteúdo para o inglês. Isso inclui nomes de variáveis, comentários e textos em arquivos `.md`.
 
 *   **Tarefa 1.5: Formalizar Projeto de Exemplo**
-    *   **Descrição:** Mover o projeto `desafio-meli-entrega` do diretório `templates/` para `examples/` para refletir melhor seu papel como um caso de uso prático. Esta tarefa também servirá como base para, futuramente, adicionar um `README.md` dedicado explicando como o projeto funciona como um showcase para os agentes do Conductor.
+    *   **Descrição:** Mover o projeto `desafio-meli` do diretório `templates/` para `examples/` para refletir melhor seu papel como um caso de uso prático. Esta tarefa também servirá como base para, futuramente, adicionar um `README.md` dedicado explicando como o projeto funciona como um showcase para os agentes do Conductor.
 
 ### Fase 2: Auditoria de Segurança e Dependências
 
