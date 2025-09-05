@@ -48,7 +48,7 @@ Crie um agente de teste simples que lista arquivos.
 
 ```
 AGENT_ENVIRONMENT=develop
-AGENT_PROJECT=nex-web-backend
+AGENT_PROJECT=desafio-meli
 AGENT_TYPE=project
 
 Crie um agente Python que faz chamadas de API.

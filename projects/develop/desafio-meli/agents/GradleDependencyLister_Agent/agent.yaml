@@ -9,6 +9,6 @@ available_tools:
   - Bash
   - Read
 target_context:
-  project_key: nex-web-backend
+  project_key: desafio-meli
   output_scope: "**/*"
 execution_task: 'Leia o arquivo build.gradle, identifique todas as dependências (implementation, testImplementation, etc.) e liste-as com suas respectivas versões.' 

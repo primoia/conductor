@@ -12,7 +12,7 @@ available_tools:
   - Glob
 
 target_context:
-  project_key: nex-web-backend
+  project_key: desafio-meli
   output_scope: "**/*.{js,ts,py,java,php,go,rb,cs,cpp,c,h}"
 
 execution_task: |

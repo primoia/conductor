@@ -129,7 +129,7 @@ def resolve_agent_paths_v3(environment: str, project: str, agent_id: str) -> Tup
 conductor:
   version: "3.0"
   project:
-    name: "nex-web-backend"
+    name: "desafio-meli"
     language: "kotlin"
     framework: "spring-boot"
   

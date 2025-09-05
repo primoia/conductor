@@ -5,7 +5,7 @@
 
 ## 1. Missão
 
-Esta saga marca a transição do projeto `conductor` de um conjunto de scripts funcionais para uma aplicação Python com uma estrutura de código profissional, coesa e escalável. A desorganização do diretório `scripts/` será resolvida, e uma nova estrutura inspirada em padrões de mercado (conforme validado no projeto de referência `desafio-meli-entrega`) será implementada.
+Esta saga marca a transição do projeto `conductor` de um conjunto de scripts funcionais para uma aplicação Python com uma estrutura de código profissional, coesa e escalável. A desorganização do diretório `scripts/` será resolvida, e uma nova estrutura inspirada em padrões de mercado (conforme validado no projeto de referência `desafio-meli`) será implementada.
 
 ## 2. Justificativa
 
