@@ -45,5 +45,5 @@ persona_prompt_path: persona.md
 state_file_path: state.json
 target_context:
   output_scope: docs/api/*.md
-  project_key: nex-web-backend
+  project_key: desafio-meli
 version: '2.0'

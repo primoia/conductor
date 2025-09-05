@@ -11,6 +11,6 @@ available_tools:
   - Write
   - Edit
 target_context:
-  project_key: nex-web-backend
+  project_key: desafio-meli
   output_scope: "**/*"
 execution_task: Criar novos projetos Spring Boot com Kotlin e Gradle usando Spring Initializr API

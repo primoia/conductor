@@ -68,10 +68,10 @@ poetry run python -m src.cli.agent --help
 # The target project is mounted to /app/projects/src for access by agent scripts.
 docker compose run --rm \
   --entrypoint="python -m src.cli.agent" \
-  -v "/mnt/ramdisk/develop/nex-web-backend:/app/projects/src" \
+  -v "/mnt/ramdisk/develop/desafio-meli:/app/projects/src" \
   conductor-api \
   --environment develop \
-  --project nex-web-backend \
+  --project desafio-meli \
   --agent ProblemRefiner_Agent \
   --ai-provider gemini \
   --repl --timeout 300
@@ -81,7 +81,7 @@ docker compose run --rm \
 # Or, adjust the --project-root parameter if the agent needs to access files outside the current directory.
 poetry run python -m src.cli.agent \
   --environment develop \
-  --project nex-web-backend \
+  --project desafio-meli \
   --agent ProblemRefiner_Agent \
   --ai-provider gemini \
   --repl --timeout 300
