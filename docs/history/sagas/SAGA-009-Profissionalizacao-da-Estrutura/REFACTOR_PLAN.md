@@ -4,7 +4,7 @@
 
 ## 1. Visão e Objetivos
 
-O projeto `conductor` provou seu valor, mas sua estrutura de scripts monolíticos impede a escalabilidade e a manutenção. O objetivo desta refatoração é evoluir o `conductor` para um framework de software robusto, aplicando os princípios de design exemplificados no projeto de referência `desafio-meli-entrega`.
+O projeto `conductor` provou seu valor, mas sua estrutura de scripts monolíticos impede a escalabilidade e a manutenção. O objetivo desta refatoração é evoluir o `conductor` para um framework de software robusto, aplicando os princípios de design exemplificados no projeto de referência `desafio-meli`.
 
 **Princípios a serem aplicados:**
 

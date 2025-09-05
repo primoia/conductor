@@ -217,7 +217,7 @@ scenario: "Criar um agente para geração de documentação"
 input:
   description: "Agente especialista em criar documentação técnica em Markdown"
   target_environment: "develop"
-  target_project: "nex-web-backend"
+  target_project: "desafio-meli"
   ai_provider: "claude"
 expected_output:
   - agent.yaml com estrutura v2.0 completa
@@ -236,7 +236,7 @@ scenario: "Criar um agente para testes de integração"
 input:
   description: "Agente para criar e executar testes de integração com Spring Boot"
   target_environment: "develop"
-  target_project: "nex-web-backend"
+  target_project: "desafio-meli"
   ai_provider: "claude"
   requirements:
     - "Suporte a múltiplos tipos de teste"
@@ -282,7 +282,7 @@ user_profile:
   project_type: "existing"
   team_size: "team"
 project_context:
-  name: "nex-web-backend"
+  name: "desafio-meli"
   path: "/path/to/project"
   environment: "develop"
 expected_output:

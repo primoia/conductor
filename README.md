@@ -52,7 +52,7 @@ If you prefer to run locally:
 **Installation:**
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-username/conductor.git
+git clone https://github.com/cezarfuhr/conductor.git
 cd conductor
 
 # 2. Install dependencies using Poetry

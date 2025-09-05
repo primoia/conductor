@@ -10,20 +10,20 @@ conductor-api \
 
 docker compose run --rm \
 --entrypoint="python -m src.cli.agent" \
--v "/mnt/ramdisk/develop/nex-web-backend:/app/projects/src" \
+-v "/mnt/ramdisk/develop/desafio-meli:/app/projects/src" \
 conductor-api \
 --environment develop \
---project nex-web-backend \
+--project desafio-meli \
 --agent ProblemRefiner_Agent \
 --ai-provider gemini \
 --repl
 
 docker compose run --rm \
 --entrypoint="python -m src.cli.agent" \
--v "/mnt/ramdisk/develop/nex-web-backend:/app/projects/src" \
+-v "/mnt/ramdisk/develop/desafio-meli:/app/projects/src" \
 conductor-api \
 --environment develop \
---project nex-web-backend \
+--project desafio-meli \
 --agent QADocumentationAgent_Agent \
 --ai-provider gemini \
 --repl --timeout 300
@@ -38,10 +38,10 @@ conductor-api \
 
 docker compose run --rm \
 --entrypoint="python -m src.cli.agent" \
--v "/mnt/ramdisk/develop/nex-web-backend:/app/projects/src" \
+-v "/mnt/ramdisk/develop/desafio-meli:/app/projects/src" \
 conductor-api \
 --environment develop \
---project nex-web-backend \
+--project desafio-meli \
 --agent PythonApiAgent \
 --ai-provider gemini \
 --repl --timeout 300
