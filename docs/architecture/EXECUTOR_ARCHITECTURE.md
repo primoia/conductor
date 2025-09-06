@@ -223,3 +223,4 @@ poetry run python src/cli/admin.py \
 - ✅ Improves organization and clarity
 - ✅ Facilitates future maintenance
 - ✅ **New:** Support for automated agent creation
+```
