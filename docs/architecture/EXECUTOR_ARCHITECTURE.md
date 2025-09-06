@@ -223,4 +223,44 @@ poetry run python src/cli/admin.py \
 - ✅ Improves organization and clarity
 - ✅ Facilitates future maintenance
 - ✅ **New:** Support for automated agent creation
+
+---
+
+## Visual Summary
+
+#### Executor Workflow Diagram
+
+![Flowchart of the executor architecture, showing how a Plan YAML is loaded and executed step-by-step.](./assets/images/executor_flowchart.svg)
+
+<details>
+<summary>View or Edit Diagram Code (Mermaid)</summary>
+
+```mermaid
+graph TD
+    subgraph Input
+        A[Plan.yaml]
+        B[Tool Library]
+    end
+
+    subgraph Execution Engine
+        C{Load Plan}
+        D{For each step in Plan}
+        E[Execute Tool(step.tool, step.params)]
+        F{Check Result}
+    end
+
+    subgraph Output
+        G[Success: Final State]
+        H[Failure: Error Report]
+    end
+
+    A --> C
+    B --> E
+    C --> D
+    D --> E
+    E --> F
+    F -- OK --> D
+    F -- Error --> H
+    D -- All steps complete --> G
 ```
+</details>
