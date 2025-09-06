@@ -13,6 +13,24 @@
 
 Conductor is a multi-agent framework designed to provide a robust platform for AI-assisted development and automation. It allows you to create, manage, and orchestrate specialized AI agents that can reason, plan, and execute complex coding tasks by interacting with your codebase.
 
+```
++-----------+        +-------------------+        +----------------+
+|           |        |                   |        |                |
+|  Developer|--💬-->|     Conductor     |--⚙️-->|    Agents      |
+|           | Dialogue   |  (Orchestrator)   | Orchestrates| (Database, Coder)|
++-----------+        |                   |        |                |
+                     +---------+---------+        +-------+--------+
+                               |                          |
+                               | Analysis & Planning      | Execution
+                               |                          |
+                               ▼                          ▼
+                     +------------------------------------------+
+                     |                                          |
+                     |               Codebase                   |
+                     |                                          |
+                     +------------------------------------------+
+```
+
 -   **Orchestrate Complex Workflows:** Define multi-step plans in simple YAML files and let Conductor execute them automatically.
 -   **Interact with Specialist Agents:** Dialogue with AI agents that have access to your code, enabling a conversational approach to development.
 -   **Multi-Provider Support:** Flexibly switch between different AI providers like Gemini and Claude for each agent.
@@ -27,40 +45,62 @@ Conductor is a multi-agent framework designed to provide a robust platform for A
 -   🧬 **Metaprogramming:** Use agents to create and manage other agents, enabling a self-improving system.
 -   📋 **Plan-Based Execution:** Automate complex coding tasks by defining a sequence of steps in a YAML workflow.
 
+### 💡 A Practical Example
+
+**The traditional way:** To add a field to a database entity, you need to:
+1.  Write the database migration.
+2.  Change the entity class in the code.
+3.  Update the DTO (Data Transfer Object).
+4.  Expose the new field in the API.
+5.  Update the tests.
+
+**With Conductor:** You simply instruct the agent:
+> *"Add a 'last_login' date field to the User entity, including the database migration, DTO, and API endpoint."*
+
+Conductor then orchestrates the specialist agents needed to execute all steps automatically.
+
+### 👥 Who is Conductor for?
+- **Developers & Agile Teams** who want to accelerate development and automate repetitive coding tasks.
+- **DevOps Engineers** looking to automate the configuration and maintenance of infrastructure as code.
+- **AI Enthusiasts** who want a robust platform to build and experiment with multi-agent systems.
+
 ## 🏁 Getting Started
 
-You can get Conductor up and running using either Docker (recommended for ease of use) or a local Python environment.
+Follow these steps to get a fully functional Conductor environment running.
 
-### 1. Using Docker (Recommended)
+**1. Clone the Repository**
+```bash
+git clone https://github.com/cezarfuhr/conductor.git
+cd conductor
+```
 
-This is the easiest way to start. With Docker and Docker Compose installed, simply run:
+**2. Configure Your Environment**
 
+Conductor requires API keys to connect to AI providers.
+
+```bash
+# Create your personal environment file from the template
+cp .env.example .env
+```
+Now, open the `.env` file and add your API key(s) (e.g., `GEMINI_API_KEY` or `ANTHROPIC_API_KEY`).
+
+**3. Run with Docker (Recommended)**
+
+This is the easiest way to start. With your `.env` file configured, simply run:
 ```bash
 docker-compose up --build
 ```
+The service will be available, and you can start interacting with agents.
 
-This command will build the Docker image, install all dependencies, and start the Conductor service.
+**4. (Alternative) Run with a Local Python Environment**
 
-### 2. Local Python Environment
-
-If you prefer to run locally:
-
-**Prerequisites:**
--   Python 3.8+
--   [Poetry](https://python-poetry.org/docs/#installation) for dependency management.
-
-**Installation:**
+If you prefer a local setup:
 ```bash
-# 1. Clone the repository
-git clone https://github.com/cezarfuhr/conductor.git
-cd conductor
-
-# 2. Install dependencies using Poetry
+# Install dependencies
 poetry install
 
-# 3. Set up your environment variables
-cp .env.example .env
-# Edit .env and add your API keys (e.g., ANTHROPIC_API_KEY)
+# Run an agent
+poetry run python src/cli/agent.py --agent MyAgent
 ```
 
 ## ⚙️ Quick Start: Running Your First Agent
