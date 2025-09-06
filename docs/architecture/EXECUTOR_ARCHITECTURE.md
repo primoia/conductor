@@ -230,7 +230,7 @@ poetry run python src/cli/admin.py \
 
 #### Executor Workflow Diagram
 
-![Flowchart of the executor architecture, showing how a Plan YAML is loaded and executed step-by-step.](./assets/images/executor_flowchart.svg)
+![Flowchart of the executor architecture, showing how a Plan YAML is loaded and executed step-by-step.](../assets/images/executor_flowchart.svg)
 
 <details>
 <summary>View or Edit Diagram Code (Mermaid)</summary>
@@ -244,14 +244,14 @@ graph TD
 
     subgraph Execution Engine
         C{Load Plan}
-        D{For each step in Plan}
-        E[Execute Tool(step.tool, step.params)]
+        D["For each step in Plan"]
+        E["Execute Tool(step.tool, step.params)"]
         F{Check Result}
     end
 
     subgraph Output
-        G[Success: Final State]
-        H[Failure: Error Report]
+        G["Success: Final State"]
+        H["Failure: Error Report"]
     end
 
     A --> C
@@ -261,6 +261,6 @@ graph TD
     E --> F
     F -- OK --> D
     F -- Error --> H
-    D -- All steps complete --> G
+    D -- "All steps complete" --> G
 ```
 </details>
