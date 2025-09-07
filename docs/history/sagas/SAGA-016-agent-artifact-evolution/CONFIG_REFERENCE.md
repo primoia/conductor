@@ -63,6 +63,24 @@ Esta configuração é recomendada para equipes, ambientes de produção e cená
       - "/home/user/conductor_tools/internal_api_clients/"
     ```
 
+### 2.3. `tool_config`
+
+*   **Obrigatório:** Não
+*   **Propósito:** Permite a configuração de segurança granular para `Tools` específicas, especialmente as que apresentam maior risco.
+
+*   **Exemplo:**
+    ```yaml
+    # Configura a ferramenta "shell.run" para apenas permitir comandos específicos.
+    tool_config:
+      shell.run:
+        allowed_commands: 
+          - "git"
+          - "ls"
+          - "cat"
+          - "npm"
+          - "node"
+    ```
+
 ---
 
 ## 3. Exemplo de Arquivo Completo

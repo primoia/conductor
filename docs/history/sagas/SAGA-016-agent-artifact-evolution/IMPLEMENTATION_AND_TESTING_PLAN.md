@@ -30,7 +30,7 @@ Esta estratégia é dividida em duas fases para garantir que a funcionalidade ex
     1.  **`tests/storage/test_filesystem_backend.py`**: Testar todos os métodos do `FileSystemBackend`, incluindo:
         *   Criação do diretório `.conductor_workspace`.
         *   "Onboarding" (cópia) dos `_agent_templates/` na primeira execução.
-        *   Leitura e escrita de cada tipo de artefato (`definition`, `persona`, `knowledge`, `history`, etc.).
+        *   Leitura e escrita de cada tipo de artefato (`definition.yaml`, `persona.md`, `playbook.yaml`, `knowledge.json`, `history.log`).
     2.  **`tests/storage/test_mongodb_backend.py`**: Usando um mock do `pymongo` ou um banco de dados de teste, validar todos os métodos do `MongoDbBackend`.
     3.  **`tests/core/test_orchestrator.py`**: Testar a lógica do Orquestrador em `run_conductor.py`:
         *   Seleção de agente por `tags` e `capabilities`.
