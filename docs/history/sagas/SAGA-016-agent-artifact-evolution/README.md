@@ -36,38 +36,10 @@ Estes são os componentes detalhados que implementam os princípios acima.
 
 ### 3.1. Artefatos do Agente
 
-Cada agente é composto por um conjunto de artefatos, cada um com um propósito claro e um formato adequado.
+Cada agente é composto por um conjunto de artefatos, cada um com um propósito claro e um formato adequado. A nomenclatura foi padronizada para `definition.yaml`, `persona.md`, `playbook.yaml`, `knowledge.json`, `history.log` e `session.json`.
 
-| Artefato | Formato | Propósito e Justificativa |
-| :--- | :--- | :--- |
-| **`definition`** | YAML/JSON | **Para a Máquina.** Contém metadados estruturados (`name`, `version`, `tags`, `capabilities`). Usado pelo Orquestrador para **filtragem rápida e programática** de agentes. |
-| **`persona`** | Markdown | **Para o Humano e para o LLM.** Documento de texto que define o comportamento e a especialidade do agente. É editado por humanos e lido pelo LLM para **decisão semântica**. |
-| **`playbook`** | Markdown | **Para o Humano e para o LLM.** Contém as "lições aprendidas" de forma estruturada. Humanos o editam para adicionar orientação. O LLM o lê para se guiar. A estrutura interna é dividida em `## Best Practices` e `## Anti-Patterns`, com cada entrada possuindo um `ID` único, `Title` e `Description`. Para mais detalhes, veja o [Guia de Referência de Artefatos](./AGENT_ARTIFACTS_REFERENCE.md). |
-| **`memory`** | JSON | **Para a Máquina.** É um log de dados estruturados de longo prazo. Permite consultas programáticas sobre o histórico de execuções do agente. Para mais detalhes, veja o [Guia de Referência de Artefatos](./AGENT_ARTIFACTS_REFERENCE.md). |
-| **`session`** | JSON | **Para a Máquina.** É um objeto de estado volátil de curto prazo. Permite que o sistema modifique o contexto da tarefa atual de forma atômica e confiável. Para mais detalhes, veja o [Guia de Referência de Artefatos](./AGENT_ARTIFACTS_REFERENCE.md). |
+*Para uma especificação detalhada de cada artefato, consulte o [Guia de Referência de Artefatos Unificado](./UNIFIED_ARTIFACT_REFERENCE.md).*
 
-**Exemplo de `playbook.md` Estruturado:**
-```markdown
-## Best Practices
-
----
-**ID:** BP001
-**Title:** Seja Conciso e Direto
-**Description:** Responda à pergunta do usuário da forma mais direta possível, evitando preâmbulos desnecessários.
-
----
-**ID:** BP002
-**Title:** Ofereça Exemplos Práticos
-**Description:** Sempre que explicar um conceito técnico, forneça um pequeno bloco de código ou um exemplo de comando para ilustrar o ponto.
-
-## Anti-Patterns
-
----
-**ID:** AP001
-**Title:** Evite Respostas Excessivamente Longas
-**Description:** Se uma explicação requer mais de três parágrafos, considere dividi-la em partes ou perguntar ao usuário se ele deseja detalhes adicionais.
----
-```
 
 ### 3.2. Templates de Agente (A Fonte da Verdade)
 
@@ -87,15 +59,17 @@ Cada agente é composto por um conjunto de artefatos, cada um com um propósito 
 {
   "_id": "KotlinEntityCreator",
   "template_version": "2.1.0",
-  "definition": { "name": "...", "tags": ["kotlin"] },
+  "definition": { "name": "...", "tags": ["kotlin"], "schema_version": "1.0" },
   "persona": "Eu sou um especialista em Kotlin...",
-  "playbook": {
-    "best_practices": "- Sempre use `val`...",
-    "anti_patterns": "- Nunca use `FetchType.EAGER`..."
+  "playbook": { // Objeto YAML/JSON estruturado
+    "best_practices": [{ "id": "BP001", "title": "..." }],
+    "anti_patterns": [{ "id": "AP001", "title": "..." }]
   },
-  "memory": [ { "taskId": "...", "summary": "..." } ],
-  "session": { "current_task": null }
+  "knowledge": { // A base de conhecimento semântica do agente
+    "src/main/com/example/User.kt": { "summary": "Entidade de usuário principal" }
+  }
 }
+// Nota: O histórico (`history`) e as sessões (`sessions`) residem em coleções separadas para garantir a escalabilidade.
 ```
 
 ### 3.4. O Backend Flexível de Armazenamento
@@ -121,6 +95,11 @@ Este componente resolve o problema do inchaço do framework.
     tool_plugins:
       - /path/to/my_company_sap_tools/
       - /path/to/my_personal_scripts/
+
+    # Opcional: Configuração de segurança granular para tools
+    tool_config:
+      shell.run:
+        allowed_commands: ["git", "ls", "cat", "npm", "node"]
     ```
 *   O sistema carrega essas ferramentas customizadas na inicialização. Uma vez carregadas, elas são tratadas de forma idêntica às Core Tools, incluindo o sistema de permissões no `agent.yaml`.
 

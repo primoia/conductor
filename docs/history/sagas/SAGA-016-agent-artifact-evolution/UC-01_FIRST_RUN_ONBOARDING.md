@@ -27,7 +27,7 @@ Este documento descreve o fluxo de trabalho da primeira vez que um usuário exec
 7.  O sistema itera sobre cada template de agente encontrado em `_agent_templates/`.
 8.  Para cada template (ex: `AgentCreator_Agent`), o sistema:
     a. Cria um diretório correspondente dentro de `.conductor_workspace/agents/` (ex: `.conductor_workspace/agents/AgentCreator_Agent/`).
-    b. Copia os artefatos do template (`definition.yaml`, `persona.md`, `playbook.md`) para o novo diretório da instância.
+    b. Copia os artefatos do template (`definition.yaml`, `persona.md`, `playbook.yaml`) para o novo diretório da instância.
 9.  O sistema adiciona a entrada `.conductor_workspace/` ao arquivo `.gitignore` na raiz do projeto, se ainda não existir.
 10. Com o ambiente inicializado, o Conductor prossegue com a execução normal do comando original do usuário.
 
@@ -35,7 +35,7 @@ Este documento descreve o fluxo de trabalho da primeira vez que um usuário exec
 
 *   O arquivo `config.yaml` existe na raiz do projeto.
 *   O diretório `.conductor_workspace/` existe na raiz do projeto e não contém um `config.yaml`.
-*   O diretório `.conductor_workspace/agents/` contém subdiretórios para cada um dos agentes iniciais, e cada um contém seus respectivos artefatos de *definição*. Os artefatos de *estado* (`memory.json`, `session.json`) ainda não existem.
+*   O diretório `.conductor_workspace/agents/` contém subdiretórios para cada um dos agentes iniciais, e cada um contém seus respectivos artefatos de *definição*. Os artefatos de *estado* (`knowledge.json`, `history.log`, `session.json`) ainda não existem.
 *   O arquivo `.gitignore` principal contém a entrada `.conductor_workspace/`.
 *   O comando original do usuário é executado com sucesso no ambiente recém-inicializado.
 
@@ -52,7 +52,7 @@ Este fluxo estabelece a seguinte estrutura de diretórios e arquivos:
 │       ├── AgentCreator_Agent/
 │       │   ├── definition.yaml
 │       │   ├── persona.md
-│       │   └── playbook.md
+│       │   └── playbook.yaml
 │       │
 │       └── ... (outros agentes iniciais)
 │
@@ -69,6 +69,6 @@ Este fluxo estabelece a seguinte estrutura de diretórios e arquivos:
     └── ... (código fonte do Conductor)
 ```
 
-**Nota sobre Artefatos de Estado:** Os arquivos `memory.json` e `session.json` serão criados dinamicamente dentro do diretório de cada agente (ex: `.conductor_workspace/agents/AgentCreator_Agent/`) na primeira vez que aquela instância de agente precisar persistir seu estado.
+**Nota sobre Artefatos de Estado:** Os arquivos `knowledge.json`, `history.log` e `session.json` serão criados dinamicamente dentro do diretório de cada agente (ex: `.conductor_workspace/agents/AgentCreator_Agent/`) na primeira vez que aquela instância de agente precisar persistir seu estado.
 
 **Nota sobre a Estrutura do `playbook.md`:** Conforme definido na SAGA principal, cada `playbook.md` segue uma estrutura incremental com seções `## Best Practices` e `## Anti-Patterns`, onde cada entrada possui um `ID` único, `Title` e `Description` para permitir modificações programáticas precisas.
