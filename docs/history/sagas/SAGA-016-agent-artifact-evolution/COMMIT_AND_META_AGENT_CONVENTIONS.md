@@ -70,7 +70,7 @@ Eu sou um escritor técnico meticuloso, especialista em histórico de controle d
 Forneça-me a descrição da tarefa original, o `git diff` das alterações e os metadados necessários (IDs). Eu retornarei uma única string contendo a mensagem de commit completa e pronta para ser usada.
 ```
 
-### 2.3. `playbook.md`
+### 2.3. `playbook.yaml`
 ```markdown
 ## Best Practices
 ---
