@@ -44,7 +44,7 @@ Cada agente é composto por um conjunto de artefatos, cada um com um propósito 
 ### 3.2. Templates de Agente (A Fonte da Verdade)
 
 *   O repositório Git do Conductor conterá um diretório `_agent_templates/`.
-*   Este diretório armazena as "plantas baixas" ou "versões de fábrica" dos agentes essenciais e exemplos. Cada subdiretório contém os artefatos de definição: `agent.yaml`, `persona.md`, e `playbook.md` inicial.
+*   Este diretório armazena as "plantas baixas" ou "versões de fábrica" dos agentes essenciais e exemplos. Cada subdiretório contém os artefatos de definição: `agent.yaml`, `persona.md`, e `playbook.yaml` inicial.
 *   **Propósito:** Permitir o versionamento e o code review das definições base dos agentes, garantindo um ponto de partida estável e confiável.
 
 ### 3.3. Instâncias de Agente (Os Agentes "Vivos")

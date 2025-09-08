@@ -60,7 +60,7 @@ Este fluxo estabelece a seguinte estrutura de diretórios e arquivos:
 │   ├── AgentCreator_Agent/
 │   │   ├── definition.yaml
 │   │   ├── persona.md
-│   │   └── playbook.md
+│   │   └── playbook.yaml
 │   └── ... (outros agentes iniciais)
 │
 ├── config.yaml              # <<< ARQUIVO DE CONFIGURAÇÃO PRINCIPAL
@@ -71,4 +71,4 @@ Este fluxo estabelece a seguinte estrutura de diretórios e arquivos:
 
 **Nota sobre Artefatos de Estado:** Os arquivos `knowledge.json`, `history.log` e `session.json` serão criados dinamicamente dentro do diretório de cada agente (ex: `.conductor_workspace/agents/AgentCreator_Agent/`) na primeira vez que aquela instância de agente precisar persistir seu estado.
 
-**Nota sobre a Estrutura do `playbook.md`:** Conforme definido na SAGA principal, cada `playbook.md` segue uma estrutura incremental com seções `## Best Practices` e `## Anti-Patterns`, onde cada entrada possui um `ID` único, `Title` e `Description` para permitir modificações programáticas precisas.
+**Nota sobre a Estrutura do `playbook.yaml`:** Conforme definido na SAGA principal, cada `playbook.yaml` segue uma estrutura YAML estruturada com seções `best_practices` e `anti_patterns`, onde cada entrada possui um `id` único, `title` e `description` para permitir modificações programáticas precisas.
