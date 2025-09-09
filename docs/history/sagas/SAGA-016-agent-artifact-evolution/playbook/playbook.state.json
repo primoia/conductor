@@ -1,5 +1,5 @@
 {
-  "current_plan": "0001-A-definir-estruturas-de-dados",
-  "status": "delegated_to_claude",
-  "completed_plans": []
+  "current_plan": "0002-B-implementar-persistencia-filesystem",
+  "status": "awaiting_plan_validation",
+  "completed_plans": ["0001-A-definir-estruturas-de-dados"]
 }
