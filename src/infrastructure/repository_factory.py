@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict
 from src.config import ConfigManager
 from src.infrastructure.filesystem_storage import FileSystemStorage
-# from src.infrastructure.mongodb_storage import MongoDbStorage # Será descomentado no próximo plano
+from src.infrastructure.mongodb_storage import MongoDbStorage
 
 
 class RepositoryFactory:
@@ -21,8 +21,9 @@ class RepositoryFactory:
             workspace_path = config.get('workspace_path', '.conductor_workspace')
             return FileSystemStorage(base_path=Path(workspace_path))
         elif repo_type == 'mongodb':
-            # Lógica a ser implementada no próximo plano
-            # return MongoDbStorage(...)
-            raise NotImplementedError("MongoDB backend não está implementado ainda.")
+            return MongoDbStorage(
+                connection_string=config.get('connection_string'),
+                db_name=config.get('db_name', 'conductor')
+            )
         else:
             raise ValueError(f"Tipo de repositório desconhecido: {repo_type}")
