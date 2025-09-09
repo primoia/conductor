@@ -1,7 +1,43 @@
 # src/core/domain.py
 
 from dataclasses import dataclass, field
-from typing import List, Dict
+from typing import List, Dict, Any, Optional
+
+
+# Exceptions
+class AgentNotEmbodied(Exception):
+    """Raised when trying to interact with an agent that hasn't been embodied."""
+    pass
+
+
+class StateRepositoryError(Exception):
+    """Raised when there are issues with the state repository."""
+    pass
+
+
+# Core data structures
+@dataclass
+class ConversationMessage:
+    """A message in a conversation."""
+    role: str
+    content: str
+    timestamp: Optional[str] = None
+
+
+@dataclass
+class AgentState:
+    """Current state of an agent."""
+    agent_id: str
+    conversation_history: List[ConversationMessage] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class AgentConfig:
+    """Configuration for an agent."""
+    agent_id: str
+    definition: 'AgentDefinition'
+    settings: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass(frozen=True)
 class AgentDefinition:
