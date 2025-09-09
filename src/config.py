@@ -41,7 +41,19 @@ class Settings(BaseSettings):
     def check_credentials(self) -> 'Settings':
         """
         Ensures that at least one AI provider credential is configured.
+        Only enforced when running in Docker containers - local development bypasses this check.
         """
+        # Check if running in Docker container
+        is_docker = (
+            os.path.exists("/.dockerenv") or 
+            os.getenv("DOCKER_CONTAINER") == "true" or
+            os.path.exists("/root/.config/gcloud")  # Docker-specific gcloud path
+        )
+        
+        # Skip credential validation for local development
+        if not is_docker:
+            return self
+            
         gcp_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
         # The gcloud config directory inside the Docker container.
         gcloud_config_exists = os.path.exists("/root/.config/gcloud")

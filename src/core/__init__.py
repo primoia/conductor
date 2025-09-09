@@ -3,10 +3,12 @@ from .domain import (
     AgentConfig,
     ConversationMessage,
     AgentState,
-    ConductorException,
     AgentNotEmbodied,
-    ConfigurationError,
     StateRepositoryError,
+)
+from .exceptions import (
+    ConductorException,
+    ConfigurationError,
 )
 
 __all__ = [

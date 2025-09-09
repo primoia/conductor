@@ -13,9 +13,9 @@ from src.core.domain import (
     ConversationMessage,
     AgentState,
     AgentNotEmbodied,
-    ConfigurationError,
     StateRepositoryError,
 )
+from src.core.exceptions import ConfigurationError
 from src.core.exceptions import (
     AgentNotFoundError,
     LLMClientError,
