@@ -110,5 +110,8 @@ class ConfigManager:
         return storage_config
 
 
+# Schema version constant
+CURRENT_SUPPORTED_SCHEMA_VERSION = "1.0"
+
 # Global settings instance
 settings = Settings()

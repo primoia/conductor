@@ -4,6 +4,7 @@ from typing import List
 
 from src.core.domain import AgentDefinition
 from src.core.agent_service import AgentService
+from src.cli.shared.utils import confirm_action
 
 class NoSuitableAgentFoundError(Exception):
     pass
@@ -54,3 +55,17 @@ class Orchestrator:
         if "commit message" in task_description:
             return ["generate_commit_message_from_diff"]
         return [word for word in task_description.split() if not word.isspace()]
+
+    def execute_task(self, task_description: str):
+        """
+        Executa uma tarefa usando o melhor agente encontrado, com confirmação HITL.
+        """
+        agent_def = self.find_best_agent_for_task(task_description)
+        
+        prompt = f"Delegar a tarefa '{task_description}' ao agente '{agent_def.name}'?"
+        if confirm_action(prompt):
+            # Lógica para invocar o agente executor seria implementada aqui
+            print("Execução aprovada. Delegando...")
+            # TODO: Implementar a lógica de execução do agente
+        else:
+            print("Execução abortada pelo usuário.")
