@@ -1,5 +1,5 @@
 {
-  "current_plan": "0002-B-implementar-persistencia-filesystem",
+  "current_plan": "0003-C-implementar-logica-carregamento-agente",
   "status": "awaiting_plan_validation",
-  "completed_plans": ["0001-A-definir-estruturas-de-dados"]
+  "completed_plans": ["0001-A-definir-estruturas-de-dados", "0002-B-implementar-persistencia-filesystem"]
 }
