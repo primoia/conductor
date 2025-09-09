@@ -8,14 +8,14 @@ O objetivo é modificar o `ToolManager` ou criar um `ToolExecutor` que, antes de
 
 ## Checklist de Verificação
 
-- [ ] Modificar o `ConfigManager` para carregar e validar a seção `tool_config` do `config.yaml`.
-- [ ] Criar uma estrutura de dados (ex: uma `dataclass`) para representar a configuração de uma ferramenta (ex: `ToolSecurityConfig`).
-- [ ] Criar (ou modificar) uma classe `ToolExecutor` responsável por executar uma ferramenta.
-- [ ] O `ToolExecutor` deve receber o `ToolManager` e a `AppConfig` no seu construtor.
-- [ ] Antes de executar uma ferramenta (ex: `shell.run`), o `ToolExecutor` deve:
+- [x] Modificar o `ConfigManager` para carregar e validar a seção `tool_config` do `config.yaml`.
+- [x] Criar uma estrutura de dados (ex: uma `dataclass`) para representar a configuração de uma ferramenta (ex: `ToolSecurityConfig`).
+- [x] Criar (ou modificar) uma classe `ToolExecutor` responsável por executar uma ferramenta.
+- [x] O `ToolExecutor` deve receber o `ToolManager` e a `AppConfig` no seu construtor.
+- [x] Antes de executar uma ferramenta (ex: `shell.run`), o `ToolExecutor` deve:
     1. Verificar se existe uma entrada para `shell.run` em `config.tool_config`.
     2. Se existir, extrair a lista de `allowed_commands`.
     3. Validar se o comando que o agente está tentando executar está presente na lista de permitidos.
     4. Lançar uma exceção de segurança (`SecurityViolationError`) se a validação falhar.
-- [ ] Refatorar a lógica de execução do agente para usar o `ToolExecutor` em vez de chamar diretamente as funções das ferramentas.
-- [ ] Adicionar um exemplo de configuração para `shell.run` no `config.yaml` da raiz do projeto.
+- [x] Refatorar a lógica de execução do agente para usar o `ToolExecutor` em vez de chamar diretamente as funções das ferramentas.
+- [x] Adicionar um exemplo de configuração para `shell.run` no `config.yaml` da raiz do projeto.
