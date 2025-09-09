@@ -3,8 +3,9 @@ import yaml
 from pathlib import Path
 from typing import Dict, Any, Tuple
 
-from src.config import settings
+from src.config import settings, ConfigManager
 from src.core.agent_logic import AgentLogic
+from src.core.agent_service import AgentService
 from src.core.exceptions import AgentNotFoundError
 from src.ports.state_repository import StateRepository
 from src.ports.llm_client import LLMClient
@@ -13,6 +14,7 @@ from src.infrastructure.persistence.state_repository import (
     MongoStateRepository,
 )
 from src.infrastructure.llm.cli_client import create_llm_client
+from src.infrastructure.repository_factory import RepositoryFactory
 
 
 class DIContainer:
@@ -28,6 +30,7 @@ class DIContainer:
 
     def __init__(self):
         self.settings = settings
+        self.config_manager = ConfigManager()
         self._state_repository = None
         self._ai_providers_config = None
 
@@ -85,6 +88,22 @@ class DIContainer:
 
         # Create and return AgentLogic with injected dependencies
         return AgentLogic(state_repository, llm_client)
+
+    def create_agent_service(self) -> AgentService:
+        """
+        Create a fully configured AgentService instance using the repository factory.
+        
+        Returns:
+            Configured AgentService instance with the appropriate storage backend
+        """
+        # Load storage configuration from config.yaml
+        storage_config = self.config_manager.load_storage_config()
+        
+        # Use RepositoryFactory to create the appropriate repository
+        storage_repository = RepositoryFactory.get_repository(storage_config)
+        
+        # Create and return AgentService with injected repository
+        return AgentService(storage_repository)
 
     def load_ai_providers_config(self) -> Dict[str, Any]:
         """Load AI providers configuration."""
