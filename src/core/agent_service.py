@@ -1,6 +1,7 @@
 # src/core/agent_service.py
 
-from src.core.domain import AgentInstance
+from typing import List
+from src.core.domain import AgentInstance, AgentDefinition
 # A classe de armazenamento será usada como uma interface, então importamos para type hinting
 from src.infrastructure.filesystem_storage import FileSystemStorage 
 
@@ -36,3 +37,9 @@ class AgentService:
         except FileNotFoundError as e:
             # 3. Levanta AgentNotFoundError se o agente não for encontrado.
             raise AgentNotFoundError(f"Agent '{agent_name}' not found: {str(e)}") from e
+
+    def list_all_agent_definitions(self) -> List[AgentDefinition]:
+        """
+        Lista todas as definições de agente disponíveis no repositório.
+        """
+        return self.storage.list_all_agent_definitions()
