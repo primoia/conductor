@@ -15,10 +15,66 @@ class StateRepositoryError(Exception):
     pass
 
 
+class ConfigurationError(Exception):
+    """Raised when there are configuration issues."""
+    pass
+
+
 # Core data structures
 @dataclass
+class ConversationEntryDTO:
+    """
+    Unified conversation entry representing a user prompt and AI response pair.
+    
+    This DTO serves as the single source of truth for conversation history,
+    replacing both the legacy {prompt, response, timestamp} format and the
+    {role, content, timestamp} format.
+    """
+    user_input: str
+    ai_response: str
+    timestamp: Optional[float] = None
+    
+    @classmethod
+    def from_legacy_format(cls, data: dict) -> 'ConversationEntryDTO':
+        """Create from legacy {prompt, response, timestamp} format."""
+        return cls(
+            user_input=data["prompt"],
+            ai_response=data["response"], 
+            timestamp=data.get("timestamp")
+        )
+    
+    def to_legacy_format(self) -> dict:
+        """Convert to legacy {prompt, response, timestamp} format for LLM clients."""
+        return {
+            "prompt": self.user_input,
+            "response": self.ai_response,
+            "timestamp": self.timestamp
+        }
+    
+    def to_messages_format(self) -> list:
+        """Convert to list of separate role-based messages for modern LLM APIs."""
+        messages = [
+            {"role": "user", "content": self.user_input}
+        ]
+        if self.ai_response:
+            messages.append({"role": "assistant", "content": self.ai_response})
+        return messages
+    
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "user_input": self.user_input,
+            "ai_response": self.ai_response,
+            "timestamp": self.timestamp
+        }
+
+
+@dataclass 
 class ConversationMessage:
-    """A message in a conversation."""
+    """
+    DEPRECATED: Use ConversationEntryDTO instead.
+    Kept for backward compatibility during migration.
+    """
     role: str
     content: str
     timestamp: Optional[str] = None
