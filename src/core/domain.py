@@ -86,3 +86,14 @@ class AgentSession:
     """
     current_task_id: str
     state: Dict = field(default_factory=dict)
+
+@dataclass(frozen=True)
+class AgentInstance:
+    """
+    Representa um agente totalmente carregado em memória, com todos os seus artefatos.
+    """
+    definition: AgentDefinition
+    persona: AgentPersona
+    playbook: AgentPlaybook
+    knowledge: AgentKnowledge
+    history: List[HistoryEntry]

@@ -10,10 +10,10 @@ Vamos criar um novo `AgentInstance` dataclass em `domain.py` para representar um
 
 ## Checklist de Verificação
 
-- [ ] Em `src/core/domain.py`, criar uma nova dataclass `AgentInstance` que contém todos os artefatos: `definition: AgentDefinition`, `persona: AgentPersona`, `playbook: AgentPlaybook`, `knowledge: AgentKnowledge`, `history: List[HistoryEntry]`.
-- [ ] Criar um novo arquivo `src/core/agent_service.py`.
-- [ ] Em `agent_service.py`, criar uma classe `AgentService`.
-- [ ] O construtor do `AgentService` deve receber uma instância de um repositório (inicialmente, o `FileSystemStorage`).
-- [ ] Implementar um método `load_agent_instance(agent_name: str) -> AgentInstance` no `AgentService`.
-- [ ] O método `load_agent_instance` deve usar o repositório injetado para carregar cada artefato individualmente (`definition`, `persona`, etc.) e montá-los em um objeto `AgentInstance`.
-- [ ] Adicionar tratamento de erro básico para o caso de um diretório de agente não ser encontrado.
+- [x] Em `src/core/domain.py`, criar uma nova dataclass `AgentInstance` que contém todos os artefatos: `definition: AgentDefinition`, `persona: AgentPersona`, `playbook: AgentPlaybook`, `knowledge: AgentKnowledge`, `history: List[HistoryEntry]`.
+- [x] Criar um novo arquivo `src/core/agent_service.py`.
+- [x] Em `agent_service.py`, criar uma classe `AgentService`.
+- [x] O construtor do `AgentService` deve receber uma instância de um repositório (inicialmente, o `FileSystemStorage`).
+- [x] Implementar um método `load_agent_instance(agent_name: str) -> AgentInstance` no `AgentService`.
+- [x] O método `load_agent_instance` deve usar o repositório injetado para carregar cada artefato individualmente (`definition`, `persona`, etc.) e montá-los em um objeto `AgentInstance`.
+- [x] Adicionar tratamento de erro básico para o caso de um diretório de agente não ser encontrado.
