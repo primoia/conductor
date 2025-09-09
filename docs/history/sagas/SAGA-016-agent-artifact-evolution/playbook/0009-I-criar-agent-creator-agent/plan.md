@@ -8,10 +8,10 @@ Ele usará as ferramentas de manipulação de arquivos para criar a pasta do age
 
 ## Checklist de Verificação
 
-- [ ] Criar a estrutura de diretórios: `.conductor_workspace/agents/AgentCreator_Agent/`.
-- [ ] Criar o arquivo `definition.yaml` com `name`, `version`, `description`, `tags: ["meta", "onboarding"]`, `capabilities: ["create_agent_scaffold"]`.
-- [ ] Em `allowed_tools`, incluir `file.write` e `shell.run` (para `mkdir`).
-- [ ] Criar o arquivo `persona.md` que instrui o agente a:
+- [x] Criar a estrutura de diretórios: `.conductor_workspace/agents/AgentCreator_Agent/`.
+- [x] Criar o arquivo `definition.yaml` com `name`, `version`, `description`, `tags: ["meta", "onboarding"]`, `capabilities: ["create_agent_scaffold"]`.
+- [x] Em `allowed_tools`, incluir `file.write` e `shell.run` (para `mkdir`).
+- [x] Criar o arquivo `persona.md` que instrui o agente a:
     1. Receber uma descrição de um novo agente (ex: "Quero um agente que refatora código Kotlin").
     2. Extrair o nome, as capacidades e as tags dessa descrição.
     3. Gerar um `definition.yaml` básico com essas informações.
