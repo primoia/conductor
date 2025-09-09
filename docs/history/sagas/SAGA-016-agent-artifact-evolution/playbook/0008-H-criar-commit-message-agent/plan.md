@@ -8,8 +8,8 @@ Este plano foca em criar a definição e a persona deste agente. A lógica de ex
 
 ## Checklist de Verificação
 
-- [ ] Criar a estrutura de diretórios para o novo agente: `.conductor_workspace/agents/CommitMessage_Agent/`.
-- [ ] Criar o arquivo `definition.yaml` para o `CommitMessage_Agent`, com `name`, `version`, `description`, `author`, `tags: ["meta", "git"]` e `capabilities: ["generate_commit_message"]`.
-- [ ] O `allowed_tools` para este agente pode ser vazio, pois sua lógica é puramente de transformação de texto baseada no LLM.
-- [ ] Criar o arquivo `persona.md` detalhando o propósito do agente: ser um especialista em controle de versão que cria mensagens de commit claras, concisas e padronizadas a partir de um `diff`.
-- [ ] A persona deve instruir o agente a seguir estritamente o formato: `type(scope): subject`, corpo opcional, e os trailers `Conductor-Task-ID`, `Conductor-Agent-ID`, `Conductor-History-ID`.
+- [x] Criar a estrutura de diretórios para o novo agente: `.conductor_workspace/agents/CommitMessage_Agent/`.
+- [x] Criar o arquivo `definition.yaml` para o `CommitMessage_Agent`, com `name`, `version`, `description`, `author`, `tags: ["meta", "git"]` e `capabilities: ["generate_commit_message"]`.
+- [x] O `allowed_tools` para este agente pode ser vazio, pois sua lógica é puramente de transformação de texto baseada no LLM.
+- [x] Criar o arquivo `persona.md` detalhando o propósito do agente: ser um especialista em controle de versão que cria mensagens de commit claras, concisas e padronizadas a partir de um `diff`.
+- [x] A persona deve instruir o agente a seguir estritamente o formato: `type(scope): subject`, corpo opcional, e os trailers `Conductor-Task-ID`, `Conductor-Agent-ID`, `Conductor-History-ID`.
