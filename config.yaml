@@ -7,3 +7,8 @@ storage_backend:
 
 tool_plugins:
   # - "/path/to/my/custom_tools/"
+
+# Configuração de segurança granular para tools
+tool_config:
+  shell_run: # O nome da função da ferramenta
+    allowed_commands: ["git", "ls", "cat", "npm", "pytest"]
