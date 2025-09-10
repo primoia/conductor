@@ -10,11 +10,11 @@ O objetivo é orquestrar o fluxo de dados e o ciclo de vida de uma execução de
 
 #### Checklist de Execução
 
-- [ ] Modificar o `ConductorService` em `src/core/conductor_service.py`.
-- [ ] Implementar a lógica do método `execute_task(task: TaskDTO)`.
-- [ ] Chamar `self.repository.load_state(task.agent_id)` para obter a definição e os caminhos do agente.
-- [ ] Instanciar o `PromptEngine` com o `agent_home_path` obtido.
-- [ ] Determinar as ferramentas permitidas para o agente a partir de sua definição.
-- [ ] Instanciar o `AgentExecutor`, injetando todas as dependências (definição, cliente LLM, `PromptEngine`, ferramentas).
-- [ ] Chamar o método `executor.run(task)`.
-- [ ] Retornar o `TaskResultDTO` resultante.
+- [x] Modificar o `ConductorService` em `src/core/conductor_service.py`.
+- [x] Implementar a lógica do método `execute_task(task: TaskDTO)`.
+- [x] Chamar `self.repository.load_state(task.agent_id)` para obter a definição e os caminhos do agente.
+- [x] Instanciar o `PromptEngine` com o `agent_home_path` obtido.
+- [x] Determinar as ferramentas permitidas para o agente a partir de sua definição.
+- [x] Instanciar o `AgentExecutor`, injetando todas as dependências (definição, cliente LLM, `PromptEngine`, ferramentas).
+- [x] Chamar o método `executor.run(task)`.
+- [x] Retornar o `TaskResultDTO` resultante.
