@@ -10,9 +10,9 @@ O objetivo é projetar a API "de fora para dentro". Ao definir os DTOs primeiro,
 
 #### Checklist de Execução
 
-- [ ] Abrir o arquivo `src/core/domain.py`.
-- [ ] Definir uma nova classe Pydantic (ou `@dataclass`) chamada `ExecuteTaskRequest`.
-- [ ] Ela deve conter os campos que um cliente externo precisaria para iniciar uma tarefa (ex: `agent_id: str`, `user_input: str`).
-- [ ] Definir uma nova classe Pydantic chamada `TaskStatusResponse`.
-- [ ] Ela deve conter os campos para que um cliente possa consultar o status de uma tarefa (ex: `task_id: str`, `status: str`, `output: Optional[str]`).
-- [ ] Adicionar validações (se necessário) e documentação clara (docstrings) para cada campo e classe.
+- [x] Abrir o arquivo `src/core/domain.py`.
+- [x] Definir uma nova classe Pydantic (ou `@dataclass`) chamada `ExecuteTaskRequest`.
+- [x] Ela deve conter os campos que um cliente externo precisaria para iniciar uma tarefa (ex: `agent_id: str`, `user_input: str`).
+- [x] Definir uma nova classe Pydantic chamada `TaskStatusResponse`.
+- [x] Ela deve conter os campos para que um cliente possa consultar o status de uma tarefa (ex: `task_id: str`, `status: str`, `output: Optional[str]`).
+- [x] Adicionar validações (se necessário) e documentação clara (docstrings) para cada campo e classe.
