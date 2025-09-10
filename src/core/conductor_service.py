@@ -3,6 +3,7 @@ import yaml
 import importlib
 import pkgutil
 import sys
+import logging
 from pathlib import Path
 from typing import List, Dict, Callable, Any
 from src.ports.conductor_service import IConductorService
@@ -15,6 +16,8 @@ from src.core.domain import AgentDefinition, TaskDTO, TaskResultDTO
 from src.core.tools.core_tools import CORE_TOOLS
 from src.core.agent_executor import AgentExecutor, PlaceholderLLMClient
 from src.core.prompt_engine import PromptEngine
+
+logger = logging.getLogger(__name__)
 
 
 class ConductorService(IConductorService):
@@ -99,11 +102,23 @@ class ConductorService(IConductorService):
             self._tools[tool.__name__] = tool
 
         # Carregar Tool Plugins
+        project_root = Path().resolve()
         for plugin_path_str in self._config.tool_plugins:
             plugin_path = Path(plugin_path_str).resolve()
-            if not plugin_path.is_dir():
-                print(f"Aviso: Caminho do plugin não é um diretório: {plugin_path}")
+
+            # Medida de Segurança: Prevenção de Path Traversal
+            if project_root not in plugin_path.parents:
+                logger.error(
+                    f"Recusando carregar plugin de diretório não confiável: {plugin_path}. "
+                    f"O caminho do plugin deve estar dentro do diretório do projeto."
+                )
                 continue
+            
+            if not plugin_path.is_dir():
+                logger.warning(f"Caminho do plugin não é um diretório: {plugin_path}")
+                continue
+            
+            logger.warning(f"Carregando plugins do diretório externo: {plugin_path}")
             
             # Adicionar ao path e importar módulos
             sys.path.insert(0, str(plugin_path.parent))

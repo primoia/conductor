@@ -10,8 +10,8 @@ O objetivo é garantir que a nova flexibilidade não introduziu vulnerabilidades
 
 #### Checklist de Execução
 
-- [ ] Revisar o código do carregador de plugins no `ConductorService`.
-- [ ] Implementar uma verificação para garantir que o caminho do plugin resolvido esteja dentro do diretório do projeto ou em uma lista de diretórios permitidos, para prevenir ataques de "Path Traversal".
-- [ ] Adicionar um log de aviso claro (`WARNING`) sempre que um plugin de um diretório externo for carregado.
-- [ ] Adicionar uma seção de "Segurança" ao guia de `creating_tool_plugins.md` (a ser criado na Fase VI), alertando os usuários sobre os riscos de carregar plugins de fontes não confiáveis.
-- [ ] Documentar os resultados da análise em um arquivo `docs/architecture/SECURITY_ANALYSIS.md`.
+- [x] Revisar o código do carregador de plugins no `ConductorService`.
+- [x] Implementar uma verificação para garantir que o caminho do plugin resolvido esteja dentro do diretório do projeto ou em uma lista de diretórios permitidos, para prevenir ataques de "Path Traversal".
+- [x] Adicionar um log de aviso claro (`WARNING`) sempre que um plugin de um diretório externo for carregado.
+- [x] Adicionar uma seção de "Segurança" ao guia de `creating_tool_plugins.md` (a ser criado na Fase VI), alertando os usuários sobre os riscos de carregar plugins de fontes não confiáveis.
+- [x] Documentar os resultados da análise em um arquivo `docs/architecture/SECURITY_ANALYSIS.md`.
