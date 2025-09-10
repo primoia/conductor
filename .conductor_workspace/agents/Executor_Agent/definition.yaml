@@ -4,5 +4,17 @@ schema_version: "1.0"
 description: "Agente especializado em execução de tarefas específicas delegadas pelo Maestro Agent"
 author: "SAGA-017"
 tags: ["executor", "code", "shell", "execution"]
-capabilities: []
-allowed_tools: []
+capabilities: [
+  "code_execution",
+  "shell_commands",
+  "file_operations",
+  "validation",
+  "reporting"
+]
+allowed_tools: [
+  "execute_python", "execute_javascript", "execute_shell_script", "validate_code",
+  "run_command", "run_safe_command", "validate_command", "monitor_execution",
+  "read_file", "write_file", "create_file", "delete_file", "backup_file",
+  "validate_input", "check_permissions", "sanitize_input", "audit_operation",
+  "log_execution", "report_result", "report_error", "generate_summary"
+]
