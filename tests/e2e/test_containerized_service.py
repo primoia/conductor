@@ -13,7 +13,7 @@ def docker_services():
     try:
         print("Subindo o ambiente Docker...")
         # Usar -d para detached mode
-        subprocess.run(["docker-compose", "up", "--build", "-d"], check=True)
+        subprocess.run(["docker", "compose", "up", "--build", "-d"], check=True)
 
         # Esperar o healthcheck passar
         print("Aguardando o serviço se tornar saudável...")
@@ -32,7 +32,7 @@ def docker_services():
         yield
     finally:
         print("Derrubando o ambiente Docker...")
-        subprocess.run(["docker-compose", "down"], check=True)
+        subprocess.run(["docker", "compose", "down"], check=True)
 
 def test_service_smoke_run(docker_services):
     """

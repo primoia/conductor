@@ -27,6 +27,9 @@ class MockStateRepository(StateRepository):
         self.states[key] = state_data
         return True
 
+    def list_agents(self):
+        return []
+
 
 class MockLLMClient(LLMClient):
     """Mock LLM client for testing."""

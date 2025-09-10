@@ -28,13 +28,26 @@ def filesystem_service(tmp_path):
     agent_dir = workspace_path / "agents" / "fs_agent"
     agent_dir.mkdir(parents=True)
     with open(agent_dir / "agent.yaml", "w") as f:
-        # Simplificando a estrutura do estado para o teste
-        yaml.dump({"definition": {"agent_id": "fs_agent", "name": "FS Agent", "version": "1.0", "description": ""}}, f)
+        # Create agent.yaml with top-level fields as expected by PromptEngine
+        yaml.dump({
+            "name": "FS Agent", 
+            "version": "1.0", 
+            "schema_version": "1.0",
+            "description": "", 
+            "author": "test",
+            "tags": [],
+            "capabilities": [],
+            "allowed_tools": []
+        }, f)
+
+    # Create persona.md
+    with open(agent_dir / "persona.md", "w") as f:
+        f.write("You are a helpful test agent.")
 
     return ConductorService(config_path=str(config_path))
 
 # Mockando o LLM para todos os testes neste arquivo
-@patch('src.core.agent_executor.PlaceholderLLMClient')
+@patch('src.core.conductor_service.PlaceholderLLMClient')
 def test_filesystem_flow(MockLLMClient, filesystem_service):
     """Testa o fluxo completo com o backend de filesystem."""
     # Setup mock do LLM

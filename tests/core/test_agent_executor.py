@@ -10,7 +10,14 @@ def mock_dependencies():
     mock_llm = MagicMock()
     mock_prompt_engine = MagicMock()
     mock_agent_def = AgentDefinition(
-        agent_id="test_agent", name="Test Agent", version="1.0", description="A test agent"
+        name="Test Agent", 
+        version="1.0", 
+        schema_version="1.0",
+        description="A test agent", 
+        author="test",
+        tags=[],
+        capabilities=[],
+        allowed_tools=[]
     )
     return {
         "llm_client": mock_llm,

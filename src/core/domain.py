@@ -21,16 +21,6 @@ class ConfigurationError(Exception):
 
 
 # Core data structures
-@dataclass(frozen=True)
-class AgentDefinition:
-    """
-    Representa a identidade estática e versionada de um agente.
-    """
-    agent_id: str
-    name: str
-    version: str
-    description: str
-    # Adicione outros campos conforme necessário no futuro
 
 @dataclass
 class ConversationEntryDTO:
@@ -119,6 +109,7 @@ class AgentDefinition:
     tags: List[str] = field(default_factory=list)
     capabilities: List[str] = field(default_factory=list)
     allowed_tools: List[str] = field(default_factory=list)
+    agent_id: Optional[str] = None  # Optional field for compatibility
 
 @dataclass(frozen=True)
 class AgentPersona:

@@ -2,7 +2,7 @@ import os
 import json
 import logging
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List
 from src.ports.state_repository import IStateRepository as StateRepository
 from src.core.exceptions import StatePersistenceError
 
@@ -42,6 +42,10 @@ class FileStateRepository(StateRepository):
             raise StatePersistenceError(
                 f"Failed to save state to {state_file_path}: {e}"
             )
+
+    def list_agents(self) -> List[str]:
+        """List all agent IDs. Returns empty list as this implementation doesn't track agents."""
+        return []
 
 
 class MongoStateRepository(StateRepository):
@@ -175,6 +179,10 @@ class MongoStateRepository(StateRepository):
             raise StatePersistenceError(
                 f"Failed to save state to MongoDB for {document_id}: {e}"
             )
+
+    def list_agents(self) -> List[str]:
+        """List all agent IDs. Returns empty list as this implementation doesn't track agents."""
+        return []
 
     def close(self):
         """Fecha a conexão com o MongoDB."""
