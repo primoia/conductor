@@ -10,10 +10,10 @@ O objetivo é alinhar a documentação de "porta de entrada" do projeto com a no
 
 #### Checklist de Execução
 
-- [ ] Abrir o arquivo `README.md` na raiz do projeto.
-- [ ] Reescrever a seção "Como Usar" ou "Getting Started".
-- [ ] As novas instruções devem focar na configuração do `config.yaml` como o primeiro passo.
-- [ ] Explicar brevemente o conceito do `ConductorService` como o novo núcleo.
-- [ ] Manter os exemplos de como rodar `admin.py` e `agent.py`, mas explicar que eles agora operam sob a nova arquitetura.
-- [ ] Remover referências à estrutura de diretórios rígida como sendo a única forma de operação.
-- [ ] Adicionar uma menção ao novo sistema de "Tool Plugins".
+- [x] Abrir o arquivo `README.md` na raiz do projeto.
+- [x] Reescrever a seção "Como Usar" ou "Getting Started".
+- [x] As novas instruções devem focar na configuração do `config.yaml` como o primeiro passo.
+- [x] Explicar brevemente o conceito do `ConductorService` como o novo núcleo.
+- [x] Manter os exemplos de como rodar `admin.py` e `agent.py`, mas explicar que eles agora operam sob a nova arquitetura.
+- [x] Remover referências à estrutura de diretórios rígida como sendo a única forma de operação.
+- [x] Adicionar uma menção ao novo sistema de "Tool Plugins".

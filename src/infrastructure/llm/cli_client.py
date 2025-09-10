@@ -83,7 +83,7 @@ class ClaudeCLIClient(BaseCLIClient):
 
             if result.returncode == 0:
                 response = result.stdout.strip()
-                # ARCHITECTURE FIX: Don't store here - AgentLogic will handle it properly
+                # ARCHITECTURE FIX: Don't store here - handled by conductor service
                 # Only the actual user input and AI response should be stored, not the full prompt
                 return response
             else:
@@ -156,7 +156,7 @@ class GeminiCLIClient(BaseCLIClient):
             )
 
             response = result.stdout.strip()
-            # ARCHITECTURE FIX: Don't store here - AgentLogic will handle it properly
+            # ARCHITECTURE FIX: Don't store here - handled by conductor service
             # Only the actual user input and AI response should be stored, not the full prompt
             return response
 
