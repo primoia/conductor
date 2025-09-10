@@ -21,7 +21,7 @@ if str(src_path) not in sys.path:
 
 from src.container import container
 from src.core.observability import configure_logging
-from src.core.domain import AgentNotEmbodied
+from src.core.domain import TaskDTO
 from src.cli.shared import (
     REPLManager,
     CLIArgumentParser,
@@ -33,13 +33,7 @@ from src.cli.shared import (
 
 class AgentCLI:
     """
-    Agent CLI class for project agents.
-
-    This class handles:
-    - Argument parsing
-    - Logging setup
-    - Delegation to AgentLogic
-    - Error handling and user feedback
+    Agent CLI - agora uma casca fina sobre o ConductorService.
     """
 
     def __init__(
@@ -55,92 +49,80 @@ class AgentCLI:
         """Initialize Agent CLI."""
         self.logger = configure_logging(debug_mode, f"agent_{agent_id}", agent_id)
         self.debug_mode = debug_mode
-
-        # Get agent logic from container
-        self.agent_logic = container.create_agent_logic(
-            state_provider=state_provider,
-            ai_provider=ai_provider or "claude",
-            timeout=timeout,
-        )
-
+        self.agent_id = agent_id
+        self.environment = environment
+        self.project = project
+        
         # Initialize shared components
         self.state_manager = StateManager(self, self.logger)
         self.debug_utils = DebugUtilities(self, self.logger)
+        
+        # Obter o serviço central
+        self.conductor_service = container.conductor_service()
+        
+        print(f"✅ AgentCLI inicializado. Usando ConductorService.")
 
-        # Embody the project agent
-        self._embody_project_agent(environment, project, agent_id)
-
-    def _embody_project_agent(self, environment: str, project: str, agent_id: str):
-        """Embody a project agent using the container."""
-        try:
-            # Resolve paths for project agent
-            agent_home_path, project_root_path = container.resolve_agent_paths(
-                environment, project, agent_id
-            )
-
-            # Embody the agent
-            success = self.agent_logic.embody_agent(
-                environment=environment,
-                project=project,
-                agent_id=agent_id,
-                agent_home_path=agent_home_path,
-                project_root_path=project_root_path,
-            )
-
-            if success:
-                print(f"✅ Successfully embodied project agent: {agent_id}")
-                print(f"📍 Environment: {environment}")
-                print(f"📦 Project: {project}")
-                print(f"📂 Working Directory: {project_root_path}")
-                self.logger.info(f"Embodied project agent: {agent_id}")
-
-                # Setup LLM client reference for tools access
-                if hasattr(self.agent_logic.llm_client, "genesis_agent"):
-                    self.agent_logic.llm_client.genesis_agent = self.agent_logic
-
-            else:
-                raise Exception("Failed to embody project agent")
-
-        except Exception as e:
-            self.logger.error(f"Failed to embody project agent {agent_id}: {e}")
-            raise
 
     @property
     def embodied(self) -> bool:
-        """Check if agent is embodied."""
-        return self.agent_logic.is_embodied()
+        """Verifica se o agente alvo existe no ecossistema."""
+        try:
+            agents = self.conductor_service.discover_agents()
+            return any(agent.agent_id == self.agent_id for agent in agents)
+        except Exception:
+            return False
 
     def chat(self, message: str) -> str:
-        """Send a message to the project agent."""
+        """Envia uma mensagem ao agente através do ConductorService."""
         if not self.embodied:
-            return "❌ No agent embodied."
+            return f"❌ Agente '{self.agent_id}' não encontrado pelo ConductorService."
 
         try:
-            # self.logger.info(f"Processing chat message: {message[:100]}...")
-            response = self.agent_logic.chat(message)
-            self.logger.info(
-                f"Chat response received: {len(response) if response else 0} chars"
+            # 1. Construir o DTO da tarefa
+            task_context = {
+                "environment": self.environment,
+                "project": self.project
+            }
+            task = TaskDTO(
+                agent_id=self.agent_id,
+                user_input=message,
+                context=task_context
             )
 
-            return response
+            # 2. Delegar a execução para o serviço central
+            result = self.conductor_service.execute_task(task)
 
-        except AgentNotEmbodied as e:
-            return f"❌ {str(e)}"
+            # 3. Processar o resultado
+            if result.status == "success":
+                return result.output
+            else:
+                return f"❌ Erro na execução da tarefa: {result.output}"
+
         except Exception as e:
-            self.logger.error(f"Chat error: {e}")
-            return f"❌ Error in chat: {e}"
+            self.logger.error(f"Erro no chat do AgentCLI: {e}")
+            return f"❌ Erro fatal no AgentCLI: {e}"
 
     def save_agent_state(self):
         """Save agent state using StateManager."""
         return self.state_manager.save_agent_state()
 
     def get_available_tools(self) -> list:
-        """Get available tools from agent logic."""
-        return self.agent_logic.get_available_tools()
+        """Get available tools from conductor service."""
+        try:
+            agents = self.conductor_service.discover_agents()
+            agent = next((a for a in agents if a.agent_id == self.agent_id), None)
+            return agent.available_tools if agent else []
+        except Exception:
+            return []
 
     def get_output_scope(self) -> list:
         """Get output scope restrictions."""
-        return self.agent_logic.output_scope or []
+        try:
+            agents = self.conductor_service.discover_agents()
+            agent = next((a for a in agents if a.agent_id == self.agent_id), None)
+            return agent.output_scope if agent and hasattr(agent, 'output_scope') else []
+        except Exception:
+            return []
 
 
 def start_repl_session(agent_cli: AgentCLI, agent_name: str):
@@ -182,7 +164,7 @@ def main():
     )
 
     if not agent_cli.embodied:
-        print(f"❌ Failed to embody agent: {args.agent}")
+        print(f"❌ Agente não encontrado no ecossistema: {args.agent}")
         sys.exit(1)
 
     # Show output scope if restricted
