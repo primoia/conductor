@@ -1,7 +1,10 @@
 # Especificação Técnica e Plano de Execução: 0035-criar-cli-conductor
 
 #### **1. CONTEXTO OPERACIONAL**
-Internalize sua persona e modo de operação. Opere como um executor literal.
+Antes de executar o plano, você **DEVE** internalizar seus parâmetros operacionais definidos nos seguintes arquivos:
+- `project-management/persona/claude_executor_persona.md`
+- `project-management/persona/claude_executor_mode.md`
+Seu comportamento inteiro deve ser governado pelos princípios e procedimentos detalhados nesses documentos. Você é um executor literal; você não infere, você implementa.
 
 #### **2. OBJETIVO ESTRATÉGICO (O "PORQUÊ")**
 Esta tarefa cria a interface de comando unificada e definitiva para o sistema. Um único CLI (`conductor`) melhora a experiência do usuário, simplifica a documentação e estabelece a base para todos os futuros comandos e interações com a plataforma.

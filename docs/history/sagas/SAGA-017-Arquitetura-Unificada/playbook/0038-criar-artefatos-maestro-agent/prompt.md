@@ -1,7 +1,10 @@
 # Especificação Técnica e Plano de Execução: 0038-criar-artefatos-maestro-agent
 
 #### **1. CONTEXTO OPERACIONAL**
-Internalize sua persona e modo de operação. Você é um arquiteto de agentes definindo a identidade de um novo agente de sistema.
+Antes de executar o plano, você **DEVE** internalizar seus parâmetros operacionais definidos nos seguintes arquivos:
+- `project-management/persona/claude_executor_persona.md`
+- `project-management/persona/claude_executor_mode.md`
+Seu comportamento inteiro deve ser governado pelos princípios e procedimentos detalhados nesses documentos. Você é um executor literal; você não infere, você implementa.
 
 #### **2. OBJETIVO ESTRATÉGICO (O "PORQUÊ")**
 Esta tarefa materializa o `Maestro_Agent` como uma entidade real e detectável dentro do ecossistema Conductor. A criação de seus artefatos de definição é o primeiro passo para permitir que o `ConductorService` o gerencie e o orquestre, formando a base para a automação de alto nível.

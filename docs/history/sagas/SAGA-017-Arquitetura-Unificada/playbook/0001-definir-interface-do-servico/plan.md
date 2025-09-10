@@ -10,9 +10,9 @@ O propósito desta tarefa é criar uma barreira clara entre a definição do "o 
 
 #### Checklist de Execução
 
-- [ ] Navegar até o diretório `src/ports/`.
-- [ ] Criar um novo arquivo chamado `conductor_service.py`.
-- [ ] No arquivo, importar `ABC` e `abstractmethod` do módulo `abc`.
-- [ ] Definir a classe `IConductorService(ABC)`.
-- [ ] Adicionar as assinaturas de métodos abstratos essenciais, incluindo `discover_agents() -> List['AgentDefinition']`, `execute_task(task: 'TaskDTO') -> 'TaskResultDTO'`, e `load_tools() -> None`.
-- [ ] Adicionar type hints claros e docstrings a cada método, explicando seu propósito e seus parâmetros.
+- [x] Navegar até o diretório `src/ports/`.
+- [x] Criar um novo arquivo chamado `conductor_service.py`.
+- [x] No arquivo, importar `ABC` e `abstractmethod` do módulo `abc`.
+- [x] Definir a classe `IConductorService(ABC)`.
+- [x] Adicionar as assinaturas de métodos abstratos essenciais, incluindo `discover_agents() -> List['AgentDefinition']`, `execute_task(task: 'TaskDTO') -> 'TaskResultDTO'`, e `load_tools() -> None`.
+- [x] Adicionar type hints claros e docstrings a cada método, explicando seu propósito e seus parâmetros.
