@@ -274,37 +274,36 @@ class REPLManager:
     def _show_agent_state(self):
         """Show current agent state."""
         print("\n📊 === ESTADO ATUAL DO AGENTE ===")
-        print(f"🆔 Agent ID: {self.cli_instance.agent_logic.get_current_agent()}")
+        print(f"🆔 Agent ID: {self.cli_instance.agent_id}")
         print(f"✅ Embodied: {self.cli_instance.embodied}")
 
         # Show environment/project if available
-        if hasattr(self.cli_instance.agent_logic, "environment"):
-            print(f"🌐 Environment: {self.cli_instance.agent_logic.environment}")
-        if hasattr(self.cli_instance.agent_logic, "project"):
-            print(f"📦 Project: {self.cli_instance.agent_logic.project}")
+        if hasattr(self.cli_instance, "environment"):
+            print(f"🌐 Environment: {self.cli_instance.environment}")
+        if hasattr(self.cli_instance, "project"):
+            print(f"📦 Project: {self.cli_instance.project}")
 
-        print(f"📂 Working Dir: {self.cli_instance.agent_logic.working_directory}")
+        # working_directory não é mais um atributo direto do cli_instance para todos os casos
+        # Pode ser obtido via ConductorService se necessário, mas para o REPL, pode ser simplificado
+        print("📂 Working Dir: N/A (gerenciado pelo ConductorService)")
         print("=" * 40)
 
     def _show_conversation_history(self):
         """Show conversation history."""
         print("\n💬 === HISTÓRICO DE CONVERSAS ===")
 
-        if hasattr(self.cli_instance.agent_logic.llm_client, "conversation_history"):
-            history = self.cli_instance.agent_logic.llm_client.conversation_history
-            if not history:
-                print("📭 Nenhuma mensagem no histórico")
-            else:
-                for i, msg in enumerate(history, 1):
-                    print(f"\n--- Mensagem {i} ---")
-                    print(f"👤 User: {msg.get('prompt', 'N/A')}")
-                    response = msg.get("response", "N/A")
-                    print(
-                        f"🤖 Assistant: {response[:200]}{'...' if len(response) > 200 else ''}"
-                    )
+        # Obter histórico diretamente do cli_instance (que delega ao ConductorService)
+        history = self.cli_instance.get_conversation_history()
+        if not history:
+            print("📭 Nenhuma mensagem no histórico")
         else:
-            print("❌ Histórico não disponível")
-
+            for i, msg in enumerate(history, 1):
+                print(f"\n--- Mensagem {i} ---")
+                print(f"👤 User: {msg.get('user_input', 'N/A')}") # Usar user_input
+                response = msg.get('ai_response', 'N/A') # Usar ai_response
+                print(
+                    f"🤖 Assistant: {response[:200]}{'...' if len(response) > 200 else ''}"
+                )
         print("=" * 50)
 
     def _check_rate_limiting(self) -> bool:
@@ -420,15 +419,11 @@ class REPLManager:
         """Clear conversation history."""
         print("\n🗑️ === LIMPANDO HISTÓRICO ===")
 
-        if hasattr(self.cli_instance.agent_logic.llm_client, "conversation_history"):
-            history_count = len(
-                self.cli_instance.agent_logic.llm_client.conversation_history
-            )
-            self.cli_instance.agent_logic.llm_client.conversation_history.clear()
-            self.cli_instance.agent_logic.save_agent_state()
-            print(f"✅ Histórico limpo: {history_count} mensagens removidas")
+        # Delegar limpeza ao cli_instance
+        if self.cli_instance.clear_conversation_history():
+            print("✅ Histórico limpo")
         else:
-            print("❌ Histórico não disponível para limpeza")
+            print("❌ Falha ao limpar histórico")
 
         print("=" * 40)
 
@@ -467,7 +462,7 @@ class REPLManager:
     def _show_debug_info(self):
         """Show debug information."""
         print("\n🔍 === DEBUG: INFORMAÇÕES DO AGENTE ===")
-        print(f"🆔 Agent ID: {self.cli_instance.agent_logic.get_current_agent()}")
+        print(f"🆔 Agent ID: {self.cli_instance.agent_id}")
         print(f"✅ Embodied: {self.cli_instance.embodied}")
         print(f"🔧 Available Tools: {self.cli_instance.get_available_tools()}")
 
