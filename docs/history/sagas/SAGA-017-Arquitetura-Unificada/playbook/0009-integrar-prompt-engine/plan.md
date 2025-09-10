@@ -10,9 +10,9 @@ O objetivo é reaproveitar a lógica de engenharia de prompt existente, que é u
 
 #### Checklist de Execução
 
-- [ ] Analisar o `PromptEngine` legado para identificar as modificações necessárias para que ele funcione de forma stateless (se necessário).
-- [ ] O `PromptEngine` provavelmente precisará receber os caminhos para os artefatos em seu construtor, em vez de descobri-los.
-- [ ] Modificar o `AgentExecutor` em `src/core/agent_executor.py`.
-- [ ] O construtor do `AgentExecutor` deve instanciar o `PromptEngine`.
-- [ ] O método `run` do `AgentExecutor` deve usar o `PromptEngine` para construir o prompt final, passando o input do usuário e o histórico da conversa (se aplicável).
-- [ ] Remover os placeholders de `PromptEngine` do `AgentExecutor`.
+- [x] Analisar o `PromptEngine` legado para identificar as modificações necessárias para que ele funcione de forma stateless (se necessário).
+- [x] O `PromptEngine` provavelmente precisará receber os caminhos para os artefatos em seu construtor, em vez de descobri-los.
+- [x] Modificar o `AgentExecutor` em `src/core/agent_executor.py`.
+- [x] O construtor do `AgentExecutor` deve instanciar o `PromptEngine`.
+- [x] O método `run` do `AgentExecutor` deve usar o `PromptEngine` para construir o prompt final, passando o input do usuário e o histórico da conversa (se aplicável).
+- [x] Remover os placeholders de `PromptEngine` do `AgentExecutor`.
