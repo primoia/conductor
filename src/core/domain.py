@@ -200,3 +200,21 @@ class AgentInstance:
     playbook: AgentPlaybook
     knowledge: AgentKnowledge
     history: List[HistoryEntry]
+
+@dataclass(frozen=True)
+class TaskDTO:
+    """
+    Data Transfer Object para encapsular uma requisição de tarefa.
+    """
+    agent_id: str
+    user_input: str
+    context: Dict[str, Any] = field(default_factory=dict)
+
+@dataclass(frozen=True)
+class TaskResultDTO:
+    """
+    Data Transfer Object para encapsular o resultado de uma tarefa executada.
+    """
+    status: str  # Ex: 'success', 'error'
+    output: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
