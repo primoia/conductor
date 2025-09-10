@@ -1,5 +1,7 @@
 # Execution and Design Plan: Master Agent (Conductor)
 
+> **📌 NOTA DE ARQUITETURA:** Esta documentação descreve o design técnico original do Master Agent. Para uma visão unificada e atualizada de toda a arquitetura do sistema pós-SAGA-017, consulte: [UNIFIED_ARCHITECTURE.md](./UNIFIED_ARCHITECTURE.md)
+
 **Document Version:** 2.1
 
 **Status:** Final Proposal for Implementation (with command mechanism)

@@ -10,10 +10,10 @@ O objetivo é manter a documentação de arquitetura como uma fonte da verdade p
 
 #### Checklist de Execução
 
-- [ ] Revisar todos os documentos no diretório `docs/architecture/`.
-- [ ] Identificar seções que descrevem a arquitetura legada (ex: o papel do `AgentLogic`, a descoberta de agentes baseada em pastas).
-- [ ] Atualizar essas seções para descrever a nova arquitetura service-oriented.
-- [ ] Introduzir o conceito do `ConductorService` como o novo "coração" do sistema.
-- [ ] Explicar o papel do `AgentExecutor` como o "worker" stateless.
-- [ ] Atualizar ou criar diagramas de arquitetura (se houver) para refletir o novo fluxo de dados (CLI -> Service -> Executor).
-- [ ] Criar um novo documento `UNIFIED_ARCHITECTURE.md` que consolida a visão final.
+- [x] Revisar todos os documentos no diretório `docs/architecture/`.
+- [x] Identificar seções que descrevem a arquitetura legada (ex: o papel do `AgentLogic`, a descoberta de agentes baseada em pastas).
+- [x] Atualizar essas seções para descrever a nova arquitetura service-oriented.
+- [x] Introduzir o conceito do `ConductorService` como o novo "coração" do sistema.
+- [x] Explicar o papel do `AgentExecutor` como o "worker" stateless.
+- [x] Atualizar ou criar diagramas de arquitetura (se houver) para refletir o novo fluxo de dados (CLI -> Service -> Executor).
+- [x] Criar um novo documento `UNIFIED_ARCHITECTURE.md` que consolida a visão final.
