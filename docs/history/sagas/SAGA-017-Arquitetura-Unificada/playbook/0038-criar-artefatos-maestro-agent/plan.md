@@ -10,8 +10,8 @@ O objetivo é dar "vida" ao conceito de Maestro que discutimos. Ao criar seus ar
 
 #### Checklist de Execução
 
-- [ ] Criar um novo diretório para os agentes de sistema, ex: `.conductor_workspace/agents/Maestro_Agent/`.
-- [ ] Dentro do novo diretório, criar o arquivo `definition.yaml`.
-- [ ] Preencher o `definition.yaml` com a definição do agente (nome, versão, descrição, etc.).
-- [ ] Criar o arquivo `persona.md`.
-- [ ] Preencher o `persona.md` com a persona do Maestro, baseando-se no que já temos em `project-management/persona/maestro_persona.md`, mas adaptando-o para ser a instrução direta para o LLM.
+- [x] Criar um novo diretório para os agentes de sistema, ex: `.conductor_workspace/agents/Maestro_Agent/`.
+- [x] Dentro do novo diretório, criar o arquivo `definition.yaml`.
+- [x] Preencher o `definition.yaml` com a definição do agente (nome, versão, descrição, etc.).
+- [x] Criar o arquivo `persona.md`.
+- [x] Preencher o `persona.md` com a persona do Maestro, baseando-se no que já temos em `project-management/persona/maestro_persona.md`, mas adaptando-o para ser a instrução direta para o LLM.

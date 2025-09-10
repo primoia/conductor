@@ -10,10 +10,10 @@ O propósito desta tarefa é criar formalmente o Executor Agent como um agente d
 
 #### Checklist de Execução
 
-- [ ] Navegar até o diretório de agentes do sistema.
-- [ ] Criar o diretório específico para o Executor Agent.
-- [ ] Criar o arquivo `definition.yaml` com a definição básica do agente.
-- [ ] Criar o arquivo `persona.md` com a personalidade e comportamento do agente.
-- [ ] Definir as informações básicas: nome, descrição, tipo, e metadados.
-- [ ] Estruturar os artefatos seguindo o padrão da SAGA-016.
-- [ ] Validar que os artefatos estão prontos para descoberta pelo ConductorService.
+- [x] Navegar até o diretório de agentes do sistema.
+- [x] Criar o diretório específico para o Executor Agent.
+- [x] Criar o arquivo `definition.yaml` com a definição básica do agente.
+- [x] Criar o arquivo `persona.md` com a personalidade e comportamento do agente.
+- [x] Definir as informações básicas: nome, descrição, tipo, e metadados.
+- [x] Estruturar os artefatos seguindo o padrão da SAGA-016.
+- [x] Validar que os artefatos estão prontos para descoberta pelo ConductorService.

@@ -10,10 +10,10 @@ O propósito desta tarefa é definir formalmente as capabilities do Executor Age
 
 #### Checklist de Execução
 
-- [ ] Navegar até o diretório do Executor Agent criado no estágio anterior.
-- [ ] Localizar o arquivo `definition.yaml` do Executor Agent.
-- [ ] Definir a seção `capabilities` com foco em execução de código e comandos shell.
-- [ ] Especificar as ferramentas (`allowed_tools`) que implementam essas capabilities.
-- [ ] Incluir capabilities para execução segura e validação de entradas.
-- [ ] Documentar cada capability com descrição clara de seu propósito e uso.
-- [ ] Garantir que as capabilities estejam alinhadas com o papel de execução do agente.
+- [x] Navegar até o diretório do Executor Agent criado no estágio anterior.
+- [x] Localizar o arquivo `definition.yaml` do Executor Agent.
+- [x] Definir a seção `capabilities` com foco em execução de código e comandos shell.
+- [x] Especificar as ferramentas (`allowed_tools`) que implementam essas capabilities.
+- [x] Incluir capabilities para execução segura e validação de entradas.
+- [x] Documentar cada capability com descrição clara de seu propósito e uso.
+- [x] Garantir que as capabilities estejam alinhadas com o papel de execução do agente.
