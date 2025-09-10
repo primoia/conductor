@@ -10,11 +10,11 @@ O objetivo é tornar o `ConductorService` uma unidade de implantação (deployme
 
 #### Checklist de Execução
 
-- [ ] Na raiz do projeto, criar um novo arquivo chamado `Dockerfile.service`.
-- [ ] Definir um primeiro estágio (`builder`) baseado em uma imagem Python oficial (ex: `python:3.10-slim-bullseye`).
-- [ ] No estágio `builder`, copiar os arquivos de dependência (`pyproject.toml`, `poetry.lock`) e instalar as dependências usando Poetry.
-- [ ] Copiar todo o código-fonte da aplicação para o estágio `builder`.
-- [ ] Definir um segundo estágio (`final`) baseado na mesma imagem Python.
-- [ ] No estágio `final`, copiar apenas o ambiente virtual com as dependências e o código da pasta `src` do estágio `builder`.
-- [ ] Definir um usuário não-root para executar a aplicação.
-- [ ] Definir o `CMD` ou `ENTRYPOINT` padrão para iniciar o serviço (mesmo que o serviço ainda não tenha um ponto de entrada executável, podemos definir um placeholder).
+- [x] Na raiz do projeto, criar um novo arquivo chamado `Dockerfile.service`.
+- [x] Definir um primeiro estágio (`builder`) baseado em uma imagem Python oficial (ex: `python:3.10-slim-bullseye`).
+- [x] No estágio `builder`, copiar os arquivos de dependência (`pyproject.toml`, `poetry.lock`) e instalar as dependências usando Poetry.
+- [x] Copiar todo o código-fonte da aplicação para o estágio `builder`.
+- [x] Definir um segundo estágio (`final`) baseado na mesma imagem Python.
+- [x] No estágio `final`, copiar apenas o ambiente virtual com as dependências e o código da pasta `src` do estágio `builder`.
+- [x] Definir um usuário não-root para executar a aplicação.
+- [x] Definir o `CMD` ou `ENTRYPOINT` padrão para iniciar o serviço (mesmo que o serviço ainda não tenha um ponto de entrada executável, podemos definir um placeholder).
