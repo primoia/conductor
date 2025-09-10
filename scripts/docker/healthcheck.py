@@ -1,35 +1,21 @@
 #!/usr/bin/env python3
 import sys
-import http.client
+import os
 
-# Este script é um placeholder. Ele irá verificar um endpoint /health
-# quando a camada de API for implementada. Por enquanto, ele sempre
-# retorna sucesso para permitir que o build do contêiner funcione.
+# Adicionar o diretório raiz do projeto ao sys.path para que o ConductorService possa ser importado
+# Assumindo que o script está em /home/appuser/app/scripts/docker
+project_root = "/home/appuser/app"
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
-def check_health():
-    """
-    Verifica a saúde do serviço Conductor.
-    No futuro, fará uma requisição HTTP para http://localhost:8000/health.
-    """
-    # Exemplo de como seria a verificação real:
-    # try:
-    #     conn = http.client.HTTPConnection("localhost", 8000, timeout=2)
-    #     conn.request("GET", "/health")
-    #     response = conn.getresponse()
-    #     if response.status == 200:
-    #         print("Health check OK")
-    #         sys.exit(0)
-    #     else:
-    #         print(f"Health check falhou com status: {response.status}")
-    #         sys.exit(1)
-    # except Exception as e:
-    #     print(f"Health check falhou com erro: {e}")
-    #     sys.exit(1)
-    # finally:
-    #     conn.close()
-
-    print("Health check simulado: OK")
+try:
+    from src.core.conductor_service import ConductorService
+    # Tentar instanciar o serviço para verificar se as dependências básicas estão ok
+    # Nota: Isso pode falhar se config.yaml não for válido ou dependências externas não estiverem prontas
+    # Para um healthcheck mais robusto, um endpoint HTTP seria melhor.
+    ConductorService()
+    print("Health check OK: ConductorService pode ser importado e instanciado.")
     sys.exit(0)
-
-if __name__ == "__main__":
-    check_health()
+except Exception as e:
+    print(f"Health check FAILED: {e}")
+    sys.exit(1)
