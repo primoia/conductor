@@ -10,8 +10,8 @@ O objetivo é centralizar a lógica de construção de objetos complexos e garan
 
 #### Checklist de Execução
 
-- [ ] Abrir o arquivo `src/container.py`.
-- [ ] Importar a classe `ConductorService`.
-- [ ] Adicionar um novo método ou propriedade ao `container` que constrói uma instância de `ConductorService`.
-- [ ] Implementar a lógica para garantir que esta instância seja um singleton (ou seja, é criada apenas na primeira vez que é solicitada e reutilizada nas chamadas subsequentes).
-- [ ] Garantir que o container possa ser inicializado sem erros.
+- [x] Abrir o arquivo `src/container.py`.
+- [x] Importar a classe `ConductorService`.
+- [x] Adicionar um novo método ou propriedade ao `container` que constrói uma instância de `ConductorService`.
+- [x] Implementar a lógica para garantir que esta instância seja um singleton (ou seja, é criada apenas na primeira vez que é solicitada e reutilizada nas chamadas subsequentes).
+- [x] Garantir que o container possa ser inicializado sem erros.
