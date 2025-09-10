@@ -7,6 +7,7 @@ from src.core.config_schema import GlobalConfig, StorageConfig
 from src.core.exceptions import ConfigurationError
 from src.infrastructure.storage.filesystem_repository import FileSystemStateRepository
 from src.infrastructure.storage.mongo_repository import MongoStateRepository
+from src.core.domain import AgentDefinition
 
 
 class ConductorService(IConductorService):
@@ -34,8 +35,15 @@ class ConductorService(IConductorService):
         else:
             raise ConfigurationError(f"Tipo de armazenamento desconhecido: {storage_config.type}")
 
-    def discover_agents(self) -> List['AgentDefinition']:
-        raise NotImplementedError
+    def discover_agents(self) -> List[AgentDefinition]:
+        agent_ids = self.repository.list_agents()
+        definitions = []
+        for agent_id in agent_ids:
+            state = self.repository.load_state(agent_id)
+            if "definition" in state:
+                # Assumindo que a 'definition' no estado corresponde aos campos do DTO
+                definitions.append(AgentDefinition(**state["definition"]))
+        return definitions
 
     def execute_task(self, task: 'TaskDTO') -> 'TaskResultDTO':
         raise NotImplementedError
