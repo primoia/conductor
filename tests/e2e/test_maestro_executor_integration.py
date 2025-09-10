@@ -5,7 +5,7 @@ Valida que o ConductorService consegue descobrir e carregar os agentes Maestro e
 
 import pytest
 from src.ports.conductor_service import IConductorService
-from src.container import Container
+from src.container import container
 
 
 class TestMaestroExecutorIntegration:
@@ -13,8 +13,7 @@ class TestMaestroExecutorIntegration:
     
     def setup_method(self):
         """Configuração inicial do teste."""
-        self.container = Container()
-        self.conductor_service = self.container.get_conductor_service()
+        self.conductor_service = container.get_conductor_service()
     
     def test_discover_maestro_agent(self):
         """Testa se o Maestro Agent é descoberto corretamente."""
