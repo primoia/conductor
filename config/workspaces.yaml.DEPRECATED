@@ -1,3 +1,8 @@
+# AVISO: ESTE ARQUIVO ESTÁ DEPRECIADO E NÃO É MAIS UTILIZADO PELO SISTEMA.
+# A descoberta de agentes e projetos agora é gerenciada pelo ConductorService,
+# que utiliza o backend de armazenamento configurado no `config.yaml` principal.
+# Este arquivo é mantido apenas para referência histórica.
+
 # Mapeia nomes de ambientes para seus diretórios raiz no sistema de arquivos.
 # É o único arquivo que um novo dev precisa configurar.
 workspaces:
