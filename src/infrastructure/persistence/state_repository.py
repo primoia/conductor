@@ -54,9 +54,11 @@ class FileStateRepository(StateRepository):
     def list_agents(self) -> List[str]:
         """Lista os IDs de todos os agentes disponíveis no backend de armazenamento."""
         agent_ids = []
-        for item in self.agents_path.iterdir():
-            if item.is_file() and item.suffix == ".json":
-                agent_ids.append(item.stem)
+        # Garantir que o diretório exista antes de iterar
+        if self.agents_path.exists() and self.agents_path.is_dir():
+            for item in self.agents_path.iterdir():
+                if item.is_file() and item.suffix == ".json":
+                    agent_ids.append(item.stem)
         return agent_ids
 
 
