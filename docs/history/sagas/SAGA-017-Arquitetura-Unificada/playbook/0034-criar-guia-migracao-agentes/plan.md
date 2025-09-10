@@ -10,9 +10,9 @@ O objetivo é criar uma documentação persistente que explique o processo de mi
 
 #### Checklist de Execução
 
-- [ ] Criar um novo arquivo em `docs/guides/agent_migration_guide.md`.
-- [ ] O guia deve explicar brevemente a diferença entre a estrutura de diretórios antiga e a nova estrutura de artefato único em JSON.
-- [ ] Documentar o propósito do script `scripts/migrate_legacy_agents.py`.
-- [ ] Fornecer instruções claras e um exemplo de como executar o script a partir da linha de comando, explicando seus argumentos (`--source-dir`, `--target-dir`).
-- [ ] Mostrar um exemplo da estrutura de arquivos "antes" e do arquivo `.json` "depois".
-- [ ] Explicar que os novos artefatos devem ser colocados no diretório de workspace (`.conductor_workspace/agents/`) para o backend de `filesystem`.
+- [x] Criar um novo arquivo em `docs/guides/agent_migration_guide.md`.
+- [x] O guia deve explicar brevemente a diferença entre a estrutura de diretórios antiga e a nova estrutura de artefato único em JSON.
+- [x] Documentar o propósito do script `scripts/migrate_legacy_agents.py`.
+- [x] Fornecer instruções claras e um exemplo de como executar o script a partir da linha de comando, explicando seus argumentos (`--source-dir`, `--target-dir`).
+- [x] Mostrar um exemplo da estrutura de arquivos "antes" e do arquivo `.json` "depois".
+- [x] Explicar que os novos artefatos devem ser colocados no diretório de workspace (`.conductor_workspace/agents/`) para o backend de `filesystem`.
