@@ -17,10 +17,14 @@ class PromptEngine:
     Responsável por carregar, processar e construir prompts.
     """
 
-    def __init__(self, agent_home_path: Path):
-        self.agent_home_path = agent_home_path
-        self.persona_content: Optional[str] = None
-        self.agent_config: Optional[Dict[str, Any]] = None
+    def __init__(self, agent_home_path: str):
+        """
+        Inicializa o PromptEngine com o caminho para o diretório principal do agente.
+        """
+        self.agent_home_path = Path(agent_home_path)
+        self.agent_config: Dict[str, Any] = {}
+        self.persona_content: str = ""
+        self.playbook: Dict[str, Any] = {}
         logger.debug(f"PromptEngine inicializado para o caminho: {agent_home_path}")
 
     def load_context(self) -> None:
@@ -36,11 +40,9 @@ class PromptEngine:
             f"Contexto para o agente em '{self.agent_home_path}' carregado com sucesso."
         )
 
-    def build_prompt(
-        self, conversation_history: List[Dict[str, Any]], user_input: str
-    ) -> str:
+    def build_prompt(self, conversation_history: List[Dict], message: str) -> str:
         """Constrói o prompt final usando o contexto já carregado."""
-        if self.persona_content is None or self.agent_config is None:
+        if not self.persona_content or not self.agent_config:
             raise ValueError(
                 "Contexto não foi carregado. Chame load_context() primeiro."
             )
@@ -80,7 +82,7 @@ class PromptEngine:
 ### HISTÓRICO DA TAREFA ATUAL
 {formatted_history}
 ### NOVA INSTRUÇÃO DO USUÁRIO
-{user_input}
+{message}
 """
 
         # Final safety check on complete prompt
@@ -99,7 +101,7 @@ class PromptEngine:
         return self.agent_config.get("available_tools", [])
 
     def _load_agent_config(self) -> None:
-        """Lógica movida do AgentLogic para carregar agent.yaml."""
+        """Carrega configuração do agente a partir do agent.yaml."""
         agent_yaml_path = self.agent_home_path / "agent.yaml"
         if not agent_yaml_path.exists():
             raise AgentNotFoundError(f"agent.yaml not found: {agent_yaml_path}")
@@ -111,7 +113,7 @@ class PromptEngine:
             raise ConfigurationError(f"Error parsing agent.yaml: {e}")
 
     def _validate_agent_config(self) -> None:
-        """Lógica movida do AgentLogic para validar a configuração."""
+        """Valida a configuração carregada do agente."""
         if self.agent_config is None:
             raise ConfigurationError("Agent config is None")
 
@@ -122,7 +124,7 @@ class PromptEngine:
             )
 
     def _load_agent_persona(self) -> None:
-        """Lógica movida do AgentLogic para carregar persona.md."""
+        """Carrega o conteúdo da persona do agente."""
         persona_prompt_path = self.agent_config.get("persona_prompt_path", "persona.md")
         persona_path = self.agent_home_path / persona_prompt_path
 
@@ -137,7 +139,7 @@ class PromptEngine:
             raise ConfigurationError(f"Error loading agent persona: {e}")
 
     def _resolve_persona_placeholders(self) -> None:
-        """Lógica movida do AgentLogic para resolver placeholders na persona."""
+        """Resolve placeholders dinâmicos no conteúdo da persona."""
         if self.persona_content is None:
             return
 

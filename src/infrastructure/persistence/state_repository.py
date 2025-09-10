@@ -2,8 +2,9 @@ import os
 import json
 import logging
 from datetime import datetime
-from typing import Dict, Any
-from src.ports.state_repository import StateRepository
+from typing import Dict, Any, List
+from pathlib import Path
+from src.ports.state_repository import IStateRepository as StateRepository
 from src.core.exceptions import StatePersistenceError
 
 logger = logging.getLogger(__name__)
@@ -14,34 +15,51 @@ class FileStateRepository(StateRepository):
     Implementação do StateRepository que usa arquivos state.json.
     """
 
-    def load_state(self, agent_home_path: str, state_file_name: str) -> Dict[str, Any]:
-        state_file_path = os.path.join(agent_home_path, state_file_name)
+    def __init__(self, base_path: str = ".conductor_workspace"):
+        self.base_path = Path(base_path)
+        self.agents_path = self.base_path / "agents"
+        self.agents_path.mkdir(parents=True, exist_ok=True)
+
+    def load_state(self, agent_id: str) -> Dict[str, Any]:
+        # O load_state agora recebe apenas o agent_id e carrega o JSON completo do agente
+        agent_file_path = self.agents_path / f"{agent_id}.json"
         try:
-            if os.path.exists(state_file_path):
-                with open(state_file_path, "r", encoding="utf-8") as f:
+            if agent_file_path.exists():
+                with open(agent_file_path, "r", encoding="utf-8") as f:
                     return json.load(f)
             # Retorna um estado inicial padrão se o arquivo não existir
-            return {"conversation_history": []}
+            return {"definition": {"name": "", "version": "", "schema_version": "", "description": "", "author": "", "tags": [], "capabilities": [], "allowed_tools": []}}
         except Exception as e:
-            logger.error(f"Failed to load state from {state_file_path}: {e}")
+            logger.error(f"Failed to load agent state from {agent_file_path}: {e}")
             raise StatePersistenceError(
-                f"Failed to load state from {state_file_path}: {e}"
+                f"Failed to load agent state from {agent_file_path}: {e}"
             )
 
     def save_state(
-        self, agent_home_path: str, state_file_name: str, state_data: Dict[str, Any]
+        self, agent_id: str, state_data: Dict[str, Any]
     ) -> bool:
-        state_file_path = os.path.join(agent_home_path, state_file_name)
+        # O save_state agora salva o JSON completo do agente
+        agent_file_path = self.agents_path / f"{agent_id}.json"
         try:
-            os.makedirs(os.path.dirname(state_file_path), exist_ok=True)
-            with open(state_file_path, "w", encoding="utf-8") as f:
+            self.agents_path.mkdir(parents=True, exist_ok=True)
+            with open(agent_file_path, "w", encoding="utf-8") as f:
                 json.dump(state_data, f, indent=2, ensure_ascii=False)
             return True
         except Exception as e:
-            logger.error(f"Failed to save state to {state_file_path}: {e}")
+            logger.error(f"Failed to save agent state to {agent_file_path}: {e}")
             raise StatePersistenceError(
-                f"Failed to save state to {state_file_path}: {e}"
+                f"Failed to save agent state to {agent_file_path}: {e}"
             )
+
+    def list_agents(self) -> List[str]:
+        """Lista os IDs de todos os agentes disponíveis no backend de armazenamento."""
+        agent_ids = []
+        # Garantir que o diretório exista antes de iterar
+        if self.agents_path.exists() and self.agents_path.is_dir():
+            for item in self.agents_path.iterdir():
+                if item.is_file() and item.suffix == ".json":
+                    agent_ids.append(item.stem)
+        return agent_ids
 
 
 class MongoStateRepository(StateRepository):
@@ -104,77 +122,35 @@ class MongoStateRepository(StateRepository):
         normalized_path = os.path.normpath(agent_home_path)
         return f"{normalized_path}_{state_file_name}"
 
-    def load_state(self, agent_home_path: str, state_file_name: str) -> Dict[str, Any]:
-        """
-        Carrega o estado de um agente do MongoDB.
-
-        Args:
-            agent_home_path: Caminho do diretório home do agente
-            state_file_name: Nome do arquivo de estado
-
-        Returns:
-            Dicionário com o estado ou estado inicial padrão se não existir
-        """
-        try:
-            document_id = self._generate_document_id(agent_home_path, state_file_name)
-
-            document = self.collection.find_one({"_id": document_id})
-
-            if document:
-                # Remove o _id do MongoDB antes de retornar
-                document.pop("_id", None)
-                return document
-            else:
-                # Retorna estado inicial padrão se o documento não existir
-                return {"conversation_history": []}
-
-        except Exception as e:
-            logger.error(f"Failed to load state from MongoDB for {document_id}: {e}")
-            raise StatePersistenceError(
-                f"Failed to load state from MongoDB for {document_id}: {e}"
-            )
+    def load_state(self, agent_id: str) -> Dict[str, Any]:
+        # Ajustar assinatura para corresponder à IStateRepository
+        # O _generate_document_id precisará ser ajustado ou removido se não for mais necessário
+        # Implementação real para MongoDB
+        document_id = self._generate_document_id(agent_id, "state.json") # Assumindo state.json como nome padrão
+        document = self.collection.find_one({"_id": document_id})
+        if document:
+            document.pop("_id", None)
+            return document
+        return {"definition": {"name": "", "version": "", "schema_version": "", "description": "", "author": "", "tags": [], "capabilities": [], "allowed_tools": []}}
 
     def save_state(
-        self, agent_home_path: str, state_file_name: str, state_data: Dict[str, Any]
+        self, agent_id: str, state_data: Dict[str, Any]
     ) -> bool:
-        """
-        Salva o estado de um agente no MongoDB.
+        # Ajustar assinatura para corresponder à IStateRepository
+        # Implementação real para MongoDB
+        document_id = self._generate_document_id(agent_id, "state.json") # Assumindo state.json como nome padrão
+        document_data = state_data.copy()
+        document_data.update({"_id": document_id, "updated_at": datetime.now().isoformat()})
+        result = self.collection.update_one(
+            {"_id": document_id}, {"$set": document_data}, upsert=True
+        )
+        return result.acknowledged
 
-        Args:
-            agent_home_path: Caminho do diretório home do agente
-            state_file_name: Nome do arquivo de estado
-            state_data: Dados do estado para salvar
-
-        Returns:
-            True em caso de sucesso, False caso contrário
-        """
-        try:
-            document_id = self._generate_document_id(agent_home_path, state_file_name)
-
-            # Adiciona metadados do repositório
-            document_data = state_data.copy()
-            document_data.update(
-                {
-                    "_id": document_id,
-                    "agent_home_path": agent_home_path,
-                    "state_file_name": state_file_name,
-                    "repository_type": "mongo",
-                    "updated_at": datetime.now().isoformat(),
-                }
-            )
-
-            # Usa upsert para criar ou atualizar o documento
-            result = self.collection.update_one(
-                {"_id": document_id}, {"$set": document_data}, upsert=True
-            )
-
-            return result.acknowledged
-
-        except Exception as e:
-            logger.error(f"Failed to save state to MongoDB for {document_id}: {e}")
-            raise StatePersistenceError(
-                f"Failed to save state to MongoDB for {document_id}: {e}"
-            )
+    def list_agents(self) -> List[str]:
+        """Lista os IDs de todos os agentes disponíveis no backend de armazenamento."""
+        # Implementação real para MongoDB
+        # Retorna os agent_ids de todos os documentos na coleção
+        return [doc["agent_id"] for doc in self.collection.find({}, {"agent_id": 1})]
 
     def close(self):
         """Fecha a conexão com o MongoDB."""

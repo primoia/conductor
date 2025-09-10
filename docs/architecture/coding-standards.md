@@ -1,5 +1,7 @@
 # Coding Standards
 
+> **📌 NOTA DE ARQUITETURA:** Esta documentação define padrões de codificação específicos. Para uma visão unificada e atualizada de toda a arquitetura do sistema pós-SAGA-017, consulte: [UNIFIED_ARCHITECTURE.md](./UNIFIED_ARCHITECTURE.md)
+
 ## Kotlin Entity Standards
 
 ### Package Structure

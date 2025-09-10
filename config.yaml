@@ -1,14 +1,4 @@
-# config.yaml
-storage_backend:
+storage:
   type: filesystem
-  workspace_path: ".conductor_workspace"
-  # connection_string será usado pelo mongodb no futuro
-  # connection_string: "mongodb://localhost:27017/"
-
-tool_plugins:
-  # - "/path/to/my/custom_tools/"
-
-# Configuração de segurança granular para tools
-tool_config:
-  shell_run: # O nome da função da ferramenta
-    allowed_commands: ["git", "ls", "cat", "npm", "pytest"]
+  path: .conductor_workspace
+tool_plugins: []

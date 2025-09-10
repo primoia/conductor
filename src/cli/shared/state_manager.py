@@ -28,23 +28,9 @@ class StateManager:
         Returns:
             True if successful, False otherwise
         """
-        if not self.cli_instance.embodied:
-            print("⚠️  No agent state to save")
-            return False
-
-        try:
-            success = self.cli_instance.agent_logic.save_agent_state()
-            if success:
-                self.logger.info("Agent state saved successfully")
-                return True
-            else:
-                print("❌ Failed to save state")
-                self.logger.error("Failed to save agent state")
-                return False
-        except Exception as e:
-            print(f"❌ Failed to save state: {e}")
-            self.logger.error(f"Failed to save state: {e}")
-            return False
+        # Delegar a responsabilidade de salvar estado para o cli_instance
+        # O cli_instance (AdminCLI/AgentCLI) agora chama ConductorService.save_state
+        return self.cli_instance.save_agent_state()
 
     def get_agent_status(self) -> dict:
         """
@@ -55,27 +41,16 @@ class StateManager:
         """
         status = {
             "embodied": self.cli_instance.embodied,
-            "agent_id": None,
-            "working_directory": None,
-            "environment": None,
-            "project": None,
-            "available_tools": [],
+            "agent_id": self.cli_instance.agent_id,
+            "working_directory": "N/A (gerenciado pelo ConductorService)",
+            "environment": getattr(self.cli_instance, "environment", None),
+            "project": getattr(self.cli_instance, "project", None),
+            "available_tools": self.cli_instance.get_available_tools(),
             "output_scope": [],
         }
 
-        if self.cli_instance.embodied:
-            status["agent_id"] = self.cli_instance.agent_logic.get_current_agent()
-            status["working_directory"] = getattr(
-                self.cli_instance.agent_logic, "working_directory", None
-            )
-            status["environment"] = getattr(
-                self.cli_instance.agent_logic, "environment", None
-            )
-            status["project"] = getattr(self.cli_instance.agent_logic, "project", None)
-            status["available_tools"] = self.cli_instance.get_available_tools()
-
-            if hasattr(self.cli_instance, "get_output_scope"):
-                status["output_scope"] = self.cli_instance.get_output_scope()
+        if hasattr(self.cli_instance, "get_output_scope"):
+            status["output_scope"] = self.cli_instance.get_output_scope()
 
         return status
 
@@ -86,9 +61,8 @@ class StateManager:
         Returns:
             List of conversation messages or empty list
         """
-        if hasattr(self.cli_instance.agent_logic.llm_client, "conversation_history"):
-            return self.cli_instance.agent_logic.llm_client.conversation_history
-        return []
+        # Delegar ao cli_instance
+        return self.cli_instance.get_conversation_history()
 
     def clear_conversation_history(self) -> bool:
         """
@@ -97,21 +71,8 @@ class StateManager:
         Returns:
             True if successful, False otherwise
         """
-        if hasattr(self.cli_instance.agent_logic.llm_client, "conversation_history"):
-            try:
-                history_count = len(
-                    self.cli_instance.agent_logic.llm_client.conversation_history
-                )
-                self.cli_instance.agent_logic.llm_client.conversation_history.clear()
-                self.cli_instance.agent_logic.save_agent_state()
-                self.logger.info(
-                    f"Conversation history cleared: {history_count} messages removed"
-                )
-                return True
-            except Exception as e:
-                self.logger.error(f"Failed to clear conversation history: {e}")
-                return False
-        return False
+        # Delegar ao cli_instance
+        return self.cli_instance.clear_conversation_history()
 
     def backup_state(self, backup_path: Optional[str] = None) -> bool:
         """

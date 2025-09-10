@@ -1,49 +1,42 @@
+version: '3.8'
+
 services:
-  conductor-api:
-    build: .
-    container_name: conductor-api-1
+  conductor-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+    container_name: conductor_service
     ports:
-      - "8001:8000"
+      - "8000:8000"
     volumes:
-      - ./src:/app/src
-      - ./config:/app/config
-      - ./logs:/app/logs
-      - ./projects:/app/projects
-      # --- GCP Authentication ---
-      # To authenticate with Google Cloud, mount your gcloud config directory.
-      # This is the recommended approach for open-source users.
-      # Uncomment the line below:
-      # - ~/.config/gcloud:/root/.config/gcloud
-    
-    # Environment variables are now loaded from the .env file.
-    # Copy .env.example to .env and fill in your details.
-    env_file:
-      - .env
+      - ./src:/home/appuser/app/src
+      - ./scripts/docker:/home/appuser/app/scripts/docker # Mapear o script
+    environment:
+      - MONGODB_CONNECTION_STRING=mongodb://mongodb:27017/conductor
+    networks:
+      - conductor_net
+    depends_on:
+      - mongodb
+    healthcheck:
+      test: ["CMD", "python", "scripts/docker/healthcheck.py"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
-    # --- Optional Loki Logging ---
-    # The following config enables sending logs to a Loki instance.
-    # It is commented out by default to allow the project to run standalone.
-    # logging:
-    #   driver: loki
-    #   options:
-    #     loki-url: "http://localhost:3100/loki/api/v1/push"
-    #     loki-external-labels: job=conductor
-    #     loki-pipeline-stages: |
-    #       - json:
-    #           expressions:
-    #             level: level
-    #             agent: agent
-    #       - labels:
-    #           level:
-    #           agent:
+  mongodb:
+    image: mongo:5.0
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - conductor_net
 
-    # --- Optional External Network ---
-    # The following config connects the container to an external network.
-    # It is commented out by default.
-    # networks:
-    #   - primoia-network
+networks:
+  conductor_net:
+    driver: bridge
 
-# networks:
-#   primoia-network:
-#     name: primoia-monorepo_primoia-network
-#     external: true
+volumes:
+  mongodb_data:

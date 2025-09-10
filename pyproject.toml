@@ -15,7 +15,8 @@ python-json-logger = "^3.3.0"
 pymongo = "^4.3"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.4.1"
+pytest = "^7.4.0"
+pytest-docker = "^2.0.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

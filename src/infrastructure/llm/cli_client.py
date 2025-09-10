@@ -83,7 +83,7 @@ class ClaudeCLIClient(BaseCLIClient):
 
             if result.returncode == 0:
                 response = result.stdout.strip()
-                # ARCHITECTURE FIX: Don't store here - AgentLogic will handle it properly
+                # ARCHITECTURE FIX: Don't store here - handled by conductor service
                 # Only the actual user input and AI response should be stored, not the full prompt
                 return response
             else:
@@ -156,7 +156,7 @@ class GeminiCLIClient(BaseCLIClient):
             )
 
             response = result.stdout.strip()
-            # ARCHITECTURE FIX: Don't store here - AgentLogic will handle it properly
+            # ARCHITECTURE FIX: Don't store here - handled by conductor service
             # Only the actual user input and AI response should be stored, not the full prompt
             return response
 
@@ -233,15 +233,41 @@ def create_llm_client(
 ) -> LLMClient:
     """
     Factory function to create LLM clients based on provider.
+    
+    When running locally (not in Docker), uses local Claude Code CLI regardless of provider.
+    When running in Docker, uses API-based clients with credentials.
     """
+    # Check if running locally (not in Docker)
+    is_docker = (
+        os.path.exists("/.dockerenv") or 
+        os.getenv("DOCKER_CONTAINER") == "true"
+    )
+    
+    # If running locally, prefer Claude Code CLI (if available)
+    if not is_docker:
+        # Check if Claude Code is available
+        try:
+            result = subprocess.run(["claude", "--version"], 
+                                  capture_output=True, 
+                                  text=True, 
+                                  timeout=5)
+            if result.returncode == 0:
+                logger.info(
+                    f"🏠 Local environment detected - Using Claude Code CLI (timeout: {timeout}s, admin: {is_admin_agent})"
+                )
+                return ClaudeCLIClient(working_directory, timeout, is_admin_agent)
+        except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
+            logger.debug(f"Claude Code CLI not available: {e}")
+    
+    # Fallback to provider-specific clients (for Docker or when Claude Code is not available)
     if ai_provider == "claude":
         logger.info(
-            f"Creating Claude CLI client with timeout: {timeout}s, admin: {is_admin_agent}"
+            f"🐳 Creating Claude CLI client with timeout: {timeout}s, admin: {is_admin_agent}"
         )
         return ClaudeCLIClient(working_directory, timeout, is_admin_agent)
     elif ai_provider == "gemini":
         logger.info(
-            f"Creating Gemini CLI client with timeout: {timeout}s, admin: {is_admin_agent}"
+            f"🐳 Creating Gemini CLI client with timeout: {timeout}s, admin: {is_admin_agent}"
         )
         return GeminiCLIClient(working_directory, timeout, is_admin_agent)
     else:

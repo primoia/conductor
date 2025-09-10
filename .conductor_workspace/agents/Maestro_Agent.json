@@ -1,0 +1,32 @@
+{
+  "definition": {
+    "name": "Maestro_Agent",
+    "version": "1.0.0",
+    "schema_version": "1.0",
+    "description": "Um agente supervisor que orquestra a execução de planos de desenvolvimento complexos, gerenciando um playbook e delegando tarefas a agentes executores.",
+    "author": "PrimoIA",
+    "tags": ["orchestration", "planning", "system"],
+    "capabilities": [
+      "file_management",
+      "state_management", 
+      "task_coordination",
+      "communication",
+      "planning"
+    ],
+    "allowed_tools": [
+      "read_file", "write_file", "list_directory", "create_directory",
+      "get_state", "update_state", "save_state", "load_state",
+      "decompose_task", "assign_task", "monitor_progress", "aggregate_results",
+      "send_task", "receive_result", "query_status", "cancel_task",
+      "create_plan", "validate_plan", "execute_plan", "adjust_plan"
+    ]
+  },
+  "agent_home_path": ".conductor_workspace/agents/Maestro_Agent",
+  "allowed_tools": [
+    "read_file", "write_file", "list_directory", "create_directory",
+    "get_state", "update_state", "save_state", "load_state",
+    "decompose_task", "assign_task", "monitor_progress", "aggregate_results",
+    "send_task", "receive_result", "query_status", "cancel_task",
+    "create_plan", "validate_plan", "execute_plan", "adjust_plan"
+  ]
+}

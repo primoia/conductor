@@ -108,7 +108,6 @@ class ErrorHandling:
         # Check for critical directories/files
         critical_paths = [
             "src/container.py",
-            "src/core/agent_logic.py",
             "src/core/observability.py",
         ]
 
