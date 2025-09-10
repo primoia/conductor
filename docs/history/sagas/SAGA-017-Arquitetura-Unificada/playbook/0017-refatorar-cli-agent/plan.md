@@ -10,12 +10,12 @@ Completar esta tarefa significa que **todos** os pontos de entrada de usuário d
 
 #### Checklist de Execução
 
-- [ ] Abrir o arquivo `src/cli/agent.py`.
-- [ ] No `__init__` da classe `AgentCLI`, remover a instanciação do `AgentLogic`.
-- [ ] Obter a instância singleton do `ConductorService` a partir do `container`.
-- [ ] Remover a lógica de descoberta de caminhos baseada em `environment` e `project`.
-- [ ] Modificar o método `chat` para criar um `TaskDTO`.
-- [ ] O `TaskDTO` deve incluir o `agent_id`, `user_input`, e o contexto relevante (`environment`, `project`).
-- [ ] Chamar o método `self.conductor_service.execute_task(task_dto)`.
-- [ ] Adaptar o código para processar o `TaskResultDTO` retornado.
-- [ ] Garantir que os argumentos de linha de comando (`--environment`, `--project`) continuem funcionando como contexto para a tarefa.
+- [x] Abrir o arquivo `src/cli/agent.py`.
+- [x] No `__init__` da classe `AgentCLI`, remover a instanciação do `AgentLogic`.
+- [x] Obter a instância singleton do `ConductorService` a partir do `container`.
+- [x] Remover a lógica de descoberta de caminhos baseada em `environment` e `project`.
+- [x] Modificar o método `chat` para criar um `TaskDTO`.
+- [x] O `TaskDTO` deve incluir o `agent_id`, `user_input`, e o contexto relevante (`environment`, `project`).
+- [x] Chamar o método `self.conductor_service.execute_task(task_dto)`.
+- [x] Adaptar o código para processar o `TaskResultDTO` retornado.
+- [x] Garantir que os argumentos de linha de comando (`--environment`, `--project`) continuem funcionando como contexto para a tarefa.
