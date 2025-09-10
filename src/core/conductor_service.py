@@ -41,7 +41,7 @@ class ConductorService(IConductorService):
 
     def _create_storage_backend(self, storage_config: StorageConfig) -> IStateRepository:
         if storage_config.type == "filesystem":
-            return FileSystemStateRepository()
+            return FileSystemStateRepository(base_path=getattr(storage_config, 'path', None))
         elif storage_config.type == "mongodb":
             return MongoStateRepository()
         else:
@@ -53,8 +53,12 @@ class ConductorService(IConductorService):
         for agent_id in agent_ids:
             state = self.repository.load_state(agent_id)
             if "definition" in state:
-                # Assumindo que a 'definition' no estado corresponde aos campos do DTO
-                definitions.append(AgentDefinition(**state["definition"]))
+                # Remove agent_id from definition before creating AgentDefinition
+                definition_data = state["definition"].copy()
+                definition_data.pop("agent_id", None)  # Remove agent_id if present
+                # Add agent_id as optional parameter
+                agent_definition = AgentDefinition(**definition_data, agent_id=agent_id)
+                definitions.append(agent_definition)
         return definitions
 
     def execute_task(self, task: TaskDTO) -> TaskResultDTO:
@@ -64,7 +68,10 @@ class ConductorService(IConductorService):
             if not agent_state or "definition" not in agent_state:
                 raise FileNotFoundError(f"Definição não encontrada para o agente: {task.agent_id}")
 
-            agent_definition = AgentDefinition(**agent_state["definition"])
+            # Remove agent_id from definition before creating AgentDefinition
+            definition_data = agent_state["definition"].copy()
+            definition_data.pop("agent_id", None)  # Remove agent_id if present
+            agent_definition = AgentDefinition(**definition_data)
             
             # 2. Obter o caminho do agente (assumindo que está no estado)
             agent_home_path = agent_state.get("agent_home_path")
@@ -75,6 +82,7 @@ class ConductorService(IConductorService):
             #    (Usando placeholders por enquanto)
             llm_client = PlaceholderLLMClient() 
             prompt_engine = PromptEngine(agent_home_path=agent_home_path)
+            prompt_engine.load_context()
             
             # 4. Filtrar as ferramentas permitidas
             allowed_tools = {

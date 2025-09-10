@@ -42,11 +42,11 @@ class AgentExecutor:
             return TaskResultDTO(
                 status="success",
                 output=response,
-                metadata={"agent_id": self._agent_definition.agent_id}
+                metadata={"agent_id": task.agent_id}
             )
         except Exception as e:
             return TaskResultDTO(
                 status="error",
                 output=str(e),
-                metadata={"agent_id": self._agent_definition.agent_id}
+                metadata={"agent_id": task.agent_id}
             )

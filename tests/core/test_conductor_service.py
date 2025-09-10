@@ -346,8 +346,8 @@ class TestConductorServiceToolLoading:
     @patch.object(ConductorService, '_create_storage_backend')
     @patch('src.core.conductor_service.CORE_TOOLS', [])
     @patch('src.core.conductor_service.Path')
-    @patch('builtins.print')
-    def test_load_tools_invalid_plugin_path(self, mock_print, mock_path, mock_create_storage, mock_load_config):
+    @patch('src.core.conductor_service.logger')
+    def test_load_tools_invalid_plugin_path(self, mock_logger, mock_path, mock_create_storage, mock_load_config):
         """Testa o carregamento com caminho de plugin inválido."""
         mock_config = MagicMock()
         mock_config.tool_plugins = ["/invalid/path"]
@@ -360,12 +360,13 @@ class TestConductorServiceToolLoading:
         mock_plugin_path = MagicMock()
         mock_plugin_path.resolve.return_value = mock_plugin_path
         mock_plugin_path.is_dir.return_value = False
+        mock_plugin_path.parents = []  # Empty parents to trigger security error
         mock_path.return_value = mock_plugin_path
         
         service = ConductorService()
         
-        # Verificar que a mensagem de aviso foi impressa
-        mock_print.assert_called_with(f"Aviso: Caminho do plugin não é um diretório: {mock_plugin_path}")
+        # Verificar que a mensagem de erro foi logada
+        mock_logger.error.assert_called_with(f"Recusando carregar plugin de diretório não confiável: {mock_plugin_path}. O caminho do plugin deve estar dentro do diretório do projeto.")
 
     @patch.object(ConductorService, '_load_and_validate_config')
     @patch.object(ConductorService, '_create_storage_backend') 

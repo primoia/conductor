@@ -25,7 +25,6 @@ class PromptEngine:
         self.agent_config: Dict[str, Any] = {}
         self.persona_content: str = ""
         self.playbook: Dict[str, Any] = {}
-        self.load_context() # Carrega o contexto na inicialização
         logger.debug(f"PromptEngine inicializado para o caminho: {agent_home_path}")
 
     def load_context(self) -> None:
@@ -43,7 +42,7 @@ class PromptEngine:
 
     def build_prompt(self, conversation_history: List[Dict], message: str) -> str:
         """Constrói o prompt final usando o contexto já carregado."""
-        if self.persona_content is None or self.agent_config is None:
+        if not self.persona_content or not self.agent_config:
             raise ValueError(
                 "Contexto não foi carregado. Chame load_context() primeiro."
             )
