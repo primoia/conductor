@@ -10,7 +10,7 @@ O objetivo é comunicar de forma clara e explícita a outros desenvolvedores (e 
 
 #### Checklist de Execução
 
-- [ ] Abrir o arquivo `src/core/agent_logic.py`.
-- [ ] Importar o módulo `warnings`.
-- [ ] No `__init__` da classe `AgentLogic`, adicionar uma chamada para `warnings.warn` com uma mensagem clara, indicando que a classe está depreciada e que `AgentExecutor` e `ConductorService` devem ser usados em seu lugar.
-- [ ] Atualizar o docstring da classe para também incluir um aviso de depreciação.
+- [x] Abrir o arquivo `src/core/agent_logic.py`.
+- [x] Importar o módulo `warnings`.
+- [x] No `__init__` da classe `AgentLogic`, adicionar uma chamada para `warnings.warn` com uma mensagem clara, indicando que a classe está depreciada e que `AgentExecutor` e `ConductorService` devem ser usados em seu lugar.
+- [x] Atualizar o docstring da classe para também incluir um aviso de depreciação.

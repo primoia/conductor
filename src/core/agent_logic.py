@@ -2,6 +2,7 @@ import os
 import yaml
 import json
 import logging
+import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple
@@ -29,6 +30,9 @@ logger = logging.getLogger(__name__)
 
 class AgentLogic:
     """
+    DEPRECATED: Esta classe foi substituída pelo AgentExecutor e ConductorService.
+    Não deve ser usada em novo código. Será removida em uma versão futura.
+
     Core business logic for agent embodiment and interaction.
 
     This class contains the pure business logic without I/O dependencies.
@@ -43,6 +47,12 @@ class AgentLogic:
             state_repository: Implementation of StateRepository for persistence
             llm_client: Implementation of LLMClient for AI interactions
         """
+        warnings.warn(
+            "A classe AgentLogic está depreciada e será removida em breve. "
+            "Use AgentExecutor e ConductorService.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.state_repository = state_repository
         self.llm_client = llm_client
 

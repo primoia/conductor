@@ -18,6 +18,8 @@ RUN poetry install --without=dev --no-root && mv .venv /opt/venv
 
 # Copiar código-fonte
 COPY src ./src
+COPY config.yaml ./
+COPY scripts ./scripts
 
 # ---
 
@@ -32,10 +34,12 @@ WORKDIR /home/appuser/app
 # Copiar ambiente virtual e código-fonte do builder
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /app/src ./src
+COPY --from=builder /app/config.yaml ./
+COPY --from=builder /app/scripts ./scripts
 
 # Ativar o ambiente virtual
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Placeholder para o comando de inicialização do serviço
 # Será atualizado quando o serviço tiver um ponto de entrada executável
-CMD ["python", "-c", "print('Conductor Service - Ponto de Entrada a ser implementado')"]
+CMD ["python", "-c", "from src.core.conductor_service import ConductorService; ConductorService(); import time; time.sleep(3600)"]
