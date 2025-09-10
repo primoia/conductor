@@ -1,18 +1,22 @@
 from .agent_logic import AgentLogic
 from .domain import (
     AgentConfig,
-    ConversationMessage,
+    ConversationEntryDTO,
+    ConversationMessage,  # Deprecated
     AgentState,
-    ConductorException,
     AgentNotEmbodied,
-    ConfigurationError,
     StateRepositoryError,
+)
+from .exceptions import (
+    ConductorException,
+    ConfigurationError,
 )
 
 __all__ = [
     "AgentLogic",
     "AgentConfig",
-    "ConversationMessage",
+    "ConversationEntryDTO",
+    "ConversationMessage",  # Deprecated
     "AgentState",
     "ConductorException",
     "AgentNotEmbodied",

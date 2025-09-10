@@ -1,7 +1,13 @@
 import os
-from typing import Optional
+import yaml
+from pathlib import Path
+from typing import Optional, Dict
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
+
+
+class InvalidConfigurationError(Exception):
+    pass
 
 
 class Settings(BaseSettings):
@@ -35,7 +41,19 @@ class Settings(BaseSettings):
     def check_credentials(self) -> 'Settings':
         """
         Ensures that at least one AI provider credential is configured.
+        Only enforced when running in Docker containers - local development bypasses this check.
         """
+        # Check if running in Docker container
+        is_docker = (
+            os.path.exists("/.dockerenv") or 
+            os.getenv("DOCKER_CONTAINER") == "true" or
+            os.path.exists("/root/.config/gcloud")  # Docker-specific gcloud path
+        )
+        
+        # Skip credential validation for local development
+        if not is_docker:
+            return self
+            
         gcp_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
         # The gcloud config directory inside the Docker container.
         gcloud_config_exists = os.path.exists("/root/.config/gcloud")
@@ -62,6 +80,50 @@ class Settings(BaseSettings):
         env_file_encoding = "utf-8"
         case_sensitive = False
 
+
+class ConfigManager:
+    """
+    Gerenciador centralizado de configuração que carrega e valida o config.yaml.
+    """
+    
+    def __init__(self, config_path: str = "config.yaml"):
+        self.config_path = Path(config_path)
+        self._config_data = None
+    
+    def _load_config(self) -> Dict:
+        """Carrega o arquivo config.yaml."""
+        if self._config_data is None:
+            if not self.config_path.exists():
+                raise FileNotFoundError(f"Configuration file not found: {self.config_path}")
+            
+            with open(self.config_path, 'r', encoding='utf-8') as f:
+                self._config_data = yaml.safe_load(f)
+        
+        return self._config_data
+    
+    def load_storage_config(self) -> Dict:
+        """Carrega e valida a seção storage_backend do config.yaml."""
+        config = self._load_config()
+        
+        if 'storage_backend' not in config:
+            raise InvalidConfigurationError("Missing 'storage_backend' section in config.yaml")
+        
+        storage_config = config['storage_backend']
+        
+        if 'type' not in storage_config:
+            raise InvalidConfigurationError("Missing 'type' field in storage_backend section")
+        
+        storage_type = storage_config['type']
+        if storage_type not in ['filesystem', 'mongodb']:
+            raise InvalidConfigurationError(
+                f"Invalid storage type '{storage_type}'. Must be 'filesystem' or 'mongodb'"
+            )
+        
+        return storage_config
+
+
+# Schema version constant
+CURRENT_SUPPORTED_SCHEMA_VERSION = "1.0"
 
 # Global settings instance
 settings = Settings()

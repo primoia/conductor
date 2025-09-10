@@ -9,12 +9,20 @@ It acts as a thin interface that delegates to the core business logic.
 import sys
 from pathlib import Path
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add project root to path for imports
+project_root = Path(__file__).parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+# Also add src to path as fallback
+src_path = Path(__file__).parent.parent
+if str(src_path) not in sys.path:
+    sys.path.insert(0, str(src_path))
 
 from src.container import container
 from src.core.observability import configure_logging
 from src.core.domain import AgentNotEmbodied
+from src.infrastructure.utils import cleanup_orphan_sessions
 from src.cli.shared import (
     REPLManager,
     CLIArgumentParser,
@@ -222,6 +230,18 @@ def main():
 
     if not ErrorHandling.check_permissions():
         sys.exit(1)
+
+    # Execute cleanup for filesystem storage backend
+    try:
+        config_manager = container.config_manager
+        storage_config = config_manager.load_storage_config()
+        
+        if storage_config.get('type') == 'filesystem':
+            workspace_path = storage_config.get('workspace_path')
+            if workspace_path:
+                cleanup_orphan_sessions(workspace_path)
+    except Exception as e:
+        print(f"⚠️  Warning: Failed to execute session cleanup: {e}")
 
     # Use shared argument parser
     parser = CLIArgumentParser.create_admin_parser()

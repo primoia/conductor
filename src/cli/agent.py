@@ -9,8 +9,15 @@ It acts as a thin interface that delegates to the core business logic.
 import sys
 from pathlib import Path
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add project root to path for imports
+project_root = Path(__file__).parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+# Also add src to path as fallback
+src_path = Path(__file__).parent.parent
+if str(src_path) not in sys.path:
+    sys.path.insert(0, str(src_path))
 
 from src.container import container
 from src.core.observability import configure_logging

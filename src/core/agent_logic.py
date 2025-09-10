@@ -10,12 +10,13 @@ from src.ports.state_repository import StateRepository
 from src.ports.llm_client import LLMClient
 from src.core.domain import (
     AgentConfig,
-    ConversationMessage,
+    ConversationEntryDTO,
+    ConversationMessage,  # Deprecated
     AgentState,
     AgentNotEmbodied,
-    ConfigurationError,
     StateRepositoryError,
 )
+from src.core.exceptions import ConfigurationError
 from src.core.exceptions import (
     AgentNotFoundError,
     LLMClientError,
@@ -106,16 +107,20 @@ class AgentLogic:
                 str(agent_home_path), state_file_name
             )
 
-            # Convert conversation history to proper format
-            conversation_history = []
-            for msg in state_data.get("conversation_history", []):
+            # Load and convert conversation history using new DTO
+            conversation_entries = []
+            legacy_history = state_data.get("conversation_history", [])
+            
+            for msg in legacy_history:
                 if isinstance(msg, dict) and "prompt" in msg and "response" in msg:
-                    conversation_history.append(ConversationMessage(**msg))
+                    # Convert legacy format to new DTO
+                    entry = ConversationEntryDTO.from_legacy_format(msg)
+                    conversation_entries.append(entry)
 
-            # Set conversation history in LLM client
+            # Set conversation history in LLM client (convert back to legacy format for compatibility)
             if hasattr(self.llm_client, "conversation_history"):
                 self.llm_client.conversation_history = [
-                    msg.dict() for msg in conversation_history
+                    entry.to_legacy_format() for entry in conversation_entries
                 ]
 
             # Configure output scope if applicable
