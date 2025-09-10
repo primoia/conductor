@@ -17,10 +17,15 @@ class PromptEngine:
     Responsável por carregar, processar e construir prompts.
     """
 
-    def __init__(self, agent_home_path: Path):
-        self.agent_home_path = agent_home_path
-        self.persona_content: Optional[str] = None
-        self.agent_config: Optional[Dict[str, Any]] = None
+    def __init__(self, agent_home_path: str):
+        """
+        Inicializa o PromptEngine com o caminho para o diretório principal do agente.
+        """
+        self.agent_home_path = Path(agent_home_path)
+        self.agent_config: Dict[str, Any] = {}
+        self.persona_content: str = ""
+        self.playbook: Dict[str, Any] = {}
+        self.load_context() # Carrega o contexto na inicialização
         logger.debug(f"PromptEngine inicializado para o caminho: {agent_home_path}")
 
     def load_context(self) -> None:
@@ -36,9 +41,7 @@ class PromptEngine:
             f"Contexto para o agente em '{self.agent_home_path}' carregado com sucesso."
         )
 
-    def build_prompt(
-        self, conversation_history: List[Dict[str, Any]], user_input: str
-    ) -> str:
+    def build_prompt(self, conversation_history: List[Dict], message: str) -> str:
         """Constrói o prompt final usando o contexto já carregado."""
         if self.persona_content is None or self.agent_config is None:
             raise ValueError(
@@ -80,7 +83,7 @@ class PromptEngine:
 ### HISTÓRICO DA TAREFA ATUAL
 {formatted_history}
 ### NOVA INSTRUÇÃO DO USUÁRIO
-{user_input}
+{message}
 """
 
         # Final safety check on complete prompt
