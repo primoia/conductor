@@ -10,9 +10,9 @@ O objetivo é centralizar a lógica de seleção de backend em um único lugar, 
 
 #### Checklist de Execução
 
-- [ ] Modificar o `ConductorService` em `src/core/conductor_service.py`.
-- [ ] Criar um método privado `_create_storage_backend(self, storage_config: StorageConfig) -> IStateRepository`.
-- [ ] Dentro deste método, implementar a lógica que retorna uma instância de `FileSystemStateRepository` se `storage_config.type == 'filesystem'` e `MongoStateRepository` se for `'mongodb'`.
-- [ ] Garantir que uma `ConfigurationError` seja lançada se o tipo for desconhecido.
-- [ ] Chamar este método no `__init__` e armazenar a instância do repositório em um atributo (ex: `self.repository`).
-- [ ] Serão necessárias importações das futuras classes concretas de repositório, que podem ser criadas com um `pass` básico por enquanto.
+- [x] Modificar o `ConductorService` em `src/core/conductor_service.py`.
+- [x] Criar um método privado `_create_storage_backend(self, storage_config: StorageConfig) -> IStateRepository`.
+- [x] Dentro deste método, implementar a lógica que retorna uma instância de `FileSystemStateRepository` se `storage_config.type == 'filesystem'` e `MongoStateRepository` se for `'mongodb'`.
+- [x] Garantir que uma `ConfigurationError` seja lançada se o tipo for desconhecido.
+- [x] Chamar este método no `__init__` e armazenar a instância do repositório em um atributo (ex: `self.repository`).
+- [x] Serão necessárias importações das futuras classes concretas de repositório, que podem ser criadas com um `pass` básico por enquanto.
