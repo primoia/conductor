@@ -16,6 +16,7 @@ pymongo = "^4.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
+pytest-docker = "^2.0.1"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

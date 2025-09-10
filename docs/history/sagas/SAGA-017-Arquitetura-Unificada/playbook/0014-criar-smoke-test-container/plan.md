@@ -10,8 +10,8 @@ O objetivo é criar a primeira e mais importante barreira de qualidade no nosso 
 
 #### Checklist de Execução
 
-- [ ] Criar um novo arquivo de teste em `tests/e2e/test_containerized_service.py`.
-- [ ] Utilizar uma biblioteca como `pytest-docker` ou escrever um script customizado para gerenciar o `docker-compose up -d` e `docker-compose down`.
-- [ ] O teste deve esperar que o serviço `conductor-service` se torne "saudável" (healthy).
-- [ ] Após o serviço estar saudável, o teste deve executar uma chamada simples contra ele. (Como ainda não temos uma API, o teste pode executar um comando dentro do contêiner, por exemplo, `docker exec conductor_service python -c "..."` para instanciar o `ConductorService` e chamar `discover_agents()`).
-- [ ] O teste deve validar que a chamada não falhou e retornou um resultado esperado (mesmo que seja uma lista vazia de agentes, por enquanto).
+- [x] Criar um novo arquivo de teste em `tests/e2e/test_containerized_service.py`.
+- [x] Utilizar uma biblioteca como `pytest-docker` ou escrever um script customizado para gerenciar o `docker-compose up -d` e `docker-compose down`.
+- [x] O teste deve esperar que o serviço `conductor-service` se torne "saudável" (healthy).
+- [x] Após o serviço estar saudável, o teste deve executar uma chamada simples contra ele. (Como ainda não temos uma API, o teste pode executar um comando dentro do contêiner, por exemplo, `docker exec conductor_service python -c "..."` para instanciar o `ConductorService` e chamar `discover_agents()`).
+- [x] O teste deve validar que a chamada não falhou e retornou um resultado esperado (mesmo que seja uma lista vazia de agentes, por enquanto).
