@@ -1,6 +1,7 @@
 # tests/e2e/test_full_flow.py
 import pytest
 import yaml
+import json
 from pathlib import Path
 from unittest.mock import patch
 from src.core.conductor_service import ConductorService
@@ -25,24 +26,50 @@ def filesystem_service(tmp_path):
         yaml.dump(FILESYSTEM_CONFIG, f)
 
     # Criar um agente mock no workspace
-    agent_dir = workspace_path / "agents" / "fs_agent"
-    agent_dir.mkdir(parents=True)
-    with open(agent_dir / "agent.yaml", "w") as f:
-        # Create agent.yaml with top-level fields as expected by PromptEngine
+    # O FileSystemStateRepository espera arquivos .json diretamente no subdiretório 'agents'
+    agents_dir = workspace_path / "agents"
+    agents_dir.mkdir(parents=True)
+    
+    # Criar diretório específico do agente para agent.yaml e persona.md
+    fs_agent_dir = agents_dir / "fs_agent"
+    fs_agent_dir.mkdir(parents=True)
+    
+    # Criar agent.yaml para o PromptEngine
+    with open(fs_agent_dir / "agent.yaml", "w") as f:
         yaml.dump({
             "name": "FS Agent", 
             "version": "1.0", 
             "schema_version": "1.0",
-            "description": "", 
+            "description": "A test agent for filesystem flow", 
             "author": "test",
             "tags": [],
             "capabilities": [],
             "allowed_tools": []
         }, f)
-
-    # Create persona.md
-    with open(agent_dir / "persona.md", "w") as f:
-        f.write("You are a helpful test agent.")
+    
+    # Criar persona.md para o PromptEngine
+    with open(fs_agent_dir / "persona.md", "w") as f:
+        f.write("You are a helpful test agent for filesystem operations.")
+    
+    # Conteúdo do agente mock no formato JSON para o FileSystemStateRepository
+    agent_content = {
+        "definition": {
+            "name": "FS Agent", 
+            "version": "1.0", 
+            "schema_version": "1.0",
+            "description": "A test agent for filesystem flow", 
+            "author": "test",
+            "tags": [],
+            "capabilities": [],
+            "allowed_tools": []
+        },
+        "agent_home_path": str(fs_agent_dir.resolve()), # Caminho para o diretório específico do agente
+        "allowed_tools": []
+    }
+    
+    # Salvar como arquivo JSON para o FileSystemStateRepository
+    with open(agents_dir / "fs_agent.json", "w") as f:
+        json.dump(agent_content, f, indent=2)
 
     return ConductorService(config_path=str(config_path))
 
