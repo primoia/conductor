@@ -22,7 +22,7 @@ from src.infrastructure.persistence.state_repository import (
     FileStateRepository,
     MongoStateRepository,
 )
-from src.ports.state_repository import StateRepository
+from src.ports.state_repository import IStateRepository as StateRepository
 
 
 class TestFileStateRepository:

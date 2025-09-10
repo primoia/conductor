@@ -8,7 +8,7 @@ from pathlib import Path
 
 from src.core.agent_logic import AgentLogic
 from src.core.domain import AgentNotEmbodied, ConfigurationError
-from src.ports.state_repository import StateRepository
+from src.ports.state_repository import IStateRepository as StateRepository
 from src.ports.llm_client import LLMClient
 
 
