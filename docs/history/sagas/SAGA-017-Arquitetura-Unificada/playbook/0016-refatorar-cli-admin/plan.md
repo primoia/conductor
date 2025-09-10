@@ -10,12 +10,12 @@ O objetivo é unificar o fluxo de execução. Ao final desta tarefa, o `admin.py
 
 #### Checklist de Execução
 
-- [ ] Abrir o arquivo `src/cli/admin.py`.
-- [ ] No `__init__` da classe `AdminCLI`, remover a instanciação do `AgentLogic`.
-- [ ] Em seu lugar, obter a instância singleton do `ConductorService` a partir do `container`.
-- [ ] Remover a lógica de descoberta de caminhos de agente (ex: `projects/_common/agents/`).
-- [ ] Modificar o método `chat` (e outros métodos relevantes).
-- [ ] O método `chat` deve agora criar um `TaskDTO` com os dados da requisição (agent_id, user_input).
-- [ ] Chamar o método `self.conductor_service.execute_task(task_dto)`.
-- [ ] Adaptar o código para lidar com o `TaskResultDTO` retornado.
-- [ ] Garantir que os argumentos de linha de comando existentes continuem funcionando, apenas agora como parâmetros para o `TaskDTO`.
+- [x] Abrir o arquivo `src/cli/admin.py`.
+- [x] No `__init__` da classe `AdminCLI`, remover a instanciação do `AgentLogic`.
+- [x] Em seu lugar, obter a instância singleton do `ConductorService` a partir do `container`.
+- [x] Remover a lógica de descoberta de caminhos de agente (ex: `projects/_common/agents/`).
+- [x] Modificar o método `chat` (e outros métodos relevantes).
+- [x] O método `chat` deve agora criar um `TaskDTO` com os dados da requisição (agent_id, user_input).
+- [x] Chamar o método `self.conductor_service.execute_task(task_dto)`.
+- [x] Adaptar o código para lidar com o `TaskResultDTO` retornado.
+- [x] Garantir que os argumentos de linha de comando existentes continuem funcionando, apenas agora como parâmetros para o `TaskDTO`.
