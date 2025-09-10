@@ -1,0 +1,8 @@
+name: "Executor_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "Agente especializado em execução de tarefas específicas delegadas pelo Maestro Agent"
+author: "SAGA-017"
+tags: ["executor", "code", "shell", "execution"]
+capabilities: []
+allowed_tools: []
