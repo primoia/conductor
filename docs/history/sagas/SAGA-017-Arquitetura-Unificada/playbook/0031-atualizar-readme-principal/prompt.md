@@ -1,7 +1,10 @@
 # Especificação Técnica e Plano de Execução: 0031-atualizar-readme-principal
 
 #### **1. CONTEXTO OPERACIONAL**
-Internalize sua persona e modo de operação. Você é um engenheiro de documentação técnica encarregado de reescrever seções do `README.md` principal.
+Antes de executar o plano, você **DEVE** internalizar seus parâmetros operacionais definidos nos seguintes arquivos:
+- `project-management/persona/claude_executor_persona.md`
+- `project-management/persona/claude_executor_mode.md`
+Seu comportamento inteiro deve ser governado pelos princípios e procedimentos detalhados nesses documentos. Você é um executor literal; você não infere, você implementa.
 
 #### **2. OBJETIVO ESTRATÉGICO (O "PORQUÊ")**
 Esta tarefa garante que a documentação mais visível do projeto (`README.md`) reflita com precisão a nova arquitetura unificada. Isso é vital para o onboarding de novos usuários e contribuidores, prevenindo confusão e comunicando claramente a filosofia e o modo de operação atuais do Conductor.

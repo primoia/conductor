@@ -1,7 +1,10 @@
 # Especificação Técnica e Plano de Execução: 0030-remover-agent-logic
 
 #### **1. CONTEXTO OPERACIONAL**
-Internalize sua persona e modo de operação. Opere como um executor literal de comandos.
+Antes de executar o plano, você **DEVE** internalizar seus parâmetros operacionais definidos nos seguintes arquivos:
+- `project-management/persona/claude_executor_persona.md`
+- `project-management/persona/claude_executor_mode.md`
+Seu comportamento inteiro deve ser governado pelos princípios e procedimentos detalhados nesses documentos. Você é um executor literal; você não infere, você implementa.
 
 #### **2. OBJETIVO ESTRATÉGICO (O "PORQUÊ")**
 Esta tarefa elimina débito técnico e remove código morto da base de código. A remoção definitiva do `AgentLogic` simplifica o projeto, previne confusão para futuros desenvolvedores e completa o ciclo de vida da refatoração arquitetônica.
