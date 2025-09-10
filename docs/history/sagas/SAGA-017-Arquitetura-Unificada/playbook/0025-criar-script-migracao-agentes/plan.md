@@ -10,9 +10,9 @@ O objetivo é criar uma ferramenta reutilizável e à prova de erros para trazer
 
 #### Checklist de Execução
 
-- [ ] Criar um novo arquivo em `scripts/migrate_legacy_agents.py`.
-- [ ] O script deve usar `argparse` para aceitar argumentos de linha de comando, como o diretório de origem do agente legado e o diretório de destino para os novos artefatos.
-- [ ] Implementar uma função que leia os múltiplos arquivos de um agente legado (`agent.yaml`, `persona.md`, `playbook.yaml`).
-- [ ] A função deve consolidar as informações lidas em uma única estrutura de dicionário Python, que representará o novo "estado" unificado do agente.
-- [ ] A função deve então escrever este dicionário consolidado como um único arquivo JSON no diretório de destino.
-- [ ] O script deve ser capaz de iterar sobre um diretório contendo múltiplos agentes (como `projects/_common/agents/`) e migrar todos eles de uma vez.
+- [x] Criar um novo arquivo em `scripts/migrate_legacy_agents.py`.
+- [x] O script deve usar `argparse` para aceitar argumentos de linha de comando, como o diretório de origem do agente legado e o diretório de destino para os novos artefatos.
+- [x] Implementar uma função que leia os múltiplos arquivos de um agente legado (`agent.yaml`, `persona.md`, `playbook.yaml`).
+- [x] A função deve consolidar as informações lidas em uma única estrutura de dicionário Python, que representará o novo "estado" unificado do agente.
+- [x] A função deve então escrever este dicionário consolidado como um único arquivo JSON no diretório de destino.
+- [x] O script deve ser capaz de iterar sobre um diretório contendo múltiplos agentes (como `projects/_common/agents/`) e migrar todos eles de uma vez.
