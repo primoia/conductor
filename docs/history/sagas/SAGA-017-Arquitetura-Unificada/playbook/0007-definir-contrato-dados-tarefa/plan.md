@@ -10,9 +10,9 @@ O objetivo é criar um "pacote de trabalho" padronizado e fortemente tipado. Ao 
 
 #### Checklist de Execução
 
-- [ ] Navegar até o arquivo `src/core/domain.py`.
-- [ ] Definir uma nova `@dataclass` chamada `TaskDTO`.
-- [ ] A `TaskDTO` deve conter campos essenciais como `agent_id: str`, `user_input: str`, e opcionalmente `context: Dict`.
-- [ ] Definir uma nova `@dataclass` chamada `TaskResultDTO`.
-- [ ] A `TaskResultDTO` deve conter campos como `status: str` (ex: 'success', 'error'), `output: str`, e opcionalmente `metadata: Dict`.
-- [ ] Garantir que todas as novas classes e campos tenham type hints explícitos.
+- [x] Navegar até o arquivo `src/core/domain.py`.
+- [x] Definir uma nova `@dataclass` chamada `TaskDTO`.
+- [x] A `TaskDTO` deve conter campos essenciais como `agent_id: str`, `user_input: str`, e opcionalmente `context: Dict`.
+- [x] Definir uma nova `@dataclass` chamada `TaskResultDTO`.
+- [x] A `TaskResultDTO` deve conter campos como `status: str` (ex: 'success', 'error'), `output: str`, e opcionalmente `metadata: Dict`.
+- [x] Garantir que todas as novas classes e campos tenham type hints explícitos.
