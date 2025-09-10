@@ -42,6 +42,7 @@ class Settings(BaseSettings):
         """
         Ensures that at least one AI provider credential is configured.
         Only enforced when running in Docker containers - local development bypasses this check.
+        Local development can use Claude Code CLI without API keys.
         """
         # Check if running in Docker container
         is_docker = (
@@ -50,12 +51,26 @@ class Settings(BaseSettings):
             os.path.exists("/root/.config/gcloud")  # Docker-specific gcloud path
         )
         
-        # Skip credential validation for local development
+        # Skip credential validation for local development (Claude Code CLI available)
         if not is_docker:
+            # Check if Claude Code CLI is available locally
+            try:
+                import subprocess
+                result = subprocess.run(["claude", "--version"], 
+                                      capture_output=True, 
+                                      text=True, 
+                                      timeout=3)
+                if result.returncode == 0:
+                    # Claude Code CLI available - no API credentials needed
+                    return self
+            except:
+                pass
+            
+            # If no Claude Code CLI, still allow local development without strict validation
             return self
             
+        # For Docker containers, validate credentials
         gcp_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-        # The gcloud config directory inside the Docker container.
         gcloud_config_exists = os.path.exists("/root/.config/gcloud")
 
         has_api_key = self.GEMINI_API_KEY or self.ANTHROPIC_API_KEY
@@ -70,7 +85,9 @@ class Settings(BaseSettings):
                 "  2. Add your API key (e.g., GEMINI_API_KEY) to the .env file.\n"
                 "  OR\n"
                 "  3. Configure Google Cloud authentication by mounting your gcloud config\n"
-                "     or setting the GOOGLE_APPLICATION_CREDENTIALS environment variable."
+                "     or setting the GOOGLE_APPLICATION_CREDENTIALS environment variable.\n"
+                "  OR\n"
+                "  4. For local development, install Claude Code CLI (`curl -fsSL https://claude.ai/install.sh | sh`)"
                 "\n" + "="*80
             )
         return self
