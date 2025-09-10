@@ -65,8 +65,8 @@ def filesystem_service(tmp_path):
 
     # Criar um agente mock no workspace
     # O FileSystemStateRepository espera arquivos .json diretamente no subdiretório 'agents'
-    agent_dir = workspace_path / "agents"
-    agent_dir.mkdir(parents=True)
+    agents_dir = workspace_path / "agents"
+    agents_dir.mkdir(parents=True)
     
     # Conteúdo do agente mock no formato JSON
     agent_content = {

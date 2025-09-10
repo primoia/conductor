@@ -63,7 +63,7 @@ def filesystem_service(tmp_path):
             "capabilities": [],
             "allowed_tools": []
         },
-        "agent_home_path": str(fs_agent_dir.resolve()), # Caminho para o diretório específico do agente
+        "agent_home_path": str(fs_agent_dir.resolve()), # Caminho para o diretório do agente
         "allowed_tools": []
     }
     
