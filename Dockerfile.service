@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM python:3.10-slim-bullseye AS builder
+FROM python:3.11-slim-bullseye AS builder
 
 # Instalar poetry
 RUN pip install poetry
@@ -14,7 +14,7 @@ WORKDIR /app
 
 # Copiar arquivos de dependência e instalar
 COPY pyproject.toml poetry.lock ./
-RUN poetry install --no-dev && mv .venv /opt/venv
+RUN poetry install --without=dev --no-root && mv .venv /opt/venv
 
 # Copiar código-fonte
 COPY src ./src
@@ -22,7 +22,7 @@ COPY src ./src
 # ---
 
 # Stage 2: Final Image
-FROM python:3.10-slim-bullseye
+FROM python:3.11-slim-bullseye
 
 # Criar usuário não-root
 RUN useradd --create-home appuser
