@@ -1,9 +1,23 @@
+# Especificação Técnica e Plano de Execução: 0028.10-implementar-fs-discovery
+
+#### 1. OBJETIVO ESTRATÉGICO (O "PORQUÊ")
+
+Esta tarefa de correção visa habilitar o `FileSystemStateRepository` a descobrir e carregar corretamente os artefatos JSON dos agentes, resolvendo as falhas nos testes de integração do Maestro-Executor e permitindo a validação da Fase VII.
+
+#### 2. ESPECIFICAÇÃO TÉCNICA (O "O QUÊ" E "COMO")
+
+Você deve modificar o arquivo `src/infrastructure/persistence/state_repository.py`.
+
+**Arquivo 1 (Modificar): `src/infrastructure/persistence/state_repository.py`**
+
+```python
+# src/infrastructure/persistence/state_repository.py
 import os
 import json
 import logging
 from datetime import datetime
 from typing import Dict, Any, List
-from pathlib import Path
+from pathlib import Path # Adicionar import de Path
 from src.ports.state_repository import IStateRepository as StateRepository
 from src.core.exceptions import StatePersistenceError
 
@@ -61,81 +75,24 @@ class FileStateRepository(StateRepository):
 
 
 class MongoStateRepository(StateRepository):
-    """
-    Implementação do StateRepository que usa MongoDB como backend de persistência.
+    # ... (manter __init__ e close)
 
-    Requer a biblioteca pymongo e a variável de ambiente MONGO_URI.
-    """
-
-    def __init__(
-        self,
-        database_name: str = "conductor_state",
-        collection_name: str = "agent_states",
-    ):
-        """
-        Inicializa o repositório MongoDB.
-
-        Args:
-            database_name: Nome do banco de dados (default: "conductor_state")
-            collection_name: Nome da coleção (default: "agent_states")
-        """
-        try:
-            import pymongo
-        except ImportError:
-            raise ImportError(
-                "pymongo is required for MongoStateRepository. "
-                "Install it with: pip install pymongo"
-            )
-
-        mongo_uri = os.getenv("MONGO_URI")
-        if not mongo_uri:
-            raise ValueError(
-                "MONGO_URI environment variable is required for MongoStateRepository. "
-                "Set it to your MongoDB connection string."
-            )
-
-        try:
-            self.client = pymongo.MongoClient(mongo_uri)
-            self.database = self.client[database_name]
-            self.collection = self.database[collection_name]
-
-            # Test connection
-            self.client.admin.command("ping")
-
-        except Exception as e:
-            raise ConnectionError(f"Failed to connect to MongoDB: {e}")
-
-    def _generate_document_id(self, agent_home_path: str, state_file_name: str) -> str:
-        """
-        Gera um ID único para o documento baseado no caminho do agente.
-
-        Args:
-            agent_home_path: Caminho do diretório home do agente
-            state_file_name: Nome do arquivo de estado
-
-        Returns:
-            ID único para o documento
-        """
-        # Usa o caminho normalizado como identificador único
-        normalized_path = os.path.normpath(agent_home_path)
-        return f"{normalized_path}_{state_file_name}"
-
-    def load_state(self, agent_id: str) -> Dict[str, Any]:
+    def load_state(self, agent_id: str) -> Dict[str, Any]: # Ajustar assinatura
         # ... (lógica existente, mas agora recebe apenas agent_id)
         # O _generate_document_id precisará ser ajustado ou removido se não for mais necessário
         pass # Manter pass por enquanto, foco no FileSystem
 
     def save_state(
         self, agent_id: str, state_data: Dict[str, Any]
-    ) -> bool:
+    ) -> bool: # Ajustar assinatura
         # ... (lógica existente, mas agora recebe apenas agent_id)
         pass # Manter pass por enquanto, foco no FileSystem
 
     def list_agents(self) -> List[str]:
         """Lista os IDs de todos os agentes disponíveis no backend de armazenamento."""
         return [] # Manter vazio por enquanto, foco no FileSystem
+```
 
-    def close(self):
-        """Fecha a conexão com o MongoDB."""
-        if hasattr(self, "client"):
-            self.client.close()
+#### 3. SINAL DE CONCLUSÃO
+
+Responda com: `TASK_COMPLETE`
