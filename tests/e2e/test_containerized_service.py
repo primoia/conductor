@@ -2,10 +2,24 @@
 import subprocess
 import time
 import pytest
+import shutil
 
 # Este teste é complexo e depende de um ambiente externo (Docker).
 # A implementação abaixo é uma representação simplificada usando subprocess.
 # Uma implementação mais robusta usaria pytest-docker.
+
+def docker_available():
+    """Check if Docker and docker compose are available."""
+    try:
+        # Check if docker is available
+        subprocess.run(["docker", "--version"], check=True, capture_output=True)
+        # Check if docker compose is available
+        subprocess.run(["docker", "compose", "--version"], check=True, capture_output=True)
+        # Check if Docker daemon is running
+        subprocess.run(["docker", "info"], check=True, capture_output=True)
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
 
 @pytest.fixture(scope="module")
 def docker_services():
@@ -13,7 +27,9 @@ def docker_services():
     try:
         print("Subindo o ambiente Docker...")
         # Usar -d para detached mode
-        subprocess.run(["docker", "compose", "up", "--build", "-d"], check=True)
+        result = subprocess.run(["docker", "compose", "up", "--build", "-d"], check=True, capture_output=True, text=True)
+        if result.stderr:
+            print(f"Docker compose stderr: {result.stderr}")
 
         # Esperar o healthcheck passar
         print("Aguardando o serviço se tornar saudável...")
@@ -34,6 +50,7 @@ def docker_services():
         print("Derrubando o ambiente Docker...")
         subprocess.run(["docker", "compose", "down"], check=True)
 
+@pytest.mark.skipif(not docker_available(), reason="Docker not available or not running")
 def test_service_smoke_run(docker_services):
     """
     Executa um comando simples dentro do contêiner para verificar
