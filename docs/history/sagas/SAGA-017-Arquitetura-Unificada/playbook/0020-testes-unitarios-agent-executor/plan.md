@@ -10,14 +10,14 @@ O objetivo é garantir a confiabilidade do nosso componente de execução. Testa
 
 #### Checklist de Execução
 
-- [ ] Criar um novo arquivo de teste em `tests/core/test_agent_executor.py`.
-- [ ] Usar `pytest` e `unittest.mock`.
-- [ ] Escrever um teste para o cenário de sucesso:
+- [x] Criar um novo arquivo de teste em `tests/core/test_agent_executor.py`.
+- [x] Usar `pytest` e `unittest.mock`.
+- [x] Escrever um teste para o cenário de sucesso:
     -   Instanciar o `AgentExecutor` com dependências mockadas (`PromptEngine`, `LLMClient`).
     -   Chamar o método `run`.
     -   Verificar se o `PromptEngine` foi chamado com os argumentos corretos (input do usuário, histórico).
     -   Verificar se o cliente LLM foi chamado com o prompt construído pelo `PromptEngine`.
     -   Verificar se o `TaskResultDTO` retornado contém o status `success` e a resposta do LLM mockado.
-- [ ] Escrever um teste para o cenário de falha, onde o cliente LLM lança uma exceção.
-- [ ] Verificar se o `TaskResultDTO` retornado contém o status `error` e a mensagem de erro correta.
-- [ ] Atingir uma cobertura de teste de pelo menos 90% para `src/core/agent_executor.py`.
+- [x] Escrever um teste para o cenário de falha, onde o cliente LLM lança uma exceção.
+- [x] Verificar se o `TaskResultDTO` retornado contém o status `error` e a mensagem de erro correta.
+- [x] Atingir uma cobertura de teste de pelo menos 90% para `src/core/agent_executor.py`.
