@@ -1,4 +1,3 @@
-from .agent_logic import AgentLogic
 from .domain import (
     AgentConfig,
     ConversationEntryDTO,
@@ -13,7 +12,6 @@ from .exceptions import (
 )
 
 __all__ = [
-    "AgentLogic",
     "AgentConfig",
     "ConversationEntryDTO",
     "ConversationMessage",  # Deprecated

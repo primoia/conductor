@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Dict, Any
 
 from src.config import settings, ConfigManager
-from src.core.agent_logic import AgentLogic
 from src.core.agent_service import AgentService
 from src.core.conductor_service import ConductorService
 from src.core.exceptions import AgentNotFoundError
@@ -26,7 +25,7 @@ class DIContainer:
     1. Reading configuration
     2. Instantiating concrete adapters
     3. Connecting all dependencies
-    4. Providing ready-to-use AgentLogic instances
+    4. Providing ready-to-use service instances
     """
 
     def __init__(self):
@@ -61,35 +60,6 @@ class DIContainer:
             ai_provider, working_directory, timeout, is_admin_agent
         )
 
-    def create_agent_logic(
-        self,
-        state_provider: str = "file",
-        ai_provider: str = "claude",
-        working_directory: str = None,
-        timeout: int = None,
-        is_admin_agent: bool = False,
-    ) -> AgentLogic:
-        """
-        Create a fully configured AgentLogic instance.
-
-        Args:
-            state_provider: State persistence provider ('file' or 'mongo')
-            ai_provider: AI provider ('claude' or 'gemini')
-            working_directory: Working directory for the LLM client
-            timeout: Timeout for LLM operations
-            is_admin_agent: Whether this is an admin agent (gets unrestricted access)
-
-        Returns:
-            Configured AgentLogic instance with injected dependencies
-        """
-        # Get dependencies
-        state_repository = self.get_state_repository(state_provider)
-        llm_client = self.get_llm_client(
-            ai_provider, working_directory, timeout, is_admin_agent
-        )
-
-        # Create and return AgentLogic with injected dependencies
-        return AgentLogic(state_repository, llm_client)
 
     def create_agent_service(self) -> AgentService:
         """
