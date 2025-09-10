@@ -10,10 +10,10 @@ O objetivo é simplificar radicalmente o "onboarding" de desenvolvedores e a exe
 
 #### Checklist de Execução
 
-- [ ] Na raiz do projeto, criar um novo arquivo chamado `docker-compose.yml`.
-- [ ] Definir a versão do compose (ex: `3.8`).
-- [ ] Definir um serviço para o `conductor-service`, especificando que ele deve ser construído a partir do `Dockerfile.service`.
-- [ ] Mapear um volume para a pasta `src` para permitir o "hot-reloading" do código durante o desenvolvimento.
-- [ ] Definir um serviço para o `mongodb`, usando uma imagem oficial do MongoDB (ex: `mongo:5.0`).
-- [ ] Configurar uma rede customizada para que os serviços possam se comunicar pelo nome (`conductor-service`, `mongodb`).
-- [ ] Passar as variáveis de ambiente necessárias, como a string de conexão do MongoDB, para o `conductor-service`.
+- [x] Na raiz do projeto, criar um novo arquivo chamado `docker-compose.yml`.
+- [x] Definir a versão do compose (ex: `3.8`).
+- [x] Definir um serviço para o `conductor-service`, especificando que ele deve ser construído a partir do `Dockerfile.service`.
+- [x] Mapear um volume para a pasta `src` para permitir o "hot-reloading" do código durante o desenvolvimento.
+- [x] Definir um serviço para o `mongodb`, usando uma imagem oficial do MongoDB (ex: `mongo:5.0`).
+- [x] Configurar uma rede customizada para que os serviços possam se comunicar pelo nome (`conductor-service`, `mongodb`).
+- [x] Passar as variáveis de ambiente necessárias, como a string de conexão do MongoDB, para o `conductor-service`.
