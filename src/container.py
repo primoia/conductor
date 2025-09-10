@@ -8,7 +8,7 @@ from src.core.agent_logic import AgentLogic
 from src.core.agent_service import AgentService
 from src.core.conductor_service import ConductorService
 from src.core.exceptions import AgentNotFoundError
-from src.ports.state_repository import StateRepository
+from src.ports.state_repository import IStateRepository as StateRepository
 from src.ports.llm_client import LLMClient
 from src.infrastructure.persistence.state_repository import (
     FileStateRepository,

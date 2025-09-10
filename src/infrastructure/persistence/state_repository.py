@@ -3,7 +3,7 @@ import json
 import logging
 from datetime import datetime
 from typing import Dict, Any
-from src.ports.state_repository import StateRepository
+from src.ports.state_repository import IStateRepository as StateRepository
 from src.core.exceptions import StatePersistenceError
 
 logger = logging.getLogger(__name__)
