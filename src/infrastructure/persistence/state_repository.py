@@ -121,19 +121,34 @@ class MongoStateRepository(StateRepository):
         return f"{normalized_path}_{state_file_name}"
 
     def load_state(self, agent_id: str) -> Dict[str, Any]:
-        # ... (lógica existente, mas agora recebe apenas agent_id)
+        # Ajustar assinatura para corresponder à IStateRepository
         # O _generate_document_id precisará ser ajustado ou removido se não for mais necessário
-        pass # Manter pass por enquanto, foco no FileSystem
+        # Implementação real para MongoDB
+        document_id = self._generate_document_id(agent_id, "state.json") # Assumindo state.json como nome padrão
+        document = self.collection.find_one({"_id": document_id})
+        if document:
+            document.pop("_id", None)
+            return document
+        return {"definition": {"name": "", "version": "", "schema_version": "", "description": "", "author": "", "tags": [], "capabilities": [], "allowed_tools": []}}
 
     def save_state(
         self, agent_id: str, state_data: Dict[str, Any]
     ) -> bool:
-        # ... (lógica existente, mas agora recebe apenas agent_id)
-        pass # Manter pass por enquanto, foco no FileSystem
+        # Ajustar assinatura para corresponder à IStateRepository
+        # Implementação real para MongoDB
+        document_id = self._generate_document_id(agent_id, "state.json") # Assumindo state.json como nome padrão
+        document_data = state_data.copy()
+        document_data.update({"_id": document_id, "updated_at": datetime.now().isoformat()})
+        result = self.collection.update_one(
+            {"_id": document_id}, {"$set": document_data}, upsert=True
+        )
+        return result.acknowledged
 
     def list_agents(self) -> List[str]:
         """Lista os IDs de todos os agentes disponíveis no backend de armazenamento."""
-        return [] # Manter vazio por enquanto, foco no FileSystem
+        # Implementação real para MongoDB
+        # Retorna os agent_ids de todos os documentos na coleção
+        return [doc["agent_id"] for doc in self.collection.find({}, {"agent_id": 1})]
 
     def close(self):
         """Fecha a conexão com o MongoDB."""
