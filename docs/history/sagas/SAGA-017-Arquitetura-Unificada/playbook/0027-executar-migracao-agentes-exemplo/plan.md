@@ -10,9 +10,9 @@ O objetivo é garantir que todo o nosso ecossistema de agentes conhecidos, inclu
 
 #### Checklist de Execução
 
-- [ ] Executar o script `scripts/migrate_legacy_agents.py`.
-- [ ] Passar o diretório de agentes do `desafio-meli` como o `--source-dir`.
-- [ ] Passar o mesmo diretório de destino (`.conductor_workspace/agents/`) como o `--target-dir`.
-- [ ] Inspecionar a saída do comando para verificar se os agentes do `desafio-meli` foram processados.
-- [ ] Inspecionar o diretório de destino para verificar se os novos arquivos `.json` foram adicionados ao lado dos meta-agentes migrados anteriormente.
-- [ ] Validar o conteúdo de um dos novos arquivos `.json` para garantir que a migração foi bem-sucedida.
+- [x] Executar o script `scripts/migrate_legacy_agents.py`.
+- [x] Passar o diretório de agentes do `desafio-meli` como o `--source-dir`.
+- [x] Passar o mesmo diretório de destino (`.conductor_workspace/agents/`) como o `--target-dir`.
+- [x] Inspecionar a saída do comando para verificar se os agentes do `desafio-meli` foram processados.
+- [x] Inspecionar o diretório de destino para verificar se os novos arquivos `.json` foram adicionados ao lado dos meta-agentes migrados anteriormente.
+- [x] Validar o conteúdo de um dos novos arquivos `.json` para garantir que a migração foi bem-sucedida.
