@@ -1,5 +1,7 @@
 # Análise de Segurança da Arquitetura (SAGA-017)
 
+> **📌 NOTA DE ARQUITETURA:** Esta documentação analisa aspectos específicos de segurança. Para uma visão unificada e atualizada de toda a arquitetura do sistema pós-SAGA-017, consulte: [UNIFIED_ARCHITECTURE.md](./UNIFIED_ARCHITECTURE.md)
+
 ## Vetor de Ameaça: Carregamento de Tool Plugins
 
 A funcionalidade de `tool_plugins` introduzida na SAGA-016 permite carregar código Python de diretórios especificados no `config.yaml`. Isso representa o principal vetor de ameaça da nova arquitetura.

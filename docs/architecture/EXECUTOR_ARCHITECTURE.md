@@ -1,5 +1,7 @@
 # Executor Architecture - Separation of Responsibilities
 
+> **📌 NOTA DE ARQUITETURA:** Esta documentação descreve aspectos específicos da arquitetura dos executores. Para uma visão unificada e atualizada de toda a arquitetura do sistema pós-SAGA-017, consulte: [UNIFIED_ARCHITECTURE.md](./UNIFIED_ARCHITECTURE.md)
+
 ## Overview
 
 The executor architecture has been refactored following the **Single Responsibility Principle** to clearly separate responsibilities between project agents and meta-agents.
