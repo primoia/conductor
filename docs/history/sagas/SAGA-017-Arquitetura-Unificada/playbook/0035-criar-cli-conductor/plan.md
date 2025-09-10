@@ -10,10 +10,10 @@ O objetivo é simplificar a experiência do usuário e criar uma interface de co
 
 #### Checklist de Execução
 
-- [ ] Criar um novo arquivo `src/cli/conductor.py`.
-- [ ] Usar `argparse` para criar um parser principal (`conductor`).
-- [ ] Adicionar subparsers para os comandos `admin` e `agent`.
-- [ ] O subparser `admin` deve aceitar os mesmos argumentos que o `admin.py` legado.
-- [ ] O subparser `agent` deve aceitar os mesmos argumentos que o `agent.py` legado.
-- [ ] A lógica do script deve analisar os argumentos e, em seguida, invocar a lógica correspondente (que agora está encapsulada no `ConductorService`).
-- [ ] O script deve funcionar como um substituto "drop-in" para os dois CLIs antigos.
+- [x] Criar um novo arquivo `src/cli/conductor.py`.
+- [x] Usar `argparse` para criar um parser principal (`conductor`).
+- [x] Adicionar subparsers para os comandos `admin` e `agent`.
+- [x] O subparser `admin` deve aceitar os mesmos argumentos que o `admin.py` legado.
+- [x] O subparser `agent` deve aceitar os mesmos argumentos que o `agent.py` legado.
+- [x] A lógica do script deve analisar os argumentos e, em seguida, invocar a lógica correspondente (que agora está encapsulada no `ConductorService`).
+- [x] O script deve funcionar como um substituto "drop-in" para os dois CLIs antigos.
