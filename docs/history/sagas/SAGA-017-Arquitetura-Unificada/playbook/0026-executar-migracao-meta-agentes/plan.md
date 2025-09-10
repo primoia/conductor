@@ -10,9 +10,9 @@ O objetivo é realizar a primeira migração real de ativos, provando que nosso 
 
 #### Checklist de Execução
 
-- [ ] Criar um diretório de destino para os novos artefatos. Uma boa prática seria um diretório temporário ou um diretório claramente nomeado, como `.conductor_workspace/agents/`.
-- [ ] Executar o script `scripts/migrate_legacy_agents.py` a partir da linha de comando.
-- [ ] Passar `projects/_common/agents/` como o `--source-dir`.
-- [ ] Passar o diretório de destino criado como o `--target-dir`.
-- [ ] Inspecionar o diretório de destino para verificar se os arquivos `.json` foram criados para cada meta-agente.
-- [ ] Abrir um dos arquivos `.json` gerados e verificar se ele contém a estrutura de dados consolidada (definição, persona, etc.) corretamente.
+- [x] Criar um diretório de destino para os novos artefatos. Uma boa prática seria um diretório temporário ou um diretório claramente nomeado, como `.conductor_workspace/agents/`.
+- [x] Executar o script `scripts/migrate_legacy_agents.py` a partir da linha de comando.
+- [x] Passar `projects/_common/agents/` como o `--source-dir`.
+- [x] Passar o diretório de destino criado como o `--target-dir`.
+- [x] Inspecionar o diretório de destino para verificar se os arquivos `.json` foram criados para cada meta-agente.
+- [x] Abrir um dos arquivos `.json` gerados e verificar se ele contém a estrutura de dados consolidada (definição, persona, etc.) corretamente.
