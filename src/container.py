@@ -1,7 +1,7 @@
 import os
 import yaml
 from pathlib import Path
-from typing import Dict, Any, Tuple
+from typing import Dict, Any
 
 from src.config import settings, ConfigManager
 from src.core.agent_logic import AgentLogic
@@ -133,65 +133,7 @@ class DIContainer:
                 }
         return self._ai_providers_config
 
-    def load_workspaces_config(self) -> Dict[str, str]:
-        """Load workspaces configuration."""
-        config_path = Path("config") / "workspaces.yaml"
-        if not config_path.exists():
-            raise FileNotFoundError(
-                f"Workspaces config not found: {config_path}\n"
-                "Create the file with environment to directory mappings."
-            )
 
-        with open(config_path, "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-
-        if not config or "workspaces" not in config:
-            raise ValueError("workspaces.yaml must contain a 'workspaces' section")
-
-        return config["workspaces"]
-
-    def resolve_agent_paths(
-        self, environment: str, project: str, agent_id: str
-    ) -> Tuple[Path, Path]:
-        """
-        Resolve agent and project paths based on environment.
-
-        Args:
-            environment: Environment name (develop, main, _common)
-            project: Project name
-            agent_id: Agent identifier
-
-        Returns:
-            Tuple of (agent_home_path, project_root_path)
-        """
-        conductor_root = Path(__file__).parent.parent
-
-        if environment == "_common":
-            # Meta-agents are in projects/_common/agents/
-            agent_home_path = (
-                conductor_root / "projects" / "_common" / "agents" / agent_id
-            )
-            project_root_path = conductor_root.parent.parent  # Monorepo root
-        else:
-            # Project agents
-            workspaces = self.load_workspaces_config()
-            workspace_root = Path(workspaces[environment])
-            project_root_path = workspace_root / project
-            agent_home_path = (
-                conductor_root
-                / "projects"
-                / environment
-                / project
-                / "agents"
-                / agent_id
-            )
-
-        if not agent_home_path.exists():
-            raise AgentNotFoundError(
-                f"Agent home path does not exist: {agent_home_path}"
-            )
-
-        return agent_home_path.resolve(), project_root_path.resolve()
 
 
 # Global container instance
