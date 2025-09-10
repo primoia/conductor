@@ -10,10 +10,10 @@ O objetivo é criar um ponto de extensibilidade claro para a camada de persistê
 
 #### Checklist de Execução
 
-- [ ] Navegar até o diretório `src/ports/`.
-- [ ] Criar um novo arquivo chamado `state_repository.py`.
-- [ ] No arquivo, importar `ABC`, `abstractmethod`, e tipos relevantes de `typing`.
-- [ ] Definir a classe `IStateRepository(ABC)`.
-- [ ] Adicionar as assinaturas de métodos abstratos essenciais, como `save_state(agent_id: str, state_data: Dict) -> bool` e `load_state(agent_id: str) -> Dict`.
-- [ ] Adicionar um método abstrato para a descoberta de agentes, como `list_agents() -> List[str]`, que será crucial para o `ConductorService`.
-- [ ] Adicionar docstrings claros a cada método.
+- [x] Navegar até o diretório `src/ports/`.
+- [x] Criar um novo arquivo chamado `state_repository.py`.
+- [x] No arquivo, importar `ABC`, `abstractmethod`, e tipos relevantes de `typing`.
+- [x] Definir a classe `IStateRepository(ABC)`.
+- [x] Adicionar as assinaturas de métodos abstratos essenciais, como `save_state(agent_id: str, state_data: Dict) -> bool` e `load_state(agent_id: str) -> Dict`.
+- [x] Adicionar um método abstrato para a descoberta de agentes, como `list_agents() -> List[str]`, que será crucial para o `ConductorService`.
+- [x] Adicionar docstrings claros a cada método.
