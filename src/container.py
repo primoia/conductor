@@ -6,6 +6,7 @@ from typing import Dict, Any, Tuple
 from src.config import settings, ConfigManager
 from src.core.agent_logic import AgentLogic
 from src.core.agent_service import AgentService
+from src.core.conductor_service import ConductorService
 from src.core.exceptions import AgentNotFoundError
 from src.ports.state_repository import StateRepository
 from src.ports.llm_client import LLMClient
@@ -33,6 +34,7 @@ class DIContainer:
         self.config_manager = ConfigManager()
         self._state_repository = None
         self._ai_providers_config = None
+        self._conductor_service = None
 
     def get_state_repository(self, provider: str = "file") -> StateRepository:
         """Get state repository instance based on provider."""
@@ -104,6 +106,17 @@ class DIContainer:
         
         # Create and return AgentService with injected repository
         return AgentService(storage_repository)
+
+    def get_conductor_service(self) -> ConductorService:
+        """
+        Get a singleton instance of ConductorService.
+        
+        Returns:
+            Singleton ConductorService instance
+        """
+        if self._conductor_service is None:
+            self._conductor_service = ConductorService()
+        return self._conductor_service
 
     def load_ai_providers_config(self) -> Dict[str, Any]:
         """Load AI providers configuration."""
