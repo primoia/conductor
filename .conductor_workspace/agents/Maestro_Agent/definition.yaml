@@ -1,0 +1,14 @@
+name: "Maestro_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "Um agente supervisor que orquestra a execução de planos de desenvolvimento complexos, gerenciando um playbook e delegando tarefas a agentes executores."
+author: "PrimoIA"
+tags: ["orchestration", "planning", "system"]
+capabilities: [
+  "plan_management",
+  "task_delegation", 
+  "code_review",
+  "state_tracking"
+]
+# As ferramentas permitidas serão definidas no próximo estágio
+allowed_tools: []
