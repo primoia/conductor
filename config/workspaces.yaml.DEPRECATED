@@ -1,0 +1,21 @@
+# AVISO: ESTE ARQUIVO ESTÁ DEPRECIADO E NÃO É MAIS UTILIZADO PELO SISTEMA.
+# A descoberta de agentes e projetos agora é gerenciada pelo ConductorService,
+# que utiliza o backend de armazenamento configurado no `config.yaml` principal.
+# Este arquivo é mantido apenas para referência histórica.
+
+# Mapeia nomes de ambientes para seus diretórios raiz no sistema de arquivos.
+# É o único arquivo que um novo dev precisa configurar.
+workspaces:
+  develop: /mnt/ramdisk/develop
+  main: /mnt/ramdisk/main
+  primoia-main: /mnt/ramdisk/primoia-main
+  codenoob-social-profile: /mnt/ramdisk/primoia-main/primoia-monorepo/projects/codenoob-social-profile
+  conductor: /mnt/ramdisk/primoia-main/primoia-monorepo/projects/conductor
+  portfolio-manager: /mnt/ramdisk/primoia-main/primoia-monorepo/projects/portfolio-manager
+  primoia-browse-use: /mnt/ramdisk/primoia-main/primoia-monorepo/projects/primoia-browse-use
+  primoia-log-watcher: /mnt/ramdisk/primoia-main/primoia-monorepo/projects/primoia-log-watcher
+  primoia-mobile: /mnt/ramdisk/primoia-main/primoia-monorepo/projects/primoia-mobile
+  primoia-rede-infra: /mnt/ramdisk/primoia-main/primoia-monorepo/projects/primoia-rede-infra
+  primoia-script-and-promts: /mnt/ramdisk/primoia-main/primoia-monorepo/projects/primoia-script-and-promts
+  primoia-social-profile: /mnt/ramdisk/primoia-main/primoia-monorepo/projects/primoia-social-profile
+  software-architect-journey: /mnt/ramdisk/primoia-main/primoia-monorepo/projects/software-architect-journey

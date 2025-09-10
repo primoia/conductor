@@ -64,67 +64,43 @@ Conductor then orchestrates the specialist agents needed to execute all steps au
 - **DevOps Engineers** looking to automate the configuration and maintenance of infrastructure as code.
 - **AI Enthusiasts** who want a robust platform to build and experiment with multi-agent systems.
 
-## 🏁 Getting Started
+## Getting Started
 
-Follow these steps to get a fully functional Conductor environment running.
+O Conductor agora opera sob uma arquitetura unificada e orientada a serviços. Toda a configuração é centralizada no arquivo `config.yaml` na raiz do projeto.
 
-**1. Clone the Repository**
-```bash
-git clone https://github.com/cezarfuhr/conductor.git
-cd conductor
+### 1. Configuração
+
+Antes de rodar qualquer agente, configure seu ambiente no `config.yaml`:
+
+```yaml
+# config.yaml
+storage:
+  type: filesystem
+  path: .conductor_workspace
+
+# Adicione aqui diretórios para suas ferramentas customizadas
+tool_plugins:
+  - custom_tools/
 ```
 
-**2. Configure Your Environment**
+-   **storage**: Define onde os dados dos agentes são armazenados.
+    -   `filesystem`: (Padrão) Ideal para desenvolvimento local, não requer dependências.
+    -   `mongodb`: Para ambientes de equipe ou produção.
+-   **tool_plugins**: Lista de diretórios onde o Conductor irá procurar por ferramentas customizadas.
 
-Conductor requires API keys to connect to AI providers.
+### 2. Executando Agentes
 
+Embora estejamos caminhando para um CLI unificado, você ainda pode usar os CLIs `admin.py` e `agent.py`. Eles agora operam como interfaces para o novo serviço central e respeitam o `config.yaml`.
+
+**Para Meta-Agentes:**
 ```bash
-# Create your personal environment file from the template
-cp .env.example .env
-```
-Now, open the `.env` file and add your API key(s) (e.g., `GEMINI_API_KEY` or `ANTHROPIC_API_KEY`).
-
-**3. Run with Docker (Recommended)**
-
-This is the easiest way to start. With your `.env` file configured, simply run:
-```bash
-docker-compose up --build
-```
-The service will be available, and you can start interacting with agents.
-
-**4. (Alternative) Run with a Local Python Environment**
-
-If you prefer a local setup:
-```bash
-# Install dependencies
-poetry install
-
-# Run an agent
-poetry run python src/cli/agent.py --agent MyAgent
+poetry run python src/cli/admin.py --agent AgentCreator_Agent --input "Crie um novo agente para analisar logs."
 ```
 
-## ⚙️ Quick Start: Running Your First Agent
-
-Conductor uses a simple CLI to interact with agents. The main entry point is `src/cli/agent.py`.
-
-1.  **Configure a Workspace:**
-    First, tell Conductor where your projects are located by editing `config/workspaces.yaml`:
-    ```yaml
-    # config/workspaces.yaml
-    workspaces:
-      # Maps the 'default' environment to a specific directory
-      default: /path/to/your/projects
-    ```
-
-2.  **Run an Agent:**
-    Use the following command to start an interactive session with an agent.
-    ```bash
-    # Syntax: poetry run python src/cli/agent.py --environment <env> --project <proj> --agent <agent_id>
-    
-    # Example:
-    poetry run python src/cli/agent.py --environment default --project my-cool-project --agent CodeGenerator_Agent
-    ```
-    This will start a chat session where you can give instructions to the `CodeGenerator_Agent` to work on `my-cool-project`.
+**Para Agentes de Projeto:**
+```bash
+poetry run python src/cli/agent.py --environment develop --project desafio-meli --agent ProductAnalyst_Agent --input "Analise os dados de produtos."
+```
 
 ## 📚 Documentation
 

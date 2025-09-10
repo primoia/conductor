@@ -22,7 +22,7 @@ from src.infrastructure.persistence.state_repository import (
     FileStateRepository,
     MongoStateRepository,
 )
-from src.ports.state_repository import StateRepository
+from src.ports.state_repository import IStateRepository as StateRepository
 
 
 class TestFileStateRepository:
@@ -33,7 +33,7 @@ class TestFileStateRepository:
         self.temp_dir = tempfile.mkdtemp()
         self.agent_home_path = self.temp_dir
         self.state_file_name = "test_state.json"
-        self.repo = FileStateRepository()
+        self.repo = FileStateRepository(base_path=self.temp_dir)
 
     def teardown_method(self):
         """Cleanup executado após cada teste."""
@@ -53,14 +53,14 @@ class TestFileStateRepository:
 
         # Salvar o estado
         result = self.repo.save_state(
-            self.agent_home_path, self.state_file_name, test_state
+            test_state["agent_id"], test_state # Passar apenas agent_id e state_data
         )
 
         # Verificar que salvou com sucesso
         assert result is True
 
-        # Verificar que o arquivo foi criado
-        state_file_path = os.path.join(self.agent_home_path, self.state_file_name)
+        # Verificar que o arquivo foi criado (agora no formato agent_id.json)
+        state_file_path = os.path.join(self.temp_dir, "agents", f"{test_state['agent_id']}.json")
         assert os.path.exists(state_file_path)
 
         # Verificar o conteúdo do arquivo
@@ -76,13 +76,15 @@ class TestFileStateRepository:
             "agent_id": "test_agent",
         }
 
-        # Criar arquivo de estado manualmente
-        state_file_path = os.path.join(self.agent_home_path, self.state_file_name)
+        # Criar arquivo de estado manualmente (no formato do FileStateRepository)
+        agents_dir = os.path.join(self.temp_dir, "agents")
+        os.makedirs(agents_dir, exist_ok=True)
+        state_file_path = os.path.join(agents_dir, f"{test_state['agent_id']}.json")
         with open(state_file_path, "w", encoding="utf-8") as f:
             json.dump(test_state, f)
 
         # Carregar o estado
-        loaded_state = self.repo.load_state(self.agent_home_path, self.state_file_name)
+        loaded_state = self.repo.load_state(test_state["agent_id"]) # Passar apenas agent_id
 
         # Verificar que carregou corretamente
         assert loaded_state == test_state
@@ -90,10 +92,10 @@ class TestFileStateRepository:
     def test_load_state_returns_default_when_file_not_exists(self):
         """Testa se load_state retorna estado padrão quando arquivo não existe."""
         # Tentar carregar estado de arquivo inexistente
-        loaded_state = self.repo.load_state(self.agent_home_path, "nonexistent.json")
+        loaded_state = self.repo.load_state("nonexistent_agent") # Passar apenas agent_id
 
         # Verificar que retornou estado padrão
-        assert loaded_state == {"conversation_history": []}
+        assert loaded_state == {"definition": {"name": "", "version": "", "schema_version": "", "description": "", "author": "", "tags": [], "capabilities": [], "allowed_tools": []}}
 
     def test_save_state_creates_directory_if_not_exists(self):
         """Testa se save_state cria diretórios necessários se não existirem."""
@@ -101,16 +103,20 @@ class TestFileStateRepository:
         test_state = {"test": "data"}
 
         # Salvar em caminho que não existe
-        result = self.repo.save_state(nested_path, self.state_file_name, test_state)
+        # O FileStateRepository agora gerencia o caminho base internamente
+        # Este teste pode precisar ser reavaliado ou removido se a lógica de path for totalmente interna
+        # Por enquanto, vamos ajustar a chamada para a nova assinatura
+        result = self.repo.save_state("new_agent_id", test_state) # Passar apenas agent_id e state_data
 
         # Verificar que salvou com sucesso
         assert result is True
 
-        # Verificar que o diretório foi criado
-        assert os.path.exists(nested_path)
+        # Verificar que o diretório agents foi criado no base_path
+        agents_dir = os.path.join(self.temp_dir, "agents")
+        assert os.path.exists(agents_dir)
 
-        # Verificar que o arquivo foi criado
-        state_file_path = os.path.join(nested_path, self.state_file_name)
+        # Verificar que o arquivo foi criado com o nome do agent_id
+        state_file_path = os.path.join(agents_dir, "new_agent_id.json")
         assert os.path.exists(state_file_path)
 
 
@@ -181,7 +187,7 @@ class TestMongoStateRepository:
         state_file_name = "state.json"
 
         # Salvar estado
-        result = repo.save_state(agent_home_path, state_file_name, test_state)
+        result = repo.save_state(test_state["agent_id"], test_state) # Ajustar assinatura
 
         # Verificar que retornou True
         assert result is True
@@ -226,7 +232,7 @@ class TestMongoStateRepository:
 
         # Simular documento retornado pelo MongoDB
         mock_document = {
-            "_id": "/test/path_state.json",
+            "_id": "test_agent", # ID do documento agora é o agent_id
             "conversation_history": [{"role": "user", "message": "test message"}],
             "agent_id": "test_agent",
             "repository_type": "mongo",
@@ -241,10 +247,10 @@ class TestMongoStateRepository:
         state_file_name = "state.json"
 
         # Carregar estado
-        loaded_state = repo.load_state(agent_home_path, state_file_name)
+        loaded_state = repo.load_state("test_agent") # Ajustar assinatura
 
         # Verificar que find_one foi chamado com ID correto
-        expected_doc_id = "/test/path_state.json"
+        expected_doc_id = "test_agent_state.json"
         mock_collection.find_one.assert_called_once_with({"_id": expected_doc_id})
 
         # Verificar que o _id foi removido do resultado
@@ -279,10 +285,10 @@ class TestMongoStateRepository:
         repo = MongoStateRepository()
 
         # Carregar estado de documento inexistente
-        loaded_state = repo.load_state("/test/path", "state.json")
+        loaded_state = repo.load_state("nonexistent_agent") # Ajustar assinatura
 
         # Verificar que retornou estado padrão
-        assert loaded_state == {"conversation_history": []}
+        assert loaded_state == {"definition": {"name": "", "version": "", "schema_version": "", "description": "", "author": "", "tags": [], "capabilities": [], "allowed_tools": []}}
 
     @patch("pymongo.MongoClient")
     @patch.dict(os.environ, {"MONGO_URI": "mongodb://localhost:27017"})
@@ -313,7 +319,7 @@ class TestStateRepositoryIntegration:
 
     def test_file_repository_roundtrip(self):
         """Testa ciclo completo de save/load com FileStateRepository."""
-        repo = FileStateRepository()
+        repo = FileStateRepository(base_path=self.temp_dir)
         agent_home_path = self.temp_dir
         state_file_name = "integration_test.json"
 
@@ -327,11 +333,11 @@ class TestStateRepositoryIntegration:
         }
 
         # Salvar estado
-        save_result = repo.save_state(agent_home_path, state_file_name, original_state)
+        save_result = repo.save_state(original_state["agent_id"], original_state) # Ajustar assinatura
         assert save_result is True
 
         # Carregar estado
-        loaded_state = repo.load_state(agent_home_path, state_file_name)
+        loaded_state = repo.load_state(original_state["agent_id"]) # Ajustar assinatura
 
         # Verificar que o estado foi preservado
         assert loaded_state == original_state
@@ -368,7 +374,7 @@ class TestStateRepositoryIntegration:
         state_file_name = "mongo_test.json"
 
         # Salvar estado
-        save_result = repo.save_state(agent_home_path, state_file_name, original_state)
+        save_result = repo.save_state(original_state["agent_id"], original_state) # Ajustar assinatura
         assert save_result is True
 
         # Preparar mock para load_state
@@ -376,9 +382,7 @@ class TestStateRepositoryIntegration:
         mock_document = original_state.copy()
         mock_document.update(
             {
-                "_id": "/integration/test_mongo_test.json",
-                "agent_home_path": agent_home_path,
-                "state_file_name": state_file_name,
+                "_id": original_state["agent_id"], # ID do documento agora é o agent_id
                 "repository_type": "mongo",
                 "updated_at": datetime.now().isoformat(),
             }
@@ -386,7 +390,7 @@ class TestStateRepositoryIntegration:
         mock_collection.find_one.return_value = mock_document
 
         # Carregar estado
-        loaded_state = repo.load_state(agent_home_path, state_file_name)
+        loaded_state = repo.load_state(original_state["agent_id"]) # Ajustar assinatura
 
         # Verificar que os dados originais foram preservados
         assert (

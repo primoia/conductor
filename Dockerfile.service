@@ -1,0 +1,45 @@
+# Stage 1: Builder
+FROM python:3.11-slim-bullseye AS builder
+
+# Instalar poetry
+RUN pip install poetry
+
+# Configurar o ambiente
+ENV POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=1 \
+    POETRY_VIRTUALENVS_CREATE=1 \
+    POETRY_CACHE_DIR=/tmp/poetry_cache
+
+WORKDIR /app
+
+# Copiar arquivos de dependência e instalar
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --without=dev --no-root && mv .venv /opt/venv
+
+# Copiar código-fonte
+COPY src ./src
+COPY config.yaml ./
+COPY scripts ./scripts
+
+# ---
+
+# Stage 2: Final Image
+FROM python:3.11-slim-bullseye
+
+# Criar usuário não-root
+RUN useradd --create-home appuser
+USER appuser
+WORKDIR /home/appuser/app
+
+# Copiar ambiente virtual e código-fonte do builder
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/config.yaml ./
+COPY --from=builder /app/scripts ./scripts
+
+# Ativar o ambiente virtual
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Placeholder para o comando de inicialização do serviço
+# Será atualizado quando o serviço tiver um ponto de entrada executável
+CMD ["python", "-c", "from src.core.conductor_service import ConductorService; ConductorService(); import time; time.sleep(3600)"]

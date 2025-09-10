@@ -1,13 +1,13 @@
 import os
 import yaml
 from pathlib import Path
-from typing import Dict, Any, Tuple
+from typing import Dict, Any
 
 from src.config import settings, ConfigManager
-from src.core.agent_logic import AgentLogic
 from src.core.agent_service import AgentService
+from src.core.conductor_service import ConductorService
 from src.core.exceptions import AgentNotFoundError
-from src.ports.state_repository import StateRepository
+from src.ports.state_repository import IStateRepository as StateRepository
 from src.ports.llm_client import LLMClient
 from src.infrastructure.persistence.state_repository import (
     FileStateRepository,
@@ -25,7 +25,7 @@ class DIContainer:
     1. Reading configuration
     2. Instantiating concrete adapters
     3. Connecting all dependencies
-    4. Providing ready-to-use AgentLogic instances
+    4. Providing ready-to-use service instances
     """
 
     def __init__(self):
@@ -33,6 +33,7 @@ class DIContainer:
         self.config_manager = ConfigManager()
         self._state_repository = None
         self._ai_providers_config = None
+        self._conductor_service = None
 
     def get_state_repository(self, provider: str = "file") -> StateRepository:
         """Get state repository instance based on provider."""
@@ -59,35 +60,6 @@ class DIContainer:
             ai_provider, working_directory, timeout, is_admin_agent
         )
 
-    def create_agent_logic(
-        self,
-        state_provider: str = "file",
-        ai_provider: str = "claude",
-        working_directory: str = None,
-        timeout: int = None,
-        is_admin_agent: bool = False,
-    ) -> AgentLogic:
-        """
-        Create a fully configured AgentLogic instance.
-
-        Args:
-            state_provider: State persistence provider ('file' or 'mongo')
-            ai_provider: AI provider ('claude' or 'gemini')
-            working_directory: Working directory for the LLM client
-            timeout: Timeout for LLM operations
-            is_admin_agent: Whether this is an admin agent (gets unrestricted access)
-
-        Returns:
-            Configured AgentLogic instance with injected dependencies
-        """
-        # Get dependencies
-        state_repository = self.get_state_repository(state_provider)
-        llm_client = self.get_llm_client(
-            ai_provider, working_directory, timeout, is_admin_agent
-        )
-
-        # Create and return AgentLogic with injected dependencies
-        return AgentLogic(state_repository, llm_client)
 
     def create_agent_service(self) -> AgentService:
         """
@@ -105,6 +77,17 @@ class DIContainer:
         # Create and return AgentService with injected repository
         return AgentService(storage_repository)
 
+    def get_conductor_service(self) -> ConductorService:
+        """
+        Get a singleton instance of ConductorService.
+        
+        Returns:
+            Singleton ConductorService instance
+        """
+        if self._conductor_service is None:
+            self._conductor_service = ConductorService()
+        return self._conductor_service
+
     def load_ai_providers_config(self) -> Dict[str, Any]:
         """Load AI providers configuration."""
         if self._ai_providers_config is None:
@@ -120,65 +103,7 @@ class DIContainer:
                 }
         return self._ai_providers_config
 
-    def load_workspaces_config(self) -> Dict[str, str]:
-        """Load workspaces configuration."""
-        config_path = Path("config") / "workspaces.yaml"
-        if not config_path.exists():
-            raise FileNotFoundError(
-                f"Workspaces config not found: {config_path}\n"
-                "Create the file with environment to directory mappings."
-            )
 
-        with open(config_path, "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-
-        if not config or "workspaces" not in config:
-            raise ValueError("workspaces.yaml must contain a 'workspaces' section")
-
-        return config["workspaces"]
-
-    def resolve_agent_paths(
-        self, environment: str, project: str, agent_id: str
-    ) -> Tuple[Path, Path]:
-        """
-        Resolve agent and project paths based on environment.
-
-        Args:
-            environment: Environment name (develop, main, _common)
-            project: Project name
-            agent_id: Agent identifier
-
-        Returns:
-            Tuple of (agent_home_path, project_root_path)
-        """
-        conductor_root = Path(__file__).parent.parent
-
-        if environment == "_common":
-            # Meta-agents are in projects/_common/agents/
-            agent_home_path = (
-                conductor_root / "projects" / "_common" / "agents" / agent_id
-            )
-            project_root_path = conductor_root.parent.parent  # Monorepo root
-        else:
-            # Project agents
-            workspaces = self.load_workspaces_config()
-            workspace_root = Path(workspaces[environment])
-            project_root_path = workspace_root / project
-            agent_home_path = (
-                conductor_root
-                / "projects"
-                / environment
-                / project
-                / "agents"
-                / agent_id
-            )
-
-        if not agent_home_path.exists():
-            raise AgentNotFoundError(
-                f"Agent home path does not exist: {agent_home_path}"
-            )
-
-        return agent_home_path.resolve(), project_root_path.resolve()
 
 
 # Global container instance

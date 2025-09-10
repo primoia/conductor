@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
+from pydantic import BaseModel, Field as PydanticField
 
 
 # Exceptions
@@ -21,6 +22,7 @@ class ConfigurationError(Exception):
 
 
 # Core data structures
+
 @dataclass
 class ConversationEntryDTO:
     """
@@ -108,6 +110,7 @@ class AgentDefinition:
     tags: List[str] = field(default_factory=list)
     capabilities: List[str] = field(default_factory=list)
     allowed_tools: List[str] = field(default_factory=list)
+    agent_id: Optional[str] = None  # Optional field for compatibility
 
 @dataclass(frozen=True)
 class AgentPersona:
@@ -189,3 +192,47 @@ class AgentInstance:
     playbook: AgentPlaybook
     knowledge: AgentKnowledge
     history: List[HistoryEntry]
+
+@dataclass(frozen=True)
+class TaskDTO:
+    """
+    Data Transfer Object para encapsular uma requisição de tarefa.
+    """
+    agent_id: str
+    user_input: str
+    context: Dict[str, Any] = field(default_factory=dict)
+
+@dataclass(frozen=True)
+class TaskResultDTO:
+    """
+    Data Transfer Object para encapsular o resultado de uma tarefa executada.
+    """
+    status: str  # Ex: 'success', 'error'
+    output: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+# --- Modelos de API (Pydantic) ---
+
+class ExecuteTaskRequest(BaseModel):
+    """
+    Modelo para uma requisição de execução de tarefa via API.
+    """
+    agent_id: str = PydanticField(..., description="O ID do agente a ser executado.")
+    user_input: str = PydanticField(..., description="O input/prompt do usuário para o agente.")
+    context: Dict[str, Any] = PydanticField(default_factory=dict, description="Contexto adicional opcional para a tarefa.")
+
+class TaskCreationResponse(BaseModel):
+    """
+    Modelo para a resposta imediata após a criação de uma tarefa.
+    """
+    task_id: str = PydanticField(..., description="O ID único da tarefa que foi iniciada.")
+    status: str = PydanticField(default="pending", description="O status inicial da tarefa.")
+
+class TaskStatusResponse(BaseModel):
+    """
+    Modelo para a resposta ao consultar o status de uma tarefa.
+    """
+    task_id: str = PydanticField(..., description="O ID da tarefa.")
+    status: str = PydanticField(..., description="O status atual da tarefa (ex: pending, in_progress, success, error).")
+    output: Optional[str] = PydanticField(default=None, description="A saída final da tarefa, se concluída.")
+    metadata: Dict[str, Any] = PydanticField(default_factory=dict, description="Metadados adicionais sobre a execução.")

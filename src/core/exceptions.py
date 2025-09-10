@@ -25,7 +25,6 @@ class StatePersistenceError(ConductorException):
     pass
 
 
-class ConfigurationError(ConductorException):
-    """Raised for errors related to agent configuration."""
-
+class ConfigurationError(Exception):
+    """Exceção para erros de configuração."""
     pass

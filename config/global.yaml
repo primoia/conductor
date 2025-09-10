@@ -1,0 +1,5 @@
+storage:
+  type: file
+  path: ".conductor_workspace"
+
+tool_plugins: []
