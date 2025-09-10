@@ -10,8 +10,11 @@ O objetivo é eliminar a ambiguidade e consolidar a fonte de verdade da configur
 
 #### Checklist de Execução
 
-- [ ] Realizar uma busca global no código-fonte por quaisquer usos restantes do arquivo `config/workspaces.yaml`.
-- [ ] Remover o código que lê e processa este arquivo (provavelmente nos CLIs legados, que já foram refatorados, mas uma verificação final é necessária).
-- [ ] Renomear o arquivo para `config/workspaces.yaml.DEPRECATED`.
-- [ ] Adicionar um comentário no topo do arquivo renomeado explicando que ele não é mais utilizado e que a configuração de armazenamento deve ser feita no `config.yaml` principal.
-- [ ] Garantir que todos os testes (unitários, de integração, golden master) continuem passando após a remoção da lógica de leitura.
+- [x] **Passo 1: Busca por Usos (Verificação)**
+    - [x] Executar `grep -r "workspaces.yaml" .` para confirmar que não há usos em código-fonte ativo.
+- [x] **Passo 2: Renomear o Arquivo**
+    - [x] Executar `mv config/workspaces.yaml config/workspaces.yaml.DEPRECATED`.
+- [x] **Passo 3: Adicionar o Aviso de Depreciação**
+    - [x] Modificar `config/workspaces.yaml.DEPRECATED` para incluir o aviso.
+- [x] **Passo 4: Validar a Estabilidade**
+    - [x] Executar `poetry run pytest` para confirmar que a suíte de testes completa passa com sucesso.
