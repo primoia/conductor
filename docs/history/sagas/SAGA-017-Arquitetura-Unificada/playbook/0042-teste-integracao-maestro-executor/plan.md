@@ -10,11 +10,11 @@ O propósito desta tarefa é realizar um teste de integração final que valide 
 
 #### Checklist de Execução
 
-- [ ] Criar um teste de integração em `tests/e2e/test_maestro_executor_integration.py`.
-- [ ] Implementar o teste que usa o ConductorService para descobrir os agentes.
-- [ ] Validar que o Maestro Agent é descoberto e carregado corretamente.
-- [ ] Validar que o Executor Agent é descoberto e carregado corretamente.
-- [ ] Testar a comunicação entre Maestro e Executor através do ConductorService.
-- [ ] Verificar que as capabilities de cada agente estão corretamente definidas.
-- [ ] Executar o teste e validar que todos os componentes funcionam em conjunto.
-- [ ] Documentar os resultados do teste de integração.
+- [x] Criar um teste de integração em `tests/e2e/test_maestro_executor_integration.py`.
+- [x] Implementar o teste que usa o ConductorService para descobrir os agentes.
+- [x] Validar que o Maestro Agent é descoberto e carregado corretamente.
+- [x] Validar que o Executor Agent é descoberto e carregado corretamente.
+- [x] Testar a comunicação entre Maestro e Executor através do ConductorService.
+- [x] Verificar que as capabilities de cada agente estão corretamente definidas.
+- [x] Executar o teste e validar que todos os componentes funcionam em conjunto.
+- [x] Documentar os resultados do teste de integração.

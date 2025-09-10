@@ -10,9 +10,9 @@ O propósito desta tarefa é estabelecer formalmente as capabilities do Maestro 
 
 #### Checklist de Execução
 
-- [ ] Navegar até o diretório de agentes do sistema (a ser criado em estágio anterior).
-- [ ] Localizar o arquivo `definition.yaml` do Maestro Agent.
-- [ ] Definir a seção `capabilities` com foco em manipulação de arquivos e estado.
-- [ ] Especificar as ferramentas (`allowed_tools`) que implementam essas capabilities.
-- [ ] Incluir capabilities para coordenação de tarefas e comunicação com Executor Agent.
-- [ ] Documentar cada capability com descrição clara de seu propósito e uso.
+- [x] Navegar até o diretório de agentes do sistema (a ser criado em estágio anterior).
+- [x] Localizar o arquivo `definition.yaml` do Maestro Agent.
+- [x] Definir a seção `capabilities` com foco em manipulação de arquivos e estado.
+- [x] Especificar as ferramentas (`allowed_tools`) que implementam essas capabilities.
+- [x] Incluir capabilities para coordenação de tarefas e comunicação com Executor Agent.
+- [x] Documentar cada capability com descrição clara de seu propósito e uso.
