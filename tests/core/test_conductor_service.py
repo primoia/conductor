@@ -8,8 +8,8 @@ from src.core.conductor_service import ConductorService
 from src.core.exceptions import ConfigurationError
 from src.core.config_schema import GlobalConfig, StorageConfig
 from src.core.domain import AgentDefinition, TaskDTO, TaskResultDTO
-from src.infrastructure.storage.filesystem_repository import FileSystemStateRepository
-from src.infrastructure.storage.mongo_repository import MongoStateRepository
+from src.infrastructure.persistence.state_repository import FileStateRepository as FileSystemStateRepository
+from src.infrastructure.persistence.state_repository import MongoStateRepository
 
 
 class TestConductorServiceConfig:

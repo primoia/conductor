@@ -10,8 +10,8 @@ from src.ports.conductor_service import IConductorService
 from src.ports.state_repository import IStateRepository
 from src.core.config_schema import GlobalConfig, StorageConfig
 from src.core.exceptions import ConfigurationError
-from src.infrastructure.storage.filesystem_repository import FileSystemStateRepository
-from src.infrastructure.storage.mongo_repository import MongoStateRepository
+from src.infrastructure.persistence.state_repository import FileStateRepository as FileSystemStateRepository
+from src.infrastructure.persistence.state_repository import MongoStateRepository
 from src.core.domain import AgentDefinition, TaskDTO, TaskResultDTO
 from src.core.tools.core_tools import CORE_TOOLS
 from src.core.agent_executor import AgentExecutor, PlaceholderLLMClient
@@ -41,9 +41,11 @@ class ConductorService(IConductorService):
 
     def _create_storage_backend(self, storage_config: StorageConfig) -> IStateRepository:
         if storage_config.type == "filesystem":
-            return FileSystemStateRepository(base_path=getattr(storage_config, 'path', None))
+            # Passar o base_path para o FileSystemStateRepository
+            return FileSystemStateRepository(base_path=storage_config.path)
         elif storage_config.type == "mongodb":
-            return MongoStateRepository()
+            # MongoStateRepository agora também recebe base_path para consistência
+            return MongoStateRepository(database_name="conductor_state", collection_name="agent_states")
         else:
             raise ConfigurationError(f"Tipo de armazenamento desconhecido: {storage_config.type}")
 

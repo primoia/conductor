@@ -1,0 +1,14 @@
+{
+  "conversation_history": [
+    {
+      "role": "user",
+      "message": "test message"
+    },
+    {
+      "role": "assistant",
+      "message": "test response"
+    }
+  ],
+  "agent_id": "test_agent",
+  "timestamp": "2024-01-01T00:00:00"
+}

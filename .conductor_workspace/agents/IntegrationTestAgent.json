@@ -1,0 +1,17 @@
+{
+  "conversation_history": [
+    {
+      "role": "user",
+      "message": "Hello"
+    },
+    {
+      "role": "assistant",
+      "message": "Hi there!"
+    }
+  ],
+  "agent_id": "IntegrationTestAgent",
+  "custom_data": {
+    "test": true,
+    "number": 42
+  }
+}
