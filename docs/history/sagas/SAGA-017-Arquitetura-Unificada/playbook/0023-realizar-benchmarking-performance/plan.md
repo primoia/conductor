@@ -10,11 +10,11 @@ O objetivo é garantir que os ganhos arquitetônicos não vieram a um custo inac
 
 #### Checklist de Execução
 
-- [ ] Criar um novo diretório `benchmarks/`.
-- [ ] Criar um script `benchmark_cli.py`.
-- [ ] O script deve usar o módulo `time` ou `timeit`.
-- [ ] O script deve ter uma função para executar um comando CLI (como o `test_golden_master.py`) e medir o tempo total de execução.
-- [ ] Executar o script em um commit *antes* da refatoração para obter a linha de base de performance do sistema legado.
-- [ ] Executar o script no código *novo* (pós-refatoração).
-- [ ] Comparar os resultados e documentá-los em um `benchmarks/README.md`.
-- [ ] O critério de aceitação é que a regressão de performance não seja superior a 10-15%.
+- [x] Criar um novo diretório `benchmarks/`.
+- [x] Criar um script `benchmark_cli.py`.
+- [x] O script deve usar o módulo `time` ou `timeit`.
+- [x] O script deve ter uma função para executar um comando CLI (como o `test_golden_master.py`) e medir o tempo total de execução.
+- [x] Executar o script em um commit *antes* da refatoração para obter a linha de base de performance do sistema legado.
+- [x] Executar o script no código *novo* (pós-refatoração).
+- [x] Comparar os resultados e documentá-los em um `benchmarks/README.md`.
+- [x] O critério de aceitação é que a regressão de performance não seja superior a 10-15%.
