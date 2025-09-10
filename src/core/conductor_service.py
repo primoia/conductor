@@ -1,6 +1,10 @@
 # src/core/conductor_service.py
 import yaml
-from typing import List
+import importlib
+import pkgutil
+import sys
+from pathlib import Path
+from typing import List, Dict, Callable, Any
 from src.ports.conductor_service import IConductorService
 from src.ports.state_repository import IStateRepository
 from src.core.config_schema import GlobalConfig, StorageConfig
@@ -8,6 +12,7 @@ from src.core.exceptions import ConfigurationError
 from src.infrastructure.storage.filesystem_repository import FileSystemStateRepository
 from src.infrastructure.storage.mongo_repository import MongoStateRepository
 from src.core.domain import AgentDefinition
+from src.core.tools.core_tools import CORE_TOOLS
 
 
 class ConductorService(IConductorService):
@@ -16,6 +21,8 @@ class ConductorService(IConductorService):
     def __init__(self, config_path: str = "config.yaml"):
         self._config = self._load_and_validate_config(config_path)
         self.repository = self._create_storage_backend(self._config.storage)
+        self._tools: Dict[str, Callable[..., Any]] = {}
+        self.load_tools()
 
     def _load_and_validate_config(self, config_path: str) -> GlobalConfig:
         try:
@@ -49,4 +56,23 @@ class ConductorService(IConductorService):
         raise NotImplementedError
 
     def load_tools(self) -> None:
-        raise NotImplementedError
+        # Carregar Core Tools
+        for tool in CORE_TOOLS:
+            self._tools[tool.__name__] = tool
+
+        # Carregar Tool Plugins
+        for plugin_path_str in self._config.tool_plugins:
+            plugin_path = Path(plugin_path_str).resolve()
+            if not plugin_path.is_dir():
+                print(f"Aviso: Caminho do plugin não é um diretório: {plugin_path}")
+                continue
+            
+            # Adicionar ao path e importar módulos
+            sys.path.insert(0, str(plugin_path.parent))
+            for finder, name, ispkg in pkgutil.iter_modules([str(plugin_path)]):
+                module = importlib.import_module(f"{plugin_path.name}.{name}")
+                # Assumir que plugins também têm uma lista 'PLUGIN_TOOLS'
+                if hasattr(module, 'PLUGIN_TOOLS'):
+                    for tool in module.PLUGIN_TOOLS:
+                        self._tools[tool.__name__] = tool
+            sys.path.pop(0)
