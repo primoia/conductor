@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple
 
-from src.ports.state_repository import StateRepository
+from src.ports.state_repository import IStateRepository as StateRepository
 from src.ports.llm_client import LLMClient
 from src.core.domain import (
     AgentConfig,
