@@ -10,8 +10,8 @@ O objetivo é desacoplar o nosso núcleo de serviços da implementação concret
 
 #### Checklist de Execução
 
-- [ ] Criar um novo arquivo em `src/ports/task_queue.py`.
-- [ ] No arquivo, definir a interface `ITaskQueue(ABC)`.
-- [ ] A interface deve ter métodos abstratos essenciais como `publish(task: 'TaskDTO') -> str` (retornando um ID de tarefa) e `consume() -> Optional['TaskDTO']`.
-- [ ] Adicionar docstrings e type hints claros.
-- [ ] Criar uma implementação simples em memória (`InMemoryTaskQueue`) em `src/infrastructure/queues/memory_queue.py` que implemente a interface, para fins de teste.
+- [x] Criar um novo arquivo em `src/ports/task_queue.py`.
+- [x] No arquivo, definir a interface `ITaskQueue(ABC)`.
+- [x] A interface deve ter métodos abstratos essenciais como `publish(task: 'TaskDTO') -> str` (retornando um ID de tarefa) e `consume() -> Optional['TaskDTO']`.
+- [x] Adicionar docstrings e type hints claros.
+- [x] Criar uma implementação simples em memória (`InMemoryTaskQueue`) em `src/infrastructure/queues/memory_queue.py` que implemente a interface, para fins de teste.
