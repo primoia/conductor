@@ -10,10 +10,10 @@ O objetivo é estabelecer um ponto de entrada de configuração único e à prov
 
 #### Checklist de Execução
 
-- [ ] Criar um novo arquivo `src/core/config_schema.py` para as definições Pydantic.
-- [ ] No novo arquivo, definir modelos Pydantic para `StorageConfig`, `ToolPluginConfig` e o `GlobalConfig` principal.
-- [ ] Criar um novo arquivo `src/core/conductor_service.py`.
-- [ ] Nele, criar a classe `ConductorService` que implementa a interface `IConductorService`.
-- [ ] No `__init__` do `ConductorService`, implementar a lógica para ler o `config.yaml`.
-- [ ] Utilizar os modelos Pydantic para validar o conteúdo do `config.yaml`, armazenando a configuração validada em um atributo privado (ex: `self._config`).
-- [ ] Garantir que uma exceção `ConfigurationError` seja lançada se o arquivo não existir ou for inválido.
+- [x] Criar um novo arquivo `src/core/config_schema.py` para as definições Pydantic.
+- [x] No novo arquivo, definir modelos Pydantic para `StorageConfig`, `ToolPluginConfig` e o `GlobalConfig` principal.
+- [x] Criar um novo arquivo `src/core/conductor_service.py`.
+- [x] Nele, criar a classe `ConductorService` que implementa a interface `IConductorService`.
+- [x] No `__init__` do `ConductorService`, implementar a lógica para ler o `config.yaml`.
+- [x] Utilizar os modelos Pydantic para validar o conteúdo do `config.yaml`, armazenando a configuração validada em um atributo privado (ex: `self._config`).
+- [x] Garantir que uma exceção `ConfigurationError` seja lançada se o arquivo não existir ou for inválido.
