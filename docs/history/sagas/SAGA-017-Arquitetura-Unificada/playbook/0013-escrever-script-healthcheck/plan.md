@@ -10,10 +10,10 @@ O objetivo é aumentar a robustez e a resiliência do nosso ambiente. Um `health
 
 #### Checklist de Execução
 
-- [ ] Criar um diretório `scripts/docker/`.
-- [ ] Dentro do novo diretório, criar um arquivo `healthcheck.py`.
-- [ ] O script deve tentar se conectar a um futuro endpoint de API `/health` no serviço. Por enquanto, ele pode simular essa verificação.
-- [ ] O script deve sair com `exit code 0` se o serviço for considerado saudável.
-- [ ] O script deve sair com `exit code 1` se o serviço não estiver saudável.
-- [ ] Modificar o `docker-compose.yml` para adicionar uma seção `healthcheck` ao serviço `conductor-service`.
-- [ ] A `healthcheck` do Docker Compose deve usar o script `healthcheck.py` para verificar o estado do serviço.
+- [x] Criar um diretório `scripts/docker/`.
+- [x] Dentro do novo diretório, criar um arquivo `healthcheck.py`.
+- [x] O script deve tentar se conectar a um futuro endpoint de API `/health` no serviço. Por enquanto, ele pode simular essa verificação.
+- [x] O script deve sair com `exit code 0` se o serviço for considerado saudável.
+- [x] O script deve sair com `exit code 1` se o serviço não estiver saudável.
+- [x] Modificar o `docker-compose.yml` para adicionar uma seção `healthcheck` ao serviço `conductor-service`.
+- [x] A `healthcheck` do Docker Compose deve usar o script `healthcheck.py` para verificar o estado do serviço.

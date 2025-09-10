@@ -7,15 +7,22 @@ services:
       dockerfile: Dockerfile.service
     container_name: conductor_service
     ports:
-      - "8000:8000" # Expondo uma porta para a futura API
+      - "8000:8000"
     volumes:
-      - ./src:/home/appuser/app/src # Montando o código para hot-reloading
+      - ./src:/home/appuser/app/src
+      - ./scripts/docker:/home/appuser/app/scripts/docker # Mapear o script
     environment:
       - MONGODB_CONNECTION_STRING=mongodb://mongodb:27017/conductor
     networks:
       - conductor_net
     depends_on:
       - mongodb
+    healthcheck:
+      test: ["CMD", "python", "scripts/docker/healthcheck.py"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   mongodb:
     image: mongo:5.0
