@@ -188,6 +188,12 @@ class AdminCLI:
             self.logger.error(f"Error getting available tools: {e}")
             return []
 
+    def get_conversation_history(self) -> list:
+        """Get conversation history. In the new architecture, this is managed by ConductorService."""
+        # TODO: Implement conversation history retrieval from ConductorService if needed
+        # For now, return empty list as the new architecture doesn't maintain CLI-level history
+        return []
+
 
 def start_repl_session(admin_cli: AdminCLI):
     """Start interactive REPL session using REPLManager."""

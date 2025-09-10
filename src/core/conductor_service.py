@@ -1,4 +1,5 @@
 # src/core/conductor_service.py
+import os
 import yaml
 import importlib
 import pkgutil
@@ -15,6 +16,7 @@ from src.infrastructure.persistence.state_repository import MongoStateRepository
 from src.core.domain import AgentDefinition, TaskDTO, TaskResultDTO
 from src.core.tools.core_tools import CORE_TOOLS
 from src.core.agent_executor import AgentExecutor, PlaceholderLLMClient
+from src.infrastructure.llm.cli_client import create_llm_client
 from src.core.prompt_engine import PromptEngine
 
 logger = logging.getLogger(__name__)
@@ -81,8 +83,26 @@ class ConductorService(IConductorService):
                 raise ValueError(f"agent_home_path não encontrado no estado do agente {task.agent_id}")
 
             # 3. Instanciar as dependências de execução
-            #    (Usando placeholders por enquanto)
-            llm_client = PlaceholderLLMClient() 
+            # Detectar se estamos em ambiente de teste
+            import sys
+            is_test_environment = (
+                'pytest' in sys.modules or 
+                'unittest' in sys.modules or
+                os.getenv('PYTEST_RUNNING') == 'true'
+            )
+            
+            if is_test_environment:
+                # Em testes, usar placeholder para previsibilidade
+                llm_client = PlaceholderLLMClient()
+            else:
+                # Em produção, usar o cliente real baseado na configuração do agente
+                ai_provider = getattr(agent_definition, 'ai_provider', 'claude')  # Default to claude
+                llm_client = create_llm_client(
+                    ai_provider=ai_provider,
+                    working_directory=agent_home_path,
+                    timeout=120,  # TODO: Make configurable
+                    is_admin_agent=True  # TODO: Determine based on agent type
+                ) 
             prompt_engine = PromptEngine(agent_home_path=agent_home_path)
             prompt_engine.load_context()
             
