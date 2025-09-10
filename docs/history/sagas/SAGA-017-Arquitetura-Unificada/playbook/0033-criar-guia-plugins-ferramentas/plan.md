@@ -10,10 +10,10 @@ O objetivo é capacitar os usuários e contribuidores a estender o Conductor. Um
 
 #### Checklist de Execução
 
-- [ ] Criar um novo arquivo em `docs/guides/creating_tool_plugins.md`.
-- [ ] O guia deve começar com uma explicação conceitual do que são as Core Tools e os Tool Plugins.
-- [ ] Fornecer um exemplo passo a passo de como criar um novo diretório de plugin (ex: `my_custom_tools/`).
-- [ ] Mostrar um exemplo de código para um arquivo de ferramenta dentro do plugin (ex: `my_custom_tools/api_tools.py`).
-- [ ] Explicar a convenção de exportar uma lista `PLUGIN_TOOLS` no módulo.
-- [ ] Mostrar como registrar o novo diretório de plugin no `config.yaml`.
-- [ ] Incluir a seção de "Segurança" que foi planejada no Estágio 24, alertando sobre os riscos.
+- [x] Criar um novo arquivo em `docs/guides/creating_tool_plugins.md`.
+- [x] O guia deve começar com uma explicação conceitual do que são as Core Tools e os Tool Plugins.
+- [x] Fornecer um exemplo passo a passo de como criar um novo diretório de plugin (ex: `my_custom_tools/`).
+- [x] Mostrar um exemplo de código para um arquivo de ferramenta dentro do plugin (ex: `my_custom_tools/api_tools.py`).
+- [x] Explicar a convenção de exportar uma lista `PLUGIN_TOOLS` no módulo.
+- [x] Mostrar como registrar o novo diretório de plugin no `config.yaml`.
+- [x] Incluir a seção de "Segurança" que foi planejada no Estágio 24, alertando sobre os riscos.
