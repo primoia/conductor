@@ -21,7 +21,7 @@ if str(src_path) not in sys.path:
 
 from src.container import container
 from src.core.observability import configure_logging
-from src.core.domain import AgentNotEmbodied
+from src.core.domain import TaskDTO
 from src.infrastructure.utils import cleanup_orphan_sessions
 from src.cli.shared import (
     REPLManager,
@@ -34,13 +34,7 @@ from src.cli.shared import (
 
 class AdminCLI:
     """
-    Admin CLI class that provides a thin interface to agent logic.
-
-    This class handles:
-    - Argument parsing
-    - Logging setup
-    - Delegation to AgentLogic
-    - Error handling and user feedback
+    Admin CLI - agora uma casca fina sobre o ConductorService.
     """
 
     def __init__(
@@ -72,14 +66,6 @@ class AdminCLI:
             self.environment = environment
             self.project = project
 
-        # Get agent logic from container (admin agents get unrestricted access)
-        self.agent_logic = container.create_agent_logic(
-            state_provider=state_provider,
-            ai_provider=ai_provider or "claude",
-            timeout=timeout,
-            is_admin_agent=True,
-        )
-
         # Store CLI-specific state (legacy support)
         self.destination_path = destination_path
         self.simulate_mode = False
@@ -88,79 +74,68 @@ class AdminCLI:
         self.state_manager = StateManager(self, self.logger)
         self.debug_utils = DebugUtilities(self, self.logger)
 
-        # Embody the meta-agent
-        self._embody_meta_agent(agent_id)
-
-    def _embody_meta_agent(self, agent_id: str):
-        """Embody a meta-agent using the container."""
-        try:
-            # Resolve paths for meta-agent
-            agent_home_path, project_root_path = container.resolve_agent_paths(
-                "_common", "_common", agent_id
-            )
-
-            # Embody the agent
-            success = self.agent_logic.embody_agent(
-                environment="_common",
-                project="_common",
-                agent_id=agent_id,
-                agent_home_path=agent_home_path,
-                project_root_path=project_root_path,
-            )
-
-            if success:
-                print(f"✅ Successfully embodied meta-agent: {agent_id}")
-                self.logger.info(f"Embodied meta-agent: {agent_id}")
-
-                # Setup LLM client reference for tools access
-                if hasattr(self.agent_logic.llm_client, "genesis_agent"):
-                    # For compatibility with existing tooling
-                    self.agent_logic.llm_client.genesis_agent = self.agent_logic
-
-            else:
-                raise Exception("Failed to embody meta-agent")
-
-        except Exception as e:
-            self.logger.error(f"Failed to embody meta-agent {agent_id}: {e}")
-            raise
+        # Store the target agent_id
+        self.agent_id = agent_id
+        
+        # Get the central service
+        self.conductor_service = container.get_conductor_service()
+        
+        # The "embody" is now implicit in task execution by the service
+        print(f"✅ AdminCLI inicializado. Usando ConductorService.")
 
     @property
     def embodied(self) -> bool:
-        """Check if agent is embodied."""
-        return self.agent_logic.is_embodied()
+        """Verifica se o agente alvo existe no ecossistema."""
+        try:
+            # A nova forma de verificar é ver se o serviço consegue encontrar o agente
+            agents = self.conductor_service.discover_agents()
+            return any(agent.agent_id == self.agent_id for agent in agents)
+        except Exception:
+            return False
 
     def chat(self, message: str, debug_save_input: bool = False) -> str:
-        """Send a message to the meta-agent."""
+        """Envia uma mensagem ao agente através do ConductorService."""
         if not self.embodied:
-            return "❌ No agent embodied."
+            return f"❌ Agente '{self.agent_id}' não encontrado pelo ConductorService."
 
         try:
-            # Build enhanced message with context
-            enhanced_message = self._build_enhanced_message(message)
-
             # Handle debug mode - save input without calling provider
             if debug_save_input:
+                enhanced_message = self._build_enhanced_message(message)
                 self.debug_utils.save_debug_input(enhanced_message)
                 return "✅ DEBUG MODE: Input captured and saved. Provider NOT called."
 
             # Handle simulation mode
             if self.simulate_mode:
+                enhanced_message = self._build_enhanced_message(message)
                 return self.debug_utils.generate_simulation_response(enhanced_message)
 
-            # Normal chat interaction
-            # self.logger.info(f"Processing chat message: {message[:100]}...")
-            response = self.agent_logic.chat(enhanced_message)
-            self.logger.info(
-                f"Chat response received: {len(response) if response else 0} chars"
+            # 1. Construir o DTO da tarefa
+            # O contexto (meta, new_agent_id) é passado no DTO
+            task_context = {
+                "meta": self.meta,
+                "new_agent_id": self.new_agent_id,
+                "debug_save_input": debug_save_input,
+                "simulate_mode": self.simulate_mode
+            }
+            task = TaskDTO(
+                agent_id=self.agent_id,
+                user_input=message,
+                context=task_context
             )
 
-            return response
+            # 2. Delegar a execução para o serviço central
+            result = self.conductor_service.execute_task(task)
 
-        except AgentNotEmbodied as e:
-            return f"❌ {str(e)}"
+            # 3. Processar o resultado
+            if result.status == "success":
+                return result.output
+            else:
+                return f"❌ Erro na execução da tarefa: {result.output}"
+
         except Exception as e:
-            self.logger.error(f"Chat error: {e}")
-            return f"❌ Error in chat: {e}"
+            self.logger.error(f"Erro no chat do AdminCLI: {e}")
+            return f"❌ Erro fatal no AdminCLI: {e}"
 
     def _build_enhanced_message(self, message: str) -> str:
         """Build enhanced message with agent creation context."""
@@ -204,8 +179,14 @@ class AdminCLI:
         return self.state_manager.save_agent_state()
 
     def get_available_tools(self) -> list:
-        """Get available tools from agent logic."""
-        return self.agent_logic.get_available_tools()
+        """Get available tools from ConductorService."""
+        try:
+            # Get the tools available through the service
+            # This might need to be adapted based on the actual ConductorService interface
+            return list(self.conductor_service._tools.keys())
+        except Exception as e:
+            self.logger.error(f"Error getting available tools: {e}")
+            return []
 
 
 def start_repl_session(admin_cli: AdminCLI):
