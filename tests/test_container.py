@@ -7,7 +7,7 @@ from unittest.mock import patch, Mock
 from pathlib import Path
 
 from src.container import DIContainer
-from src.infrastructure.persistence.state_repository import FileStateRepository
+from src.infrastructure.storage.filesystem_repository import FileSystemStateRepository
 from src.infrastructure.llm.cli_client import ClaudeCLIClient
 
 
@@ -21,7 +21,7 @@ class TestDIContainer:
     def test_get_file_state_repository(self):
         """Test getting file state repository."""
         repo = self.container.get_state_repository("file")
-        assert isinstance(repo, FileStateRepository)
+        assert isinstance(repo, FileSystemStateRepository)
 
     def test_get_llm_client(self):
         """Test getting LLM client."""
