@@ -9,18 +9,82 @@ class IStateRepository(ABC):
     """
 
     @abstractmethod
-    def save_state(self, agent_id: str, state_data: Dict[str, Any]) -> bool:
+    def load_definition(self, agent_id: str) -> Dict:
         """
-        Salva o dicionário de estado completo para um determinado agente.
+        Carrega a definição do agente (agent.yaml).
+        Retorna um dicionário vazio se não encontrado.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def load_persona(self, agent_id: str) -> str:
+        """
+        Carrega a persona do agente (persona.md).
+        Retorna string vazia se não encontrado.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def save_session(self, agent_id: str, session_data: Dict) -> bool:
+        """
+        Salva os dados da sessão (session.json).
         Retorna True em caso de sucesso, False caso contrário.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def load_state(self, agent_id: str) -> Dict[str, Any]:
+    def load_session(self, agent_id: str) -> Dict:
         """
-        Carrega o dicionário de estado completo para um determinado agente.
-        Retorna um dicionário vazio se o estado não for encontrado.
+        Carrega os dados da sessão (session.json).
+        Retorna um dicionário vazio se não encontrado.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def save_knowledge(self, agent_id: str, knowledge_data: Dict) -> bool:
+        """
+        Salva os dados de conhecimento (knowledge.json).
+        Retorna True em caso de sucesso, False caso contrário.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def load_knowledge(self, agent_id: str) -> Dict:
+        """
+        Carrega os dados de conhecimento (knowledge.json).
+        Retorna um dicionário vazio se não encontrado.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def save_playbook(self, agent_id: str, playbook_data: Dict) -> bool:
+        """
+        Salva os dados do playbook (playbook.yaml).
+        Retorna True em caso de sucesso, False caso contrário.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def load_playbook(self, agent_id: str) -> Dict:
+        """
+        Carrega os dados do playbook (playbook.yaml).
+        Retorna um dicionário vazio se não encontrado.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def append_to_history(self, agent_id: str, history_entry: Dict) -> bool:
+        """
+        Adiciona uma entrada ao histórico (history.log) no formato JSON Lines.
+        Retorna True em caso de sucesso, False caso contrário.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def load_history(self, agent_id: str) -> List[Dict]:
+        """
+        Carrega o histórico completo (history.log).
+        Retorna uma lista vazia se não encontrado.
         """
         raise NotImplementedError
 

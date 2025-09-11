@@ -8,8 +8,8 @@ from src.core.conductor_service import ConductorService
 from src.core.exceptions import ConfigurationError
 from src.core.config_schema import GlobalConfig, StorageConfig
 from src.core.domain import AgentDefinition, TaskDTO, TaskResultDTO
-from src.infrastructure.persistence.state_repository import FileStateRepository as FileSystemStateRepository
-from src.infrastructure.persistence.state_repository import MongoStateRepository
+from src.infrastructure.storage.filesystem_repository import FileSystemStateRepository
+from src.infrastructure.storage.mongo_repository import MongoStateRepository
 
 
 class TestConductorServiceConfig:
@@ -115,24 +115,20 @@ class TestConductorServiceAgentDiscovery:
         service = ConductorService()
         
         mock_repo.list_agents.return_value = ["agent1", "agent2"]
-        mock_repo.load_state.side_effect = [
+        mock_repo.load_definition.side_effect = [
             {
-                "definition": {
-                    "name": "Test Agent 1",
-                    "version": "1.0",
-                    "schema_version": "1.0",
-                    "description": "First test agent",
-                    "author": "Test Author"
-                }
+                "name": "Test Agent 1",
+                "version": "1.0",
+                "schema_version": "1.0",
+                "description": "First test agent",
+                "author": "Test Author"
             },
             {
-                "definition": {
-                    "name": "Test Agent 2",
-                    "version": "2.0", 
-                    "schema_version": "1.0",
-                    "description": "Second test agent",
-                    "author": "Test Author"
-                }
+                "name": "Test Agent 2",
+                "version": "2.0", 
+                "schema_version": "1.0",
+                "description": "Second test agent",
+                "author": "Test Author"
             }
         ]
         
@@ -144,7 +140,7 @@ class TestConductorServiceAgentDiscovery:
         assert agents[1].name == "Test Agent 2" 
         assert agents[1].version == "2.0"
         mock_repo.list_agents.assert_called_once()
-        assert mock_repo.load_state.call_count == 2
+        assert mock_repo.load_definition.call_count == 2
 
     @patch.object(ConductorService, '_load_and_validate_config')
     @patch.object(ConductorService, '_create_storage_backend')
@@ -175,7 +171,7 @@ class TestConductorServiceAgentDiscovery:
         
         mock_repo = MagicMock()
         mock_repo.list_agents.return_value = ["agent1"]
-        mock_repo.load_state.return_value = {"other_data": "value"}
+        mock_repo.load_definition.return_value = {}
         mock_create_storage.return_value = mock_repo
         
         service = ConductorService()
@@ -183,7 +179,7 @@ class TestConductorServiceAgentDiscovery:
         agents = service.discover_agents()
         
         assert len(agents) == 0
-        mock_repo.load_state.assert_called_with("agent1")
+        mock_repo.load_definition.assert_called_with("agent1")
 
 
 class TestConductorServiceTaskExecution:
@@ -208,18 +204,19 @@ class TestConductorServiceTaskExecution:
         service = ConductorService()
         service._tools = {"tool1": MagicMock(), "tool2": MagicMock()}
         
-        agent_state = {
-            "definition": {
-                "name": "Test Agent",
-                "version": "1.0",
-                "schema_version": "1.0", 
-                "description": "Test description",
-                "author": "Test Author"
-            },
+        definition = {
+            "name": "Test Agent",
+            "version": "1.0",
+            "schema_version": "1.0", 
+            "description": "Test description",
+            "author": "Test Author"
+        }
+        session_data = {
             "agent_home_path": "/path/to/agent",
             "allowed_tools": ["tool1"]
         }
-        mock_repo.load_state.return_value = agent_state
+        mock_repo.load_definition.return_value = definition
+        mock_repo.load_session.return_value = session_data
         
         # Mock do executor
         mock_executor_instance = MagicMock()
@@ -234,7 +231,8 @@ class TestConductorServiceTaskExecution:
         
         assert result.status == "success"
         assert result.output == "Task completed"
-        mock_repo.load_state.assert_called_with("agent1")
+        mock_repo.load_definition.assert_called_with("agent1")
+        mock_repo.load_session.assert_called_with("agent1")
         mock_agent_executor.assert_called_once()
         mock_executor_instance.run.assert_called_with(task)
 
@@ -247,7 +245,7 @@ class TestConductorServiceTaskExecution:
         mock_load_config.return_value = mock_config
         
         mock_repo = MagicMock()
-        mock_repo.load_state.return_value = None
+        mock_repo.load_definition.return_value = {}
         mock_create_storage.return_value = mock_repo
         
         service = ConductorService()
@@ -268,17 +266,16 @@ class TestConductorServiceTaskExecution:
         mock_load_config.return_value = mock_config
         
         mock_repo = MagicMock()
-        agent_state = {
-            "definition": {
-                "name": "Test Agent",
-                "version": "1.0",
-                "schema_version": "1.0",
-                "description": "Test description",
-                "author": "Test Author"
-            }
-            # agent_home_path ausente
+        definition = {
+            "name": "Test Agent",
+            "version": "1.0",
+            "schema_version": "1.0",
+            "description": "Test description",
+            "author": "Test Author"
         }
-        mock_repo.load_state.return_value = agent_state
+        session_data = {}  # agent_home_path ausente
+        mock_repo.load_definition.return_value = definition
+        mock_repo.load_session.return_value = session_data
         mock_create_storage.return_value = mock_repo
         
         service = ConductorService()
@@ -288,7 +285,7 @@ class TestConductorServiceTaskExecution:
         result = service.execute_task(task)
         
         assert result.status == "error"
-        assert "agent_home_path não encontrado" in result.output
+        assert "agent_home_path não encontrado na sessão do agente" in result.output
 
 
 class TestConductorServiceToolLoading:
