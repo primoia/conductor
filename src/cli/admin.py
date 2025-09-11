@@ -23,7 +23,6 @@ if str(src_path) not in sys.path:
 from src.container import container
 from src.core.observability import configure_logging
 from src.core.domain import TaskDTO
-from src.infrastructure.utils import cleanup_orphan_sessions
 from src.cli.shared import (
     REPLManager,
     CLIArgumentParser,
@@ -66,17 +65,9 @@ class AdminCLI:
         # Store the target agent_id
         self.agent_id = agent_id
         
-        # Get the central service
+        # Get services from container (properly configured and singleton)
         self.conductor_service = container.get_conductor_service()
-        
-        # Get specialized services for specific operations
-        from src.core.services.storage_service import StorageService
-        from src.core.services.configuration_service import ConfigurationService
-        from src.core.services.agent_discovery_service import AgentDiscoveryService
-        
-        config_service = ConfigurationService()
-        storage_service = StorageService(config_service)
-        self.agent_service = AgentDiscoveryService(storage_service)
+        self.agent_service = container.get_agent_discovery_service()
         
         # The "embody" is now implicit in task execution by the service
         print(f"✅ AdminCLI inicializado. Usando ConductorService + AgentService.")
@@ -192,13 +183,8 @@ def main():
 
     # Execute cleanup for filesystem storage backend
     try:
-        config_manager = container.config_manager
-        storage_config = config_manager.load_storage_config()
-        
-        if storage_config.get('type') == 'filesystem':
-            workspace_path = storage_config.get('workspace_path')
-            if workspace_path:
-                cleanup_orphan_sessions(workspace_path)
+        session_service = container.get_session_management_service()
+        session_service.cleanup_orphan_sessions()
     except Exception as e:
         print(f"⚠️  Warning: Failed to execute session cleanup: {e}")
 

@@ -57,17 +57,9 @@ class AgentCLI:
         self.state_manager = StateManager(self, self.logger)
         self.debug_utils = DebugUtilities(self, self.logger)
         
-        # Get the central service
+        # Get services from container (properly configured and singleton)
         self.conductor_service = container.get_conductor_service()
-        
-        # Get specialized services for specific operations
-        from src.core.services.storage_service import StorageService
-        from src.core.services.configuration_service import ConfigurationService
-        from src.core.services.agent_discovery_service import AgentDiscoveryService
-        
-        config_service = ConfigurationService()
-        storage_service = StorageService(config_service)
-        self.agent_service = AgentDiscoveryService(storage_service)
+        self.agent_service = container.get_agent_discovery_service()
         
         print(f"✅ AgentCLI inicializado. Usando ConductorService + AgentService.")
 
