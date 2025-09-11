@@ -15,14 +15,14 @@ class TestPromptEngine:
         with tempfile.TemporaryDirectory() as tmp_dir:
             agent_path = Path(tmp_dir)
 
-            # Create agent.yaml
+            # Create definition.yaml
             agent_config = {
                 "name": "TestAgent",
                 "description": "A test agent",
                 "prompt": "Be helpful and concise",
                 "available_tools": ["tool1", "tool2"],
             }
-            with open(agent_path / "agent.yaml", "w") as f:
+            with open(agent_path / "definition.yaml", "w") as f:
                 yaml.dump(agent_config, f)
 
             # Create persona.md
@@ -54,12 +54,12 @@ Your name is {{agent_name}} and you work with {{agent_description}}.
         assert "A test agent" in prompt_engine.persona_content
 
     def test_prompt_engine_fails_on_missing_config(self):
-        """Test failure when agent.yaml is missing."""
+        """Test failure when definition.yaml is missing."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             agent_path = Path(tmp_dir)
             prompt_engine = PromptEngine(agent_path)
 
-            with pytest.raises(AgentNotFoundError, match="agent.yaml not found"):
+            with pytest.raises(AgentNotFoundError, match="definition.yaml not found"):
                 prompt_engine.load_context()
 
     def test_prompt_engine_fails_on_missing_persona(self, temp_agent_dir):
@@ -208,9 +208,9 @@ Your name is {{agent_name}} and you work with {{agent_description}}.
         with tempfile.TemporaryDirectory() as tmp_dir:
             agent_path = Path(tmp_dir)
 
-            # Create minimal agent.yaml without available_tools
+            # Create minimal definition.yaml without available_tools
             agent_config = {"name": "MinimalAgent"}
-            with open(agent_path / "agent.yaml", "w") as f:
+            with open(agent_path / "definition.yaml", "w") as f:
                 yaml.dump(agent_config, f)
 
             # Create minimal persona.md
@@ -228,9 +228,9 @@ Your name is {{agent_name}} and you work with {{agent_description}}.
         with tempfile.TemporaryDirectory() as tmp_dir:
             agent_path = Path(tmp_dir)
 
-            # Create invalid agent.yaml (missing 'name' field)
+            # Create invalid definition.yaml (missing 'name' field)
             agent_config = {"description": "Agent without name"}
-            with open(agent_path / "agent.yaml", "w") as f:
+            with open(agent_path / "definition.yaml", "w") as f:
                 yaml.dump(agent_config, f)
 
             prompt_engine = PromptEngine(agent_path)
@@ -263,7 +263,7 @@ Your name is {{agent_name}} and you work with {{agent_description}}.
 
             # Create agent config with empty values
             agent_config = {"name": "", "description": ""}
-            with open(agent_path / "agent.yaml", "w") as f:
+            with open(agent_path / "definition.yaml", "w") as f:
                 yaml.dump(agent_config, f)
 
             # Create persona with placeholders

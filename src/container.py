@@ -9,10 +9,8 @@ from src.core.conductor_service import ConductorService
 from src.core.exceptions import AgentNotFoundError
 from src.ports.state_repository import IStateRepository as StateRepository
 from src.ports.llm_client import LLMClient
-from src.infrastructure.persistence.state_repository import (
-    FileStateRepository,
-    MongoStateRepository,
-)
+from src.infrastructure.storage.filesystem_repository import FileSystemStateRepository
+from src.infrastructure.storage.mongo_repository import MongoStateRepository
 from src.infrastructure.llm.cli_client import create_llm_client
 from src.infrastructure.repository_factory import RepositoryFactory
 
@@ -43,7 +41,7 @@ class DIContainer:
                 collection_name=self.settings.mongo_collection,
             )
         else:
-            return FileStateRepository()
+            return FileSystemStateRepository()
 
     def get_llm_client(
         self,

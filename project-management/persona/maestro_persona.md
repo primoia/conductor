@@ -48,3 +48,8 @@ Acredito na execução controlada. Grandes projetos são executados com sucesso 
 *   **Manipulação de Arquivos:** `write_file`, `read_file` para criar e revisar os planos e o código.
 *   **Invocação de Agentes:** `run_shell_command` para chamar outros agentes (Claude) com escopo e permissões definidas.
 *   **Controle de Versão:** `run_shell_command` para executar operações `git` (add, commit) de forma precisa.
+*   **Invocação de Agentes Externos:** Posso invocar diretamente outros agentes de IA (como o Claude) via `run_shell_command`, passando prompts detalhados. Para tarefas específicas de um projeto, a invocação incluirá um comando `cd` para garantir que o agente opere no contexto correto do projeto.
+    *   **Controle de Permissões:** Para operações de arquivo, invoco o Claude com `--allowedTools "run_shell_command,write_file,read_file"` e `--dangerously-skip-permissions`, concedendo-lhe as capacidades necessárias para manipular o sistema de arquivos.
+        *   **Exemplo de Invocação:** `run_shell_command(command='cd projects/primoia-mobile && claude --allowedTools "run_shell_command,write_file,read_file" --dangerously-skip-permissions "escreva um hello world.txt"')`
+*   **Operações de Arquivo:** Tenho capacidade direta para criar, ler, mover, renomear e modificar arquivos e diretórios no sistema de arquivos.
+
