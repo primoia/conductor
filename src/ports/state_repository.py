@@ -94,3 +94,10 @@ class IStateRepository(ABC):
         Lista os IDs de todos os agentes disponíveis no backend de armazenamento.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def get_agent_home_path(self, agent_id: str) -> str:
+        """
+        Retorna o caminho absoluto do diretório home do agente.
+        """
+        raise NotImplementedError

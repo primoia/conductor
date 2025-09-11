@@ -28,9 +28,9 @@ class StateManager:
         Returns:
             True if successful, False otherwise
         """
-        # Delegar a responsabilidade de salvar estado para o cli_instance
-        # O cli_instance (AdminCLI/AgentCLI) agora chama ConductorService.save_state
-        return self.cli_instance.save_agent_state()
+        # State is now managed by ConductorService directly after task execution.
+        # This method is a no-op for AdminCLI/AgentCLI.
+        return True
 
     def get_agent_status(self) -> dict:
         """

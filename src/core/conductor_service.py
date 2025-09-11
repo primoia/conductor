@@ -82,7 +82,10 @@ class ConductorService(IConductorService):
             session_data = self.repository.load_session(task.agent_id)
             agent_home_path = session_data.get("agent_home_path")
             if not agent_home_path:
-                raise ValueError(f"agent_home_path não encontrado na sessão do agente {task.agent_id}")
+                # Fall back to deriving the path from the repository if missing from session
+                agent_home_path = self.repository.get_agent_home_path(task.agent_id)
+                # Update session with the derived path for future use
+                self.repository.save_session(task.agent_id, session_data)
 
             # 3. Instanciar as dependências de execução
             # Detectar se estamos em ambiente de teste
