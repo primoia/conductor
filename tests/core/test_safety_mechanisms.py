@@ -30,16 +30,19 @@ def test_history_truncation():
     agent_dir = temp_dir / "test_agent"
     agent_dir.mkdir()
 
-    # Create minimal agent.yaml
-    agent_yaml = agent_dir / "agent.yaml"
-    agent_yaml.write_text(
+    # Create minimal definition.yaml
+    definition_yaml = agent_dir / "definition.yaml"
+    definition_yaml.write_text(
         """
-ai_provider: gemini
-description: Test agent
-id: TestAgent
-persona_prompt_path: persona.md
-state_file_path: state.json
+name: Test Agent
 version: '2.0'
+schema_version: '1.0'
+description: Test agent for safety mechanisms
+author: test
+ai_provider: gemini
+tags: []
+capabilities: []
+allowed_tools: []
 """
     )
 
