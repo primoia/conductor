@@ -1,8 +1,0 @@
-name: "AgentCreator_Agent"
-version: "1.0.0"
-schema_version: "1.0"
-description: "Um agente que cria a estrutura inicial de arquivos (scaffolding) para novos agentes."
-author: "PrimoIA"
-tags: ["meta", "onboarding"]
-capabilities: ["create_agent_scaffold"]
-allowed_tools: ["file.write", "shell.run"]
