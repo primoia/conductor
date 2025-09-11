@@ -164,9 +164,11 @@ class AdminCLI:
 
     def get_conversation_history(self) -> list:
         """Get conversation history. In the new architecture, this is managed by ConductorService."""
-        # TODO: Implement conversation history retrieval from ConductorService if needed
-        # For now, return empty list as the new architecture doesn't maintain CLI-level history
-        return []
+        try:
+            return self.conductor_service.repository.load_history(self.agent_id)
+        except Exception as e:
+            self.logger.error(f"Error getting conversation history: {e}")
+            return []
 
     def clear_conversation_history(self) -> bool:
         """Clear the agent's conversation history through ConductorService."""
