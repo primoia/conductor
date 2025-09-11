@@ -57,20 +57,25 @@ class AgentCLI:
         self.state_manager = StateManager(self, self.logger)
         self.debug_utils = DebugUtilities(self, self.logger)
         
-        # Obter o serviço central
-        self.conductor_service = container.conductor_service()
+        # Get the central service
+        self.conductor_service = container.get_conductor_service()
         
-        print(f"✅ AgentCLI inicializado. Usando ConductorService.")
+        # Get specialized services for specific operations
+        from src.core.services.storage_service import StorageService
+        from src.core.services.configuration_service import ConfigurationService
+        from src.core.services.agent_discovery_service import AgentDiscoveryService
+        
+        config_service = ConfigurationService()
+        storage_service = StorageService(config_service)
+        self.agent_service = AgentDiscoveryService(storage_service)
+        
+        print(f"✅ AgentCLI inicializado. Usando ConductorService + AgentService.")
 
 
     @property
     def embodied(self) -> bool:
         """Verifica se o agente alvo existe no ecossistema."""
-        try:
-            agents = self.conductor_service.discover_agents()
-            return any(agent.agent_id == self.agent_id for agent in agents)
-        except Exception:
-            return False
+        return self.agent_service.agent_exists(self.agent_id)
 
     def chat(self, message: str) -> str:
         """Envia uma mensagem ao agente através do ConductorService."""
@@ -103,26 +108,20 @@ class AgentCLI:
             return f"❌ Erro fatal no AgentCLI: {e}"
 
     def save_agent_state(self):
-        """Save agent state using StateManager."""
-        return self.state_manager.save_agent_state()
+        """Save agent state using AgentService."""
+        return self.agent_service.save_agent_state(self.agent_id)
 
     def get_available_tools(self) -> list:
-        """Get available tools from conductor service."""
+        """Get available tools from agent definition."""
         try:
-            agents = self.conductor_service.discover_agents()
-            agent = next((a for a in agents if a.agent_id == self.agent_id), None)
-            return agent.available_tools if agent else []
+            agent_definition = self.agent_service.get_agent_definition(self.agent_id)
+            return agent_definition.allowed_tools if agent_definition else []
         except Exception:
             return []
 
     def get_output_scope(self) -> list:
-        """Get output scope restrictions."""
-        try:
-            agents = self.conductor_service.discover_agents()
-            agent = next((a for a in agents if a.agent_id == self.agent_id), None)
-            return agent.output_scope if agent and hasattr(agent, 'output_scope') else []
-        except Exception:
-            return []
+        """Get output scope restrictions from agent definition."""
+        return self.agent_service.get_agent_output_scope(self.agent_id)
 
 
 def start_repl_session(agent_cli: AgentCLI, agent_name: str):

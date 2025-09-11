@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 from src.config import settings, ConfigManager
-from src.core.agent_service import AgentService
+# AgentService removido - usando AgentDiscoveryService através de ConductorService
 from src.core.conductor_service import ConductorService
 from src.core.exceptions import AgentNotFoundError
 from src.ports.state_repository import IStateRepository as StateRepository
@@ -59,21 +59,8 @@ class DIContainer:
         )
 
 
-    def create_agent_service(self) -> AgentService:
-        """
-        Create a fully configured AgentService instance using the repository factory.
-        
-        Returns:
-            Configured AgentService instance with the appropriate storage backend
-        """
-        # Load storage configuration from config.yaml
-        storage_config = self.config_manager.load_storage_config()
-        
-        # Use RepositoryFactory to create the appropriate repository
-        storage_repository = RepositoryFactory.get_repository(storage_config)
-        
-        # Create and return AgentService with injected repository
-        return AgentService(storage_repository)
+    # create_agent_service removido - use get_conductor_service().discover_agents() 
+    # ou acesse AgentDiscoveryService através da nova arquitetura
 
     def get_conductor_service(self) -> ConductorService:
         """
