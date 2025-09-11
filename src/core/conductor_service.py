@@ -11,8 +11,8 @@ from src.ports.conductor_service import IConductorService
 from src.ports.state_repository import IStateRepository
 from src.core.config_schema import GlobalConfig, StorageConfig
 from src.core.exceptions import ConfigurationError
-from src.infrastructure.persistence.state_repository import FileStateRepository as FileSystemStateRepository
-from src.infrastructure.persistence.state_repository import MongoStateRepository
+from src.infrastructure.storage.filesystem_repository import FileSystemStateRepository
+from src.infrastructure.storage.mongo_repository import MongoStateRepository
 from src.core.domain import AgentDefinition, TaskDTO, TaskResultDTO
 from src.core.tools.core_tools import CORE_TOOLS
 from src.core.agent_executor import AgentExecutor, PlaceholderLLMClient
@@ -55,10 +55,11 @@ class ConductorService(IConductorService):
         agent_ids = self.repository.list_agents()
         definitions = []
         for agent_id in agent_ids:
-            state = self.repository.load_state(agent_id)
-            if "definition" in state:
+            definition = self.repository.load_definition(agent_id)
+            
+            if definition:
                 # Remove agent_id from definition before creating AgentDefinition
-                definition_data = state["definition"].copy()
+                definition_data = definition.copy()
                 definition_data.pop("agent_id", None)  # Remove agent_id if present
                 # Add agent_id as optional parameter
                 agent_definition = AgentDefinition(**definition_data, agent_id=agent_id)
@@ -67,20 +68,21 @@ class ConductorService(IConductorService):
 
     def execute_task(self, task: TaskDTO) -> TaskResultDTO:
         try:
-            # 1. Carregar o estado completo do agente
-            agent_state = self.repository.load_state(task.agent_id)
-            if not agent_state or "definition" not in agent_state:
+            # 1. Carregar a definição do agente
+            definition = self.repository.load_definition(task.agent_id)
+            if not definition:
                 raise FileNotFoundError(f"Definição não encontrada para o agente: {task.agent_id}")
 
             # Remove agent_id from definition before creating AgentDefinition
-            definition_data = agent_state["definition"].copy()
+            definition_data = definition.copy()
             definition_data.pop("agent_id", None)  # Remove agent_id if present
             agent_definition = AgentDefinition(**definition_data)
             
-            # 2. Obter o caminho do agente (assumindo que está no estado)
-            agent_home_path = agent_state.get("agent_home_path")
+            # 2. Carregar os dados da sessão para obter o caminho do agente
+            session_data = self.repository.load_session(task.agent_id)
+            agent_home_path = session_data.get("agent_home_path")
             if not agent_home_path:
-                raise ValueError(f"agent_home_path não encontrado no estado do agente {task.agent_id}")
+                raise ValueError(f"agent_home_path não encontrado na sessão do agente {task.agent_id}")
 
             # 3. Instanciar as dependências de execução
             # Detectar se estamos em ambiente de teste
@@ -106,10 +108,10 @@ class ConductorService(IConductorService):
             prompt_engine = PromptEngine(agent_home_path=agent_home_path)
             prompt_engine.load_context()
             
-            # 4. Filtrar as ferramentas permitidas
+            # 4. Filtrar as ferramentas permitidas a partir da sessão
             allowed_tools = {
                 name: tool_func for name, tool_func in self._tools.items()
-                if name in agent_state.get("allowed_tools", [])
+                if name in session_data.get("allowed_tools", [])
             }
 
             # 5. Instanciar e executar o executor
@@ -117,10 +119,32 @@ class ConductorService(IConductorService):
                 agent_definition=agent_definition,
                 llm_client=llm_client,
                 prompt_engine=prompt_engine,
-                allowed_tools=allowed_tools
+                allowed_tools=allowed_tools,
+                current_session=session_data
             )
             
             result = executor.run(task)
+            
+            # Persist agent state if task was successful
+            if result.status == "success":
+                # Save updated session data
+                if result.updated_session:
+                    # Merge with existing session data
+                    current_session = self.repository.load_session(task.agent_id)
+                    current_session.update(result.updated_session)
+                    self.repository.save_session(task.agent_id, current_session)
+                
+                # Save updated knowledge data
+                if result.updated_knowledge:
+                    # Merge with existing knowledge data
+                    current_knowledge = self.repository.load_knowledge(task.agent_id)
+                    current_knowledge.update(result.updated_knowledge)
+                    self.repository.save_knowledge(task.agent_id, current_knowledge)
+                
+                # Append history entry
+                if result.history_entry:
+                    self.repository.append_to_history(task.agent_id, result.history_entry)
+            
             return result
 
         except Exception as e:
