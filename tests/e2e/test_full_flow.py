@@ -30,12 +30,12 @@ def filesystem_service(tmp_path):
     agents_dir = workspace_path / "agents"
     agents_dir.mkdir(parents=True)
     
-    # Criar diretório específico do agente para agent.yaml e persona.md
+    # Criar diretório específico do agente para definition.yaml e persona.md
     fs_agent_dir = agents_dir / "fs_agent"
     fs_agent_dir.mkdir(parents=True)
     
-    # Criar agent.yaml para o PromptEngine
-    with open(fs_agent_dir / "agent.yaml", "w") as f:
+    # Criar definition.yaml para o PromptEngine
+    with open(fs_agent_dir / "definition.yaml", "w") as f:
         yaml.dump({
             "name": "FS Agent", 
             "version": "1.0", 
@@ -51,8 +51,12 @@ def filesystem_service(tmp_path):
     with open(fs_agent_dir / "persona.md", "w") as f:
         f.write("You are a helpful test agent for filesystem operations.")
     
-    # Conteúdo do agente mock no formato JSON para o FileSystemStateRepository
-    agent_content = {
+    # Criar estrutura para o FileSystemStateRepository (nova implementação)
+    fs_agent_storage_dir = agents_dir / "fs_agent"
+    fs_agent_storage_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Criar session.json com definição e agent_home_path
+    session_content = {
         "definition": {
             "name": "FS Agent", 
             "version": "1.0", 
@@ -63,13 +67,17 @@ def filesystem_service(tmp_path):
             "capabilities": [],
             "allowed_tools": []
         },
-        "agent_home_path": str(fs_agent_dir.resolve()), # Caminho para o diretório do agente
-        "allowed_tools": []
+        "agent_home_path": str(fs_agent_dir.resolve())
     }
     
-    # Salvar como arquivo JSON para o FileSystemStateRepository
-    with open(agents_dir / "fs_agent.json", "w") as f:
-        json.dump(agent_content, f, indent=2)
+    with open(fs_agent_storage_dir / "session.json", "w") as f:
+        json.dump(session_content, f, indent=2)
+    
+    # Criar memory.json (vazio por enquanto)
+    memory_content = {}
+    
+    with open(fs_agent_storage_dir / "memory.json", "w") as f:
+        json.dump(memory_content, f, indent=2)
 
     return ConductorService(config_path=str(config_path))
 

@@ -210,6 +210,9 @@ class TaskResultDTO:
     status: str  # Ex: 'success', 'error'
     output: str
     metadata: Dict[str, Any] = field(default_factory=dict)
+    updated_session: Optional[Dict[str, Any]] = None
+    updated_knowledge: Optional[Dict[str, Any]] = None
+    history_entry: Optional[Dict[str, Any]] = None
 
 # --- Modelos de API (Pydantic) ---
 

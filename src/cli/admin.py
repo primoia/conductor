@@ -7,6 +7,7 @@ It acts as a thin interface that delegates to the core business logic.
 """
 
 import sys
+import os
 from pathlib import Path
 
 # Add project root to path for imports
@@ -45,10 +46,7 @@ class AdminCLI:
         state_provider: str = "file",
         debug_mode: bool = False,
         meta: bool = False,
-        environment: str = None,
-        project: str = None,
         new_agent_id: str = None,
-        destination_path: str = None,
     ):
         """Initialize Admin CLI."""
         self.logger = configure_logging(debug_mode, f"admin_{agent_id}", agent_id)
@@ -58,16 +56,7 @@ class AdminCLI:
         self.meta = meta
         self.new_agent_id = new_agent_id
 
-        # Set environment and project based on meta flag
-        if self.meta:
-            self.environment = "_common"
-            self.project = "_common"
-        else:
-            self.environment = environment
-            self.project = project
-
-        # Store CLI-specific state (legacy support)
-        self.destination_path = destination_path
+        # Store CLI-specific state
         self.simulate_mode = False
 
         # Initialize shared components
@@ -141,11 +130,6 @@ class AdminCLI:
         """Build enhanced message with agent creation context."""
         context_parts = []
 
-        # Add environment and project context
-        if self.environment and self.project:
-            context_parts.append(f"AGENT_ENVIRONMENT={self.environment}")
-            context_parts.append(f"AGENT_PROJECT={self.project}")
-
         # Add new agent ID if specified
         if self.new_agent_id:
             context_parts.append(f"NEW_AGENT_ID={self.new_agent_id}")
@@ -155,13 +139,6 @@ class AdminCLI:
             context_parts.append("AGENT_TYPE=meta")
         else:
             context_parts.append("AGENT_TYPE=project")
-
-        # Legacy destination path support
-        if self.destination_path:
-            context_parts.append(f"DESTINATION_PATH={self.destination_path}")
-            self.logger.info(
-                f"Enhanced message with destination path: {self.destination_path}"
-            )
 
         # Build final message
         if context_parts:
@@ -174,9 +151,6 @@ class AdminCLI:
         else:
             return message
 
-    def save_agent_state(self):
-        """Save agent state using StateManager."""
-        return self.state_manager.save_agent_state()
 
     def get_available_tools(self) -> list:
         """Get available tools from ConductorService."""
@@ -190,9 +164,53 @@ class AdminCLI:
 
     def get_conversation_history(self) -> list:
         """Get conversation history. In the new architecture, this is managed by ConductorService."""
-        # TODO: Implement conversation history retrieval from ConductorService if needed
-        # For now, return empty list as the new architecture doesn't maintain CLI-level history
-        return []
+        try:
+            return self.conductor_service.repository.load_history(self.agent_id)
+        except Exception as e:
+            self.logger.error(f"Error getting conversation history: {e}")
+            return []
+
+    def clear_conversation_history(self) -> bool:
+        """Clear the agent's conversation history through ConductorService."""
+        try:
+            # Get the repository from ConductorService to clear history
+            repository = self.conductor_service.repository
+            
+            # Clear the history log file by saving an empty list
+            # This effectively truncates the history.log file
+            success = True
+            
+            # Clear history.log - overwrite with empty content
+            try:
+                agent_home_path = repository.get_agent_home_path(self.agent_id)
+                history_file = os.path.join(agent_home_path, "history.log")
+                # Truncate the file by opening in write mode
+                with open(history_file, 'w', encoding='utf-8') as f:
+                    pass  # Just open and close to truncate
+                self.logger.info(f"Cleared history log for agent {self.agent_id}")
+            except Exception as e:
+                self.logger.warning(f"Could not clear history log: {e}")
+                # Don't fail completely if history log clearing fails
+            
+            # Optionally clear session conversation data if present
+            try:
+                session_data = repository.load_session(self.agent_id)
+                # Remove any conversation-related fields from session
+                conversation_fields = ["conversation_history", "last_messages", "chat_history"]
+                for field in conversation_fields:
+                    if field in session_data:
+                        del session_data[field]
+                        self.logger.info(f"Cleared {field} from session data")
+                repository.save_session(self.agent_id, session_data)
+            except Exception as e:
+                self.logger.warning(f"Could not clear session conversation data: {e}")
+                # Don't fail completely if session clearing fails
+
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"Error clearing conversation history: {e}")
+            return False
 
 
 def start_repl_session(admin_cli: AdminCLI):
@@ -248,15 +266,22 @@ mantendo o contexto da conversa para análise.
 """
         )
 
+    # Configure custom exception hook for debug mode
+    if args.debug:
+        def custom_exception_hook(exc_type, exc_value, exc_traceback):
+            if issubclass(exc_type, Exception):
+                print(f"❌ ERRO CRÍTICO: {exc_value}", file=sys.stderr)
+                traceback.print_exception(exc_type, exc_value, exc_traceback)
+            else:
+                sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        sys.excepthook = custom_exception_hook
+
     print(f"🚀 Iniciando Admin CLI")
-    print(f"   Meta-agent: {args.agent}")
+    print(f"   Agent: {args.agent}")
     if args.meta:
-        print(f"   Agent Type: meta-agent")
-        print(f"   Target: _common/agents/")
+        print(f"   Type: meta-agent")
     else:
-        print(f"   Agent Type: project-agent")
-        print(f"   Environment: {args.environment}")
-        print(f"   Project: {args.project}")
+        print(f"   Type: project-agent")
 
     if args.new_agent_id:
         print(f"   New Agent ID: {args.new_agent_id}")
@@ -266,7 +291,7 @@ mantendo o contexto da conversa para análise.
     if args.debug:
         print(f"   Debug mode: enabled")
 
-    # Initialize admin CLI with new parameters
+    # Initialize admin CLI
     admin_cli = AdminCLI(
         agent_id=args.agent,
         ai_provider=args.ai_provider,
@@ -274,10 +299,7 @@ mantendo o contexto da conversa para análise.
         state_provider=args.state_provider,
         debug_mode=args.debug,
         meta=args.meta,
-        environment=args.environment,
-        project=args.project,
         new_agent_id=args.new_agent_id,
-        destination_path=args.destination_path,
     )
 
     if not admin_cli.embodied:
@@ -305,7 +327,7 @@ mantendo o contexto da conversa para análise.
         print(response)
         print("=" * 60)
 
-        admin_cli.save_agent_state()
+
     else:
         ErrorHandling.show_usage_tip(parser)
         print("🤖 Meta-agent ready for programmatic use")

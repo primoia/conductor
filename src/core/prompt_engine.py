@@ -101,16 +101,16 @@ class PromptEngine:
         return self.agent_config.get("available_tools", [])
 
     def _load_agent_config(self) -> None:
-        """Carrega configuração do agente a partir do agent.yaml."""
-        agent_yaml_path = self.agent_home_path / "agent.yaml"
-        if not agent_yaml_path.exists():
-            raise AgentNotFoundError(f"agent.yaml not found: {agent_yaml_path}")
+        """Carrega configuração do agente a partir do definition.yaml."""
+        definition_yaml_path = self.agent_home_path / "definition.yaml"
+        if not definition_yaml_path.exists():
+            raise AgentNotFoundError(f"definition.yaml not found: {definition_yaml_path}")
 
         try:
-            with open(agent_yaml_path, "r", encoding="utf-8") as f:
+            with open(definition_yaml_path, "r", encoding="utf-8") as f:
                 self.agent_config = yaml.safe_load(f)
         except yaml.YAMLError as e:
-            raise ConfigurationError(f"Error parsing agent.yaml: {e}")
+            raise ConfigurationError(f"Error parsing definition.yaml: {e}")
 
     def _validate_agent_config(self) -> None:
         """Valida a configuração carregada do agente."""
