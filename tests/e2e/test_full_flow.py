@@ -82,7 +82,7 @@ def filesystem_service(tmp_path):
     return ConductorService(config_path=str(config_path))
 
 # Mockando o LLM para todos os testes neste arquivo
-@patch('src.core.conductor_service.PlaceholderLLMClient')
+@patch('src.core.services.task_execution_service.PlaceholderLLMClient')
 def test_filesystem_flow(MockLLMClient, filesystem_service):
     """Testa o fluxo completo com o backend de filesystem."""
     # Setup mock do LLM
