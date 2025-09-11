@@ -36,9 +36,6 @@ class PromptEngine:
         self._validate_agent_config()
         self._load_agent_persona()
         self._resolve_persona_placeholders()
-        logger.info(
-            f"Contexto para o agente em '{self.agent_home_path}' carregado com sucesso."
-        )
 
     def build_prompt(self, conversation_history: List[Dict], message: str) -> str:
         """Constrói o prompt final usando o contexto já carregado."""
