@@ -25,6 +25,7 @@ class PromptEngine:
         self.agent_config: Dict[str, Any] = {}
         self.persona_content: str = ""
         self.playbook: Dict[str, Any] = {}
+        self.playbook_content: str = ""
         logger.debug(f"PromptEngine inicializado para o caminho: {agent_home_path}")
 
     def load_context(self) -> None:
@@ -35,6 +36,7 @@ class PromptEngine:
         self._load_agent_config()
         self._validate_agent_config()
         self._load_agent_persona()
+        self._load_agent_playbook()
         self._resolve_persona_placeholders()
 
     def build_prompt(self, conversation_history: List[Dict], message: str) -> str:
@@ -70,12 +72,21 @@ class PromptEngine:
                 + "\n\n[INSTRUÇÕES TRUNCADAS]"
             )
 
+        # Include playbook content if available
+        playbook_section = ""
+        if self.playbook_content:
+            playbook_section = f"""
+
+### KNOWLEDGE BASE
+{self.playbook_content}
+"""
+
         final_prompt = f"""
 {persona_content}
 
 ### INSTRUÇÕES DO AGENTE
 {agent_instructions}
-
+{playbook_section}
 ### HISTÓRICO DA TAREFA ATUAL
 {formatted_history}
 ### NOVA INSTRUÇÃO DO USUÁRIO
@@ -134,6 +145,84 @@ class PromptEngine:
 
         except Exception as e:
             raise ConfigurationError(f"Error loading agent persona: {e}")
+
+    def _load_agent_playbook(self) -> None:
+        """Carrega o conteúdo do playbook do agente (opcional)."""
+        playbook_path = self.agent_home_path / "playbook.yaml"
+        
+        if not playbook_path.exists():
+            logger.debug(f"Playbook file not found: {playbook_path} (optional)")
+            self.playbook = {}
+            self.playbook_content = ""
+            return
+
+        try:
+            with open(playbook_path, "r", encoding="utf-8") as f:
+                playbook_raw_content = f.read()
+                self.playbook = yaml.safe_load(playbook_raw_content)
+                self.playbook_content = self._format_playbook_for_prompt(self.playbook)
+                logger.debug(f"Playbook loaded successfully from: {playbook_path}")
+
+        except yaml.YAMLError as e:
+            logger.warning(f"Error parsing playbook.yaml: {e}")
+            self.playbook = {}
+            self.playbook_content = ""
+        except Exception as e:
+            logger.warning(f"Error loading agent playbook: {e}")
+            self.playbook = {}
+            self.playbook_content = ""
+
+    def _format_playbook_for_prompt(self, playbook_data: Dict[str, Any]) -> str:
+        """Formata o playbook para inclusão no prompt."""
+        if not playbook_data:
+            return ""
+        
+        formatted_sections = []
+        
+        # Best Practices section
+        best_practices = playbook_data.get("best_practices", [])
+        if best_practices:
+            formatted_sections.append("## BEST PRACTICES")
+            for bp in best_practices:
+                bp_text = f"• **{bp.get('title', 'Untitled')}** ({bp.get('id', 'N/A')})\n"
+                bp_text += f"  {bp.get('description', 'No description')}"
+                if bp.get('category'):
+                    bp_text += f"\n  Category: {bp['category']}"
+                if bp.get('priority'):
+                    bp_text += f" | Priority: {bp['priority']}"
+                formatted_sections.append(bp_text)
+        
+        # Anti-patterns section
+        anti_patterns = playbook_data.get("anti_patterns", [])
+        if anti_patterns:
+            formatted_sections.append("\n## ANTI-PATTERNS TO AVOID")
+            for ap in anti_patterns:
+                ap_text = f"• **{ap.get('title', 'Untitled')}** ({ap.get('id', 'N/A')})\n"
+                ap_text += f"  {ap.get('description', 'No description')}"
+                if ap.get('category'):
+                    ap_text += f"\n  Category: {ap['category']}"
+                if ap.get('severity'):
+                    ap_text += f" | Severity: {ap['severity']}"
+                formatted_sections.append(ap_text)
+        
+        # Guidelines section (if exists)
+        guidelines = playbook_data.get("guidelines", {})
+        if guidelines:
+            formatted_sections.append("\n## GUIDELINES")
+            for guideline_type, guideline_content in guidelines.items():
+                if isinstance(guideline_content, list):
+                    formatted_sections.append(f"**{guideline_type.replace('_', ' ').title()}:**")
+                    for item in guideline_content:
+                        formatted_sections.append(f"• {item}")
+                elif isinstance(guideline_content, dict):
+                    formatted_sections.append(f"**{guideline_type.replace('_', ' ').title()}:**")
+                    for key, value in guideline_content.items():
+                        if isinstance(value, list):
+                            formatted_sections.append(f"  {key.replace('_', ' ').title()}:")
+                            for item in value:
+                                formatted_sections.append(f"  • {item}")
+        
+        return "\n".join(formatted_sections)
 
     def _resolve_persona_placeholders(self) -> None:
         """Resolve placeholders dinâmicos no conteúdo da persona."""
@@ -210,17 +299,18 @@ class PromptEngine:
 
         formatted_lines = []
         for turn in recent_history:
-            prompt = turn.get("prompt", "")
-            response = turn.get("response", "")
+            # Use the correct field names as saved by agent_executor
+            user_input = turn.get("user_input", "")
+            ai_response = turn.get("ai_response", "")
 
             # Truncar mensagens muito longas
             MAX_MESSAGE_LENGTH = 1000
-            if len(prompt) > MAX_MESSAGE_LENGTH:
-                prompt = prompt[:MAX_MESSAGE_LENGTH] + "... [truncado]"
-            if len(response) > MAX_MESSAGE_LENGTH:
-                response = response[:MAX_MESSAGE_LENGTH] + "... [truncado]"
+            if len(user_input) > MAX_MESSAGE_LENGTH:
+                user_input = user_input[:MAX_MESSAGE_LENGTH] + "... [truncado]"
+            if len(ai_response) > MAX_MESSAGE_LENGTH:
+                ai_response = ai_response[:MAX_MESSAGE_LENGTH] + "... [truncado]"
 
-            formatted_lines.append(f"Usuário: {prompt}\nIA: {response}")
+            formatted_lines.append(f"Usuário: {user_input}\nIA: {ai_response}")
 
         # Adicionar indicador se histórico foi truncado
         if len(history) > MAX_HISTORY_TURNS:
