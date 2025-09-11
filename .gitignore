@@ -41,6 +41,7 @@ share/python-wheels/
 .cursor/
 .gemini/
 .workspace/
+.conductor_workspace/
 
 # --- OS & System Files ---
 .DS_Store
