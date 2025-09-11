@@ -4,8 +4,13 @@ from pathlib import Path
 from typing import Dict, Any
 
 from src.config import settings, ConfigManager
-# AgentService removido - usando AgentDiscoveryService através de ConductorService
 from src.core.conductor_service import ConductorService
+from src.core.services.configuration_service import ConfigurationService
+from src.core.services.storage_service import StorageService
+from src.core.services.agent_discovery_service import AgentDiscoveryService
+from src.core.services.tool_management_service import ToolManagementService
+from src.core.services.task_execution_service import TaskExecutionService
+from src.core.services.session_management_service import SessionManagementService
 from src.core.exceptions import AgentNotFoundError
 from src.ports.state_repository import IStateRepository as StateRepository
 from src.ports.llm_client import LLMClient
@@ -32,6 +37,12 @@ class DIContainer:
         self._state_repository = None
         self._ai_providers_config = None
         self._conductor_service = None
+        self._configuration_service = None
+        self._storage_service = None
+        self._agent_discovery_service = None
+        self._tool_management_service = None
+        self._task_execution_service = None
+        self._session_management_service = None
 
     def get_state_repository(self, provider: str = "file") -> StateRepository:
         """Get state repository instance based on provider."""
@@ -59,8 +70,51 @@ class DIContainer:
         )
 
 
-    # create_agent_service removido - use get_conductor_service().discover_agents() 
-    # ou acesse AgentDiscoveryService através da nova arquitetura
+    def get_configuration_service(self, config_path: str = "config.yaml") -> ConfigurationService:
+        """Get singleton ConfigurationService instance."""
+        if self._configuration_service is None:
+            self._configuration_service = ConfigurationService(config_path)
+        return self._configuration_service
+
+    def get_storage_service(self) -> StorageService:
+        """Get singleton StorageService instance."""
+        if self._storage_service is None:
+            config_service = self.get_configuration_service()
+            self._storage_service = StorageService(config_service)
+        return self._storage_service
+
+    def get_agent_discovery_service(self) -> AgentDiscoveryService:
+        """Get singleton AgentDiscoveryService instance."""
+        if self._agent_discovery_service is None:
+            storage_service = self.get_storage_service()
+            self._agent_discovery_service = AgentDiscoveryService(storage_service)
+        return self._agent_discovery_service
+
+    def get_tool_management_service(self) -> ToolManagementService:
+        """Get singleton ToolManagementService instance."""
+        if self._tool_management_service is None:
+            config_service = self.get_configuration_service()
+            self._tool_management_service = ToolManagementService(config_service)
+        return self._tool_management_service
+
+    def get_task_execution_service(self) -> TaskExecutionService:
+        """Get singleton TaskExecutionService instance."""
+        if self._task_execution_service is None:
+            config_service = self.get_configuration_service()
+            storage_service = self.get_storage_service()
+            agent_service = self.get_agent_discovery_service()
+            tool_service = self.get_tool_management_service()
+            self._task_execution_service = TaskExecutionService(
+                config_service, storage_service, agent_service, tool_service
+            )
+        return self._task_execution_service
+
+    def get_session_management_service(self) -> SessionManagementService:
+        """Get singleton SessionManagementService instance."""
+        if self._session_management_service is None:
+            config_service = self.get_configuration_service()
+            self._session_management_service = SessionManagementService(config_service)
+        return self._session_management_service
 
     def get_conductor_service(self) -> ConductorService:
         """
