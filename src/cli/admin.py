@@ -157,6 +157,21 @@ class AdminCLI:
             self.logger.error(f"Error clearing conversation history: {e}")
             return False
 
+    def get_full_prompt(self, sample_message: str = "Mensagem de exemplo") -> str:
+        """
+        Get the complete prompt that would be sent to the AI provider.
+        This always shows the REAL prompt, regardless of test mode.
+        """
+        # Use the unified function from AgentDiscoveryService
+        return self.agent_service.get_full_prompt(
+            agent_id=self.agent_id, 
+            sample_message=sample_message, 
+            meta=self.meta, 
+            new_agent_id=self.new_agent_id,
+            current_message=None,
+            save_to_file=False
+        )
+
 
 def start_repl_session(admin_cli: AdminCLI):
     """Start interactive REPL session using REPLManager."""
