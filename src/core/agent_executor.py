@@ -72,7 +72,8 @@ class AgentExecutor:
                 "timestamp": current_timestamp,
                 "user_input": task.user_input,
                 "status": "success",
-                "ai_response": response
+                "ai_response": response,
+                "output_length": len(response)
             }
 
             return TaskResultDTO(
