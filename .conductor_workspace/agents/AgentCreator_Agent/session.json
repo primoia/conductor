@@ -1,0 +1,13 @@
+{
+  "agent_home_path": "/mnt/ramdisk/primoia-main/primoia-monorepo/projects/conductor/.conductor_workspace/agents/AgentCreator_Agent",
+  "allowed_tools": [
+    "read_file",
+    "write_file",
+    "run_command",
+    "list_files"
+  ],
+  "initialized": true,
+  "last_task_id": "b8a2cf14-adb8-4a94-bd62-60115ffdb614",
+  "last_interaction": 1757557549.7029917,
+  "conversation_count": 23
+}

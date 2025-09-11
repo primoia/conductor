@@ -142,6 +142,10 @@ class FileSystemStateRepository(IStateRepository):
         except Exception:
             return []
 
+    def get_agent_home_path(self, agent_id: str) -> str:
+        """Retorna o caminho absoluto do diretório home do agente."""
+        return os.path.abspath(self._get_agent_dir(agent_id))
+
     def list_agents(self) -> List[str]:
         """
         Lista todos os agentes disponíveis escaneando o diretório agents/.
