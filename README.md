@@ -104,6 +104,499 @@ poetry run python src/cli/agent.py --environment develop --project desafio-meli 
 
 > **Nota:** Todos os agentes são armazenados em `.conductor_workspace/agents/` independentemente do tipo.
 
+## Como Usar o Conductor
+
+### 🚀 CLI Unificado (Recomendado)
+
+O Conductor possui um CLI unificado que simplifica todas as operações:
+
+#### **Executando Comandos**
+
+```bash
+# Opção 1: Script executável (mais fácil)
+./conductor <comando>
+
+# Opção 2: Via Python (sempre funciona)
+python src/cli/conductor.py <comando>
+```
+
+#### **Comandos Principais**
+
+##### 📋 **Listar Agentes Disponíveis**
+```bash
+./conductor list-agents
+```
+Mostra todos os agentes disponíveis com suas capacidades e tags.
+
+##### 🤖 **Executar um Agente**
+```bash
+# Sintaxe básica
+./conductor execute --agent <agent_id> --input "<sua_mensagem>"
+
+# Exemplos práticos
+./conductor execute --agent SystemGuide_Meta_Agent --input "Explique a arquitetura do sistema"
+./conductor execute --agent CommitMessage_Agent --input "Gere mensagem de commit para as mudanças atuais"
+./conductor execute --agent AgentCreator_Agent --input "Crie um agente para revisar código Python"
+```
+
+##### 🔍 **Informações Detalhadas de um Agente**
+```bash
+./conductor info --agent <agent_id>
+
+# Exemplo
+./conductor info --agent SystemGuide_Meta_Agent
+```
+Mostra informações completas: capacidades, tags, arquivos, estatísticas e status.
+
+##### ✅ **Validar Configuração**
+```bash
+./conductor validate-config
+```
+Verifica se a configuração está correta, agentes são válidos e o sistema está funcionando.
+
+### 🔧 CLIs Legados (Compatibilidade)
+
+Os CLIs originais ainda funcionam para compatibilidade:
+
+#### **Admin CLI (Meta-Agentes)**
+```bash
+# Para agentes que gerenciam o framework
+python src/cli/admin.py --agent <agent_id> --input "<mensagem>" --meta
+
+# Exemplo
+python src/cli/admin.py --agent AgentCreator_Agent --input "Crie um novo agente" --meta
+```
+
+#### **Agent CLI (Agentes de Projeto)**
+```bash
+# Para agentes específicos de projeto
+python src/cli/agent.py --environment <env> --project <proj> --agent <agent_id> --input "<mensagem>"
+
+# Exemplo
+python src/cli/agent.py --environment develop --project meu-projeto --agent TestAgent --input "Execute testes"
+```
+
+### 🎯 Fluxo Típico de Uso
+
+#### **1. Verificar Agentes Disponíveis**
+```bash
+./conductor list-agents
+```
+
+#### **2. Criar um Novo Agente (se necessário)**
+```bash
+./conductor execute --agent AgentCreator_Agent --input "Crie um agente para [sua necessidade]"
+```
+
+#### **3. Usar o Agente Criado**
+```bash
+./conductor execute --agent NovoAgente --input "Execute sua tarefa"
+```
+
+#### **4. Verificar Informações do Agente**
+```bash
+./conductor info --agent NovoAgente
+```
+
+### 🛠️ Exemplos Práticos
+
+#### **Criar e Usar um Agente de Code Review**
+```bash
+# 1. Criar o agente
+./conductor execute --agent AgentCreator_Agent --input "Crie um CodeReviewer_Agent para analisar qualidade de código Python"
+
+# 2. Usar o agente criado
+./conductor execute --agent CodeReviewer_Agent --input "Revise este código: def exemplo(): pass"
+
+# 3. Ver informações do agente
+./conductor info --agent CodeReviewer_Agent
+```
+
+#### **Gerar Mensagens de Commit**
+```bash
+./conductor execute --agent CommitMessage_Agent --input "Gere mensagem de commit para: adicionei validação de entrada e corrigir bug na autenticação"
+```
+
+#### **Obter Ajuda do Sistema**
+```bash
+./conductor execute --agent SystemGuide_Meta_Agent --input "Como funciona o sistema de agentes?"
+```
+
+### 🔧 Troubleshooting
+
+#### **Comando não encontrado: `conductor`**
+```bash
+# Use o caminho completo
+python src/cli/conductor.py list-agents
+
+# Ou torne o script executável
+chmod +x conductor
+./conductor list-agents
+```
+
+#### **Agente não encontrado**
+```bash
+# Listar agentes disponíveis
+./conductor list-agents
+
+# O sistema sugere agentes similares automaticamente
+./conductor execute --agent AgenteTeste --input "teste"
+# Output: ❌ Agente 'AgenteTeste' não encontrado
+#         💡 Agentes similares: TestAgent, SystemGuide_Meta_Agent
+```
+
+#### **Validar se tudo está funcionando**
+```bash
+./conductor validate-config
+```
+
+### 💡 Dicas Avançadas
+
+- **Cache**: O sistema usa cache de 5 minutos para descoberta de agentes
+- **Sugestões**: Quando um agente não é encontrado, o sistema sugere similares
+- **Histórico**: Cada agente mantém histórico de conversas em `history.log`
+- **Validação**: Use `validate-config` para diagnosticar problemas
+
+## 🎯 Como Usar o Conductor
+
+O Conductor oferece múltiplas formas de interagir com seus agentes. Aqui está um guia completo de como usar todas as funcionalidades disponíveis.
+
+### 🚀 Métodos de Execução
+
+#### 1. CLI Unificado (Recomendado)
+```bash
+# Executar diretamente
+./conductor <comando> [opções]
+
+# Ou via Python
+python src/cli/conductor.py <comando> [opções]
+```
+
+#### 2. Usando Poetry (Recomendado para Desenvolvimento)
+```bash
+# Para comandos do conductor
+poetry run python src/cli/conductor.py <comando> [opções]
+
+# Para CLIs legados
+poetry run python src/cli/admin.py [opções]
+poetry run python src/cli/agent.py [opções]
+```
+
+### 📋 Comandos Principais
+
+#### `list-agents` - Listar Agentes Disponíveis
+```bash
+# Listar todos os agentes
+./conductor list-agents
+
+# Exemplo de saída:
+🤖 Agentes disponíveis em .conductor_workspace/agents/:
+============================================================
+ 1. AgentCreator_Agent
+     Nome: Agent Creator
+     Capacidades: agent_creation, yaml_generation, code_analysis
+     Tags: meta, creator, framework
+
+ 2. DocumentAnalyst_Agent  
+     Nome: Document Analyst
+     Capacidades: document_analysis, content_extraction, summarization
+     Tags: analysis, documents, nlp
+
+📊 Total: 15 agentes encontrados
+```
+
+#### `execute` - Executar um Agente
+```bash
+# Executar agente básico
+./conductor execute --agent AgentCreator_Agent --input "Crie um novo agente para análise de logs"
+
+# Executar com contexto de projeto
+./conductor execute --agent DocumentAnalyst_Agent --environment develop --project my-project --input "Analise o arquivo README.md"
+
+# Exemplo de saída:
+🤖 Executando agente: DocumentAnalyst_Agent
+==================================================
+✅ Execução bem-sucedida:
+[Resposta detalhada do agente...]
+```
+
+#### `info` - Informações Detalhadas do Agente
+```bash
+# Ver informações completas de um agente
+./conductor info --agent AgentCreator_Agent
+
+# Exemplo de saída:
+🔍 Informações do agente: AgentCreator_Agent
+============================================================
+📋 INFORMAÇÕES BÁSICAS
+   ID: AgentCreator_Agent
+   Nome: Agent Creator
+   Versão: 1.0.0
+   Autor: Conductor Framework
+   Descrição: Especialista em criação de novos agentes
+
+🏷️  TAGS
+   • meta
+   • creator
+   • framework
+
+🛠️  CAPACIDADES
+   • agent_creation
+   • yaml_generation
+   • code_analysis
+
+🔧 FERRAMENTAS PERMITIDAS
+   • file_operations
+   • yaml_parser
+   • code_generator
+```
+
+#### `validate-config` - Validar Configuração
+```bash
+# Verificar se tudo está configurado corretamente
+./conductor validate-config
+
+# Exemplo de saída:
+🔍 Validando configuração do Conductor...
+============================================================
+📋 1. Validando arquivo de configuração...
+   ✅ config.yaml carregado com sucesso
+
+💾 2. Validando configuração de storage...
+   Tipo: filesystem
+   Caminho: .conductor_workspace
+   ✅ Diretório base existe
+   ✅ Permissões de escrita OK
+
+🤖 3. Validando diretório de agentes...
+   ✅ Diretório existe: .conductor_workspace/agents
+   📊 Agentes encontrados: 15
+```
+
+### 🎭 Exemplos Práticos de Uso
+
+#### Cenário 1: Criando um Novo Agente
+```bash
+# 1. Primeiro, valide sua configuração
+./conductor validate-config
+
+# 2. Liste agentes existentes para ver o que está disponível
+./conductor list-agents
+
+# 3. Use o AgentCreator para criar um novo agente
+./conductor execute --agent AgentCreator_Agent --input "Crie um agente especializado em análise de performance de APIs REST"
+
+# 4. Verifique se o agente foi criado
+./conductor list-agents
+```
+
+#### Cenário 2: Analisando um Projeto
+```bash
+# 1. Execute um agente de análise em um projeto específico
+./conductor execute --agent ProjectAnalyst_Agent --environment production --project ecommerce --input "Analise a arquitetura atual do sistema"
+
+# 2. Obtenha informações detalhadas sobre o agente usado
+./conductor info --agent ProjectAnalyst_Agent
+```
+
+#### Cenário 3: Trabalhando com Documentação
+```bash
+# Execute um agente para analisar documentação
+./conductor execute --agent DocumentAnalyst_Agent --input "Analise todos os arquivos README do projeto e gere um resumo"
+```
+
+### 🔧 CLIs Legados (Compatibilidade)
+
+Embora recomendemos o uso do CLI unificado, os CLIs legados ainda estão disponíveis:
+
+#### `admin.py` - Meta-Agentes
+Para agentes que trabalham com o próprio framework Conductor:
+```bash
+# Criar novos agentes
+poetry run python src/cli/admin.py --agent AgentCreator_Agent --input "Crie um agente para análise de logs"
+
+# Gerenciar framework
+poetry run python src/cli/admin.py --agent FrameworkManager_Agent --input "Atualize a configuração do sistema"
+
+# Modo interativo (REPL)
+poetry run python src/cli/admin.py --agent AgentCreator_Agent
+# (Inicia sessão interativa)
+```
+
+#### `agent.py` - Agentes de Projeto
+Para agentes que trabalham com projetos específicos:
+```bash
+# Análise de projeto específico
+poetry run python src/cli/agent.py --environment develop --project my-app --agent CodeAnalyst_Agent --input "Analise a qualidade do código"
+
+# Com contexto de ambiente
+poetry run python src/cli/agent.py --environment production --project ecommerce --agent SecurityAuditor_Agent --input "Faça uma auditoria de segurança"
+
+# Modo interativo
+poetry run python src/cli/agent.py --environment develop --project my-app --agent CodeAnalyst_Agent
+```
+
+### 🔨 Como Criar Novos Agentes
+
+#### Método 1: Usando o AgentCreator_Agent (Recomendado)
+```bash
+# Criação assistida de agente
+./conductor execute --agent AgentCreator_Agent --input "Crie um agente para análise de performance de banco de dados com as seguintes capacidades: query_analysis, index_optimization, performance_monitoring"
+```
+
+#### Método 2: Criação Manual
+```bash
+# 1. Crie o diretório do agente
+mkdir -p .conductor_workspace/agents/MyNewAgent_Agent
+
+# 2. Crie o arquivo de definição
+cat > .conductor_workspace/agents/MyNewAgent_Agent/definition.yaml << 'EOF'
+name: "My New Agent"
+version: "1.0.0"
+author: "Seu Nome"
+description: "Descrição do que o agente faz"
+capabilities:
+  - capability1
+  - capability2
+tags:
+  - tag1
+  - tag2
+allowed_tools:
+  - file_operations
+  - web_search
+EOF
+
+# 3. Crie o arquivo de persona
+cat > .conductor_workspace/agents/MyNewAgent_Agent/persona.md << 'EOF'
+# Persona: Seu Agente
+
+## Descrição
+Descrição detalhada do comportamento e especialização do agente.
+
+## Instruções
+- Instrução 1
+- Instrução 2
+- Instrução 3
+EOF
+
+# 4. Verifique se o agente foi criado corretamente
+./conductor info --agent MyNewAgent_Agent
+```
+
+### 🚨 Troubleshooting Básico
+
+#### Problema: Agente não encontrado
+```bash
+# ❌ Erro: Agente 'MinhaAgent' não encontrado
+./conductor execute --agent MinhaAgent --input "test"
+
+# ✅ Solução: Listar agentes disponíveis
+./conductor list-agents
+
+# ✅ Ou obter sugestões similares
+./conductor info --agent MinhaAgent
+```
+
+#### Problema: Erro de configuração
+```bash
+# ✅ Sempre valide a configuração primeiro
+./conductor validate-config
+
+# Se houver problemas, verifique:
+# 1. Se o arquivo config.yaml existe
+# 2. Se o diretório .conductor_workspace tem permissões corretas
+# 3. Se os agentes têm arquivos definition.yaml válidos
+```
+
+#### Problema: Permissões de arquivo
+```bash
+# ✅ Garanta que o executável conductor tem permissões
+chmod +x conductor
+
+# ✅ Verifique permissões do workspace
+ls -la .conductor_workspace/
+```
+
+#### Problema: Dependências Python
+```bash
+# ✅ Instale dependências
+poetry install
+
+# ✅ Ative o ambiente virtual
+poetry shell
+
+# ✅ Execute com poetry
+poetry run python src/cli/conductor.py list-agents
+```
+
+#### Problema: Agente não responde ou falha
+```bash
+# ✅ Verifique logs detalhados (se disponível)
+./conductor execute --agent ProblematicAgent --input "test" --debug
+
+# ✅ Verifique a estrutura do agente
+./conductor info --agent ProblematicAgent
+
+# ✅ Valide a definição do agente manualmente
+cat .conductor_workspace/agents/ProblematicAgent/definition.yaml
+```
+
+### 💡 Dicas Avançadas
+
+#### 1. **Uso de Variáveis de Ambiente**
+```bash
+# Configure variáveis para diferentes ambientes
+export CONDUCTOR_ENV=development
+./conductor execute --agent MyAgent --input "Analise o ambiente $CONDUCTOR_ENV"
+```
+
+#### 2. **Piping e Automação**
+```bash
+# Encadear comandos
+./conductor list-agents | grep "Analyst" | head -5
+
+# Usar em scripts bash
+#!/bin/bash
+for agent in $(./conductor list-agents | grep "Agent" | awk '{print $2}'); do
+    echo "Verificando $agent..."
+    ./conductor info --agent "$agent"
+done
+```
+
+#### 3. **Contexto de Projeto Flexível**
+```bash
+# Use variáveis para projetos dinâmicos
+PROJECT=$(basename $(pwd))
+./conductor execute --agent ProjectAnalyst_Agent --project "$PROJECT" --input "Analise este projeto"
+```
+
+### 📊 Comandos de Referência Rápida
+
+| Comando | Descrição | Exemplo |
+|---------|-----------|---------|
+| `list-agents` | Lista todos os agentes | `./conductor list-agents` |
+| `execute` | Executa um agente | `./conductor execute --agent MyAgent --input "texto"` |
+| `info` | Mostra detalhes do agente | `./conductor info --agent MyAgent` |
+| `validate-config` | Valida configuração | `./conductor validate-config` |
+
+### 🔄 Migração dos CLIs Legados
+
+Para migrar do uso dos CLIs legados para o CLI unificado:
+
+```bash
+# Antes (admin.py):
+poetry run python src/cli/admin.py --agent AgentCreator_Agent --input "criar agente"
+
+# Depois (conductor unificado):
+./conductor execute --agent AgentCreator_Agent --input "criar agente"
+
+# Antes (agent.py):
+poetry run python src/cli/agent.py --environment dev --project app --agent CodeAnalyst_Agent --input "analisar"
+
+# Depois (conductor unificado):
+./conductor execute --agent CodeAnalyst_Agent --environment dev --project app --input "analisar"
+```
+
 ## 📚 Documentation
 
 -   **[Full Documentation](docs/README.md):** Dive deeper into Conductor's architecture, features, and guides.

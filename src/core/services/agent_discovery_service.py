@@ -1,4 +1,5 @@
 # src/core/services/agent_discovery_service.py
+import time
 from typing import List, Optional
 from src.core.services.storage_service import StorageService
 from src.core.domain import AgentDefinition
@@ -9,9 +10,21 @@ class AgentDiscoveryService:
 
     def __init__(self, storage_service: StorageService):
         self._storage = storage_service.get_repository()
+        # Cache simples para descoberta de agentes (5 minutos)
+        self._cache = {}
+        self._cache_timeout = 300  # 5 minutos em segundos
 
     def discover_agents(self) -> List[AgentDefinition]:
         """Descobre e retorna todas as definições de agentes disponíveis."""
+        # Verificar cache
+        current_time = time.time()
+        cache_key = "all_agents"
+        
+        if (cache_key in self._cache and 
+            current_time - self._cache[cache_key]['timestamp'] < self._cache_timeout):
+            return self._cache[cache_key]['data']
+        
+        # Cache miss ou expirado - buscar dados
         agent_ids = self._storage.list_agents()
         definitions = []
         
@@ -20,35 +33,59 @@ class AgentDiscoveryService:
             if definition:
                 definitions.append(definition)
         
+        # Atualizar cache
+        self._cache[cache_key] = {
+            'data': definitions,
+            'timestamp': current_time
+        }
+        
         return definitions
+
+    def clear_cache(self):
+        """Limpa o cache de descoberta de agentes."""
+        self._cache.clear()
 
     def get_agent_definition(self, agent_id: str) -> Optional[AgentDefinition]:
         """Carrega a definição de um agente específico."""
+        # Verificar cache individual
+        current_time = time.time()
+        cache_key = f"agent_{agent_id}"
+        
+        if (cache_key in self._cache and 
+            current_time - self._cache[cache_key]['timestamp'] < self._cache_timeout):
+            return self._cache[cache_key]['data']
+        
+        # Cache miss - buscar dados
         definition_data = self._storage.load_definition(agent_id)
         
         if not definition_data:
             return None
         
         # Filter only valid fields for AgentDefinition
-        valid_fields = {
-            'name', 'version', 'schema_version', 'description', 'author', 
-            'tags', 'capabilities', 'allowed_tools'
-        }
+        from src.core.constants import AgentFields, Defaults
         
-        filtered_data = {k: v for k, v in definition_data.items() if k in valid_fields}
+        filtered_data = {k: v for k, v in definition_data.items() if k in AgentFields.VALID_FIELDS}
         
         # Ensure required fields have defaults
         filtered_data.setdefault('name', agent_id)
-        filtered_data.setdefault('version', '1.0.0')
-        filtered_data.setdefault('schema_version', '1.0')
+        filtered_data.setdefault('version', Defaults.AGENT_VERSION)
+        filtered_data.setdefault('schema_version', Defaults.SCHEMA_VERSION)
         filtered_data.setdefault('description', f'Agent {agent_id}')
-        filtered_data.setdefault('author', 'Unknown')
+        filtered_data.setdefault('author', Defaults.AGENT_AUTHOR)
         filtered_data.setdefault('tags', [])
         filtered_data.setdefault('capabilities', [])
         filtered_data.setdefault('allowed_tools', [])
         
-        # Add agent_id as optional parameter
-        return AgentDefinition(**filtered_data, agent_id=agent_id)
+        # Create agent definition
+        agent_definition = AgentDefinition(**filtered_data, agent_id=agent_id)
+        
+        # Atualizar cache
+        self._cache[cache_key] = {
+            'data': agent_definition,
+            'timestamp': current_time
+        }
+        
+        return agent_definition
 
     def get_conversation_history(self, agent_id: str) -> List[dict]:
         """Carrega o histórico de conversas de um agente."""
