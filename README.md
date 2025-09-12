@@ -13,22 +13,24 @@
 
 Conductor is a multi-agent framework designed to provide a robust platform for AI-assisted development and automation. It allows you to create, manage, and orchestrate specialized AI agents that can reason, plan, and execute complex coding tasks by interacting with your codebase.
 
-```
-+-----------+        +-------------------+        +----------------+
-|           |        |                   |        |                |
-|  Developer|--💬-->|     Conductor     |--⚙️-->|    Agents      |
-|           | Dialogue   |  (Orchestrator)   | Orchestrates| (Database, Coder)|
-+-----------+        |                   |        |                |
-                     +---------+---------+        +-------+--------+
-                               |                          |
-                               | Analysis & Planning      | Execution
-                               |                          |
-                               ▼                          ▼
-                     +------------------------------------------+
-                     |                                          |
-                     |               Codebase                   |
-                     |                                          |
-                     +------------------------------------------+
+
+### Diagramas relacionados
+- Visão detalhada do CLI: [cli-overview.md](docs/architecture/sequence-diagrams/cli-overview.md)
+- Modos de execução: [execution-modes.md](docs/architecture/sequence-diagrams/execution-modes.md)
+- Fluxo do REPL: [repl-flow.md](docs/architecture/sequence-diagrams/repl-flow.md)
+- Impacto dos parâmetros: [params-impact.md](docs/architecture/sequence-diagrams/params-impact.md)
+
+```mermaid
+flowchart LR
+  Dev[Developer] -->|dialogue| CLI[Conductor CLI]
+  CLI --> CS[ConductorService]
+  CS --> CFG[ConfigurationService]
+  CS --> STG[StorageService]
+  CS --> DISC[AgentDiscoveryService]
+  CS --> TOOL[ToolManagementService]
+  CS --> TASK[TaskExecutionService]
+  TASK --> AG[Agents]
+  STG --> WS[Workspace .conductor_workspace]
 ```
 
 -   **Orchestrate Complex Workflows:** Define multi-step plans in simple YAML files and let Conductor execute them automatically.
