@@ -49,6 +49,8 @@ For more information, visit: https://github.com/cezarfuhr/conductor
         # Execution modes
         parser.add_argument('--chat', action='store_true', 
                            help='Enable contextual mode (loads and saves conversation history)')
+        parser.add_argument('--history', action='store_true', dest='chat',
+                           help='Alias for --chat (contextual mode with history)')
         parser.add_argument('--interactive', action='store_true',
                            help='Enter REPL mode after response (requires --chat)')
         

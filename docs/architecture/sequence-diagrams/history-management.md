@@ -8,16 +8,16 @@ This flow shows how conversation history is automatically saved after each task 
 
 ```mermaid
 sequenceDiagram
-    participant AdminCLI
+    participant ConductorCLI
     participant ConductorService
     participant TaskExecutionService
     participant AgentExecutor
     participant StorageService
     participant Repository
 
-    Note over AdminCLI,Repository: FLUXO DE SALVAMENTO AUTOMÁTICO
+    Note over ConductorCLI,Repository: FLUXO DE SALVAMENTO AUTOMÁTICO
 
-    AdminCLI->>ConductorService: execute_task(task)
+    ConductorCLI->>ConductorService: execute_task(task)
     ConductorService->>TaskExecutionService: execute_task(task)
     
     TaskExecutionService->>TaskExecutionService: _load_agent_definition(agent_id)
@@ -40,76 +40,49 @@ sequenceDiagram
     Repository-->>TaskExecutionService: success
     
     TaskExecutionService-->>ConductorService: TaskResultDTO
-    ConductorService-->>AdminCLI: TaskResultDTO
+    ConductorService-->>ConductorCLI: TaskResultDTO
 ```
 
-## 📖 History Load Flow (Command: history)
+## 📖 History Load Flow (REPL/CLI)
 
-This flow shows how conversation history is retrieved when the user types the `history` command.
+This flow shows how conversation history is retrieved when the user asks to view history.
 
 ```mermaid
 sequenceDiagram
-    participant AdminCLI
-    participant ConductorService
-    participant StorageService
-    participant Repository
+    participant ConductorCLI
+    participant AgentDiscoveryService
 
-    Note over AdminCLI,Repository: FLUXO DE RECUPERAÇÃO (COMANDO HISTORY)
+    Note over ConductorCLI,AgentDiscoveryService: FLUXO DE RECUPERAÇÃO DE HISTÓRICO
 
-    AdminCLI->>ConductorService: repository.load_history(agent_id)
-    ConductorService->>StorageService: get_repository()
-    StorageService-->>ConductorService: repository
-    ConductorService->>Repository: load_history(agent_id)
-    Repository-->>ConductorService: history_list
-    ConductorService-->>AdminCLI: history_list
+    ConductorCLI->>AgentDiscoveryService: get_conversation_history(agent_id)
+    AgentDiscoveryService-->>ConductorCLI: history_list
 ```
 
-## 🗑️ History Clear Flow (Command: clear)
+## 🗑️ History Clear Flow (CLI)
 
-This flow shows how conversation history is cleared when the user types the `clear` command.
+This flow shows how conversation history is cleared when the user requests a clear.
 
 ```mermaid
 sequenceDiagram
-    participant AdminCLI
-    participant ConductorService
-    participant StorageService
-    participant Repository
+    participant ConductorCLI
+    participant AgentDiscoveryService
 
-    Note over AdminCLI,Repository: FLUXO DE LIMPEZA (COMANDO CLEAR)
+    Note over ConductorCLI,AgentDiscoveryService: FLUXO DE LIMPEZA DE HISTÓRICO
 
-    AdminCLI->>ConductorService: repository.clear_history(agent_id)
-    ConductorService->>StorageService: get_repository()
-    StorageService-->>ConductorService: repository
-    ConductorService->>Repository: get_agent_home_path(agent_id)
-    Repository-->>ConductorService: agent_home_path
-    ConductorService->>Repository: load_session(agent_id)
-    Repository-->>ConductorService: session_data
-    ConductorService->>Repository: save_session(agent_id, cleaned_data)
-    Repository-->>ConductorService: success
-    ConductorService-->>AdminCLI: success
+    ConductorCLI->>AgentDiscoveryService: clear_conversation_history(agent_id)
+    AgentDiscoveryService-->>ConductorCLI: success
 ```
 
 ## 🔍 Key Points
 
 ### 1. **Automatic Save:**
 - **AgentExecutor** creates `history_entry`
-- **TaskExecutionService** persists via `_storage.append_to_history()`
-- **AdminCLI** doesn't need to do anything
+- **TaskExecutionService** persists via repository (`append_to_history`)
 
-### 2. **Manual Load:**
-- **AdminCLI** → `conductor_service.repository.load_history()`
-- **ConductorService** delegates to `StorageService.get_repository()`
-
-### 3. **Manual Clear:**
-- **AdminCLI** → `conductor_service.repository.clear_history()`
-- **ConductorService** delegates to repository
-
-### 4. **Current Issue:**
-- **ConductorService** doesn't expose `repository` directly
-- **AdminCLI** breaks encapsulation
+### 2. **Manual Load/Clear via CLI:**
+- **ConductorCLI** usa `AgentDiscoveryService.get_conversation_history/clear_conversation_history`
+- Sem exposição direta do `repository` pelo `ConductorService`
 
 ## 🎯 Architecture Notes
 
-The flow is correct, but the ConductorService needs to expose the `repository` property for AdminCLI to access history management functions.
-
-**Solution:** Add `@property def repository(self):` to ConductorService for backward compatibility.
+O fluxo foi atualizado para refletir a API atual do `ConductorCLI` e dos serviços internos. Caso seja necessário acesso de baixo nível ao repositório pelo CLI, considere adicionar métodos dedicados no `ConductorService` em vez de expor o `repository` diretamente.
