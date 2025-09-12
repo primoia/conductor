@@ -102,6 +102,8 @@ poetry run python src/cli/admin.py --agent AgentCreator_Agent --input "Crie um n
 poetry run python src/cli/agent.py --environment develop --project desafio-meli --agent ProductAnalyst_Agent --input "Analise os dados de produtos."
 ```
 
+> **Nota:** Todos os agentes são armazenados em `.conductor_workspace/agents/` independentemente do tipo.
+
 ## 📚 Documentation
 
 -   **[Full Documentation](docs/README.md):** Dive deeper into Conductor's architecture, features, and guides.

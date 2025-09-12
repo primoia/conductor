@@ -49,8 +49,8 @@ class EvolverAgent:
         current_dir = Path(__file__).parent.absolute()
 
         # Go up 6 levels to reach primoia-main/primoia-monorepo
+        # Note: This agent is in legacy structure and should be migrated to .conductor_workspace/agents/
         # Current structure: .../primoia-monorepo/projects/conductor/projects/_common/agents/EvolverAgent_Agent/src
-        # Need to go up: src -> EvolverAgent_Agent -> agents -> _common -> projects -> conductor -> projects -> primoia-monorepo
         repo_path = current_dir.parent.parent.parent.parent.parent.parent.parent
 
         return str(repo_path.absolute())

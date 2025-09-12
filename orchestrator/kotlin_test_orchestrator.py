@@ -20,7 +20,7 @@ class KotlinTestOrchestrator:
         # These paths should ideally be configurable, e.g., via environment variables or CLI args
         self.project_root = Path(os.getenv("PROJECT_ROOT", "/tmp/desafio-meli"))
         self.agents_root = Path(
-            os.getenv("AGENTS_ROOT", "/tmp/conductor/projects/develop/agents")
+            os.getenv("AGENTS_ROOT", ".conductor_workspace/agents")
         )
         self.workflow_state = {}
 

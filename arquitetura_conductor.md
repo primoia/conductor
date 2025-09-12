@@ -14,6 +14,8 @@
 │  │ • Migrator      │    │ • TestGenerator │    │ • API REST      │            │
 │  │ • HelpSystem    │    │ • ProblemRefiner│    │ • Web UI        │            │
 │  └─────────────────┘    └─────────────────┘    └─────────────────┘            │
+│                                                                                 │
+│  Nota: Todos os agentes são armazenados em .conductor_workspace/agents/        │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼

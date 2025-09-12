@@ -15,15 +15,16 @@ This guide describes the step-by-step process for configuring a new software pro
 
 ## 3. Step-by-Step Guide
 
-### Step 1: Define a Workspace
+### Step 1: Verify Configuration
 
-Conductor needs to know where your projects are located. This is done in the `config/workspaces.yaml` file, which maps an environment name (like `default` or `development`) to an absolute path on your system.
+Conductor uses a centralized configuration in `config.yaml` at the project root. All agents are stored in `.conductor_workspace/agents/` regardless of type.
 
 **Example:**
 ```yaml
-# config/workspaces.yaml
-workspaces:
-  # Maps the 'default' environment to a specific directory
+# config.yaml
+storage:
+  type: filesystem
+  path: .conductor_workspace
   default: /home/user/projects/my-workspace
 ```
 
