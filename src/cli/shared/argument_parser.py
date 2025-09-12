@@ -47,6 +47,11 @@ For more information, visit: https://github.com/cezarfuhr/conductor
         validate_parser = subparsers.add_parser('validate-config', help='Validate configuration')
         validate_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['validate_config_command']).validate_config_command(args))
         
+        # Info command
+        info_parser = subparsers.add_parser('info', help='Show detailed information about an agent')
+        info_parser.add_argument('--agent', required=True, help='Agent ID to show info for')
+        info_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['info_agent_command']).info_agent_command(args))
+        
         return parser
 
     @staticmethod
