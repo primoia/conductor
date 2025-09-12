@@ -86,17 +86,17 @@ Sends an initial message with context, then enters interactive mode.
 
 ### Basic Chat
 ```bash
-conductor chat --agent <agent_id> --input "Your message"
+conductor --agent <agent_id> --chat --input "Your message"
 ```
 Sends a message while preserving conversation context.
 
 ### Chat with History Management
 ```bash
 # Show conversation history after response
-conductor chat --agent <agent_id> --input "Continue" --show-history
+conductor --agent <agent_id> --chat --input "Continue" --show-history
 
 # Clear history before new conversation
-conductor chat --agent <agent_id> --input "New topic" --clear-history
+conductor --agent <agent_id> --chat --clear --input "New topic"
 ```
 
 ## 🔧 Agent Management
@@ -104,22 +104,22 @@ conductor chat --agent <agent_id> --input "New topic" --clear-history
 ### Install Agent Templates
 ```bash
 # List available templates
-conductor install --list
+conductor --install list
 
 # Install specific category
-conductor install --category web_development
+conductor --install web_development
 
 # Install specific agent
-conductor install --agent ReactExpert_Agent
+conductor --install ReactExpert_Agent
 ```
 
 ### Backup and Restore
 ```bash
 # Backup all agents
-conductor backup
+conductor --backup
 
 # Restore from backup
-conductor restore
+conductor --restore
 ```
 
 ## 🎯 Advanced Usage
@@ -127,25 +127,28 @@ conductor restore
 ### Project Context
 ```bash
 # Execute with project context
-conductor execute --agent TestAgent --environment develop --project myapp --input "Run tests"
+conductor --agent TestAgent --environment develop --project myapp --input "Run tests"
 
 # REPL with project context
-conductor repl --agent TestAgent --environment develop --project myapp
+conductor --agent TestAgent --environment develop --project myapp --chat --interactive
 ```
 
 ### Meta-Agent Operations
 ```bash
-# Create new agents
-conductor repl --agent AgentCreator_Agent --meta --mode dev
+# Create new agents (development REPL)
+conductor --agent AgentCreator_Agent --meta --chat --interactive
 
 # Chat for agent creation
-conductor chat --agent AgentCreator_Agent --meta --input "Create a new agent for X"
+conductor --agent AgentCreator_Agent --meta --chat --input "Create a new agent for X"
+
+# Specify new agent id explicitly
+conductor --agent AgentCreator_Agent --meta --chat --input "Create" --new-agent-id MyNewAgent
 ```
 
 ### Timeout Configuration
 ```bash
 # Custom timeout for long operations
-conductor execute --agent MyAgent --input "Complex task" --timeout 300
+conductor --agent MyAgent --input "Complex task" --timeout 300
 ```
 
 ## 🛠️ Practical Examples
@@ -153,23 +156,23 @@ conductor execute --agent MyAgent --input "Complex task" --timeout 300
 ### Creating a New Agent
 ```bash
 # Interactive agent creation
-conductor repl --agent AgentCreator_Agent --mode dev
+conductor --agent AgentCreator_Agent --chat --interactive
 [AgentCreator_Agent]> Create a CodeReviewer_Agent for Python code analysis
 [AgentCreator_Agent]> Add capabilities for PEP8 checking and security analysis
 [AgentCreator_Agent]> exit
 
 # Verify creation
-conductor list-agents | grep CodeReviewer
-conductor info --agent CodeReviewer_Agent
+conductor --list | grep CodeReviewer
+conductor --info CodeReviewer_Agent
 ```
 
 ### Code Review Workflow
 ```bash
 # Quick code review
-conductor execute --agent CodeReviewer_Agent --input "Review this function: def process_data(data): return data.strip().lower()"
+conductor --agent CodeReviewer_Agent --input "Review this function: def process_data(data): return data.strip().lower()"
 
 # Interactive review session
-conductor repl --agent CodeReviewer_Agent --mode advanced
+conductor --agent CodeReviewer_Agent --chat --interactive
 [CodeReviewer_Agent]> Review the authentication module
 [CodeReviewer_Agent]> debug  # Check agent state
 [CodeReviewer_Agent]> What security issues did you find?
@@ -179,11 +182,11 @@ conductor repl --agent CodeReviewer_Agent --mode advanced
 ### Documentation Analysis
 ```bash
 # Analyze project documentation
-conductor execute --agent DocumentAnalyst_Agent --input "Analyze all README files and suggest improvements"
+conductor --agent DocumentAnalyst_Agent --input "Analyze all README files and suggest improvements"
 
 # Interactive documentation session
-conductor chat --agent DocumentAnalyst_Agent --input "What's missing from our docs?"
-conductor chat --agent DocumentAnalyst_Agent --input "How can we improve onboarding?" --show-history
+conductor --agent DocumentAnalyst_Agent --chat --input "What's missing from our docs?"
+conductor --agent DocumentAnalyst_Agent --chat --input "How can we improve onboarding?" --show-history
 ```
 
 ## 🚨 Troubleshooting
@@ -193,10 +196,10 @@ conductor chat --agent DocumentAnalyst_Agent --input "How can we improve onboard
 #### Agent Not Found
 ```bash
 # List available agents
-conductor list-agents
+conductor --list
 
 # System suggests similar agents automatically
-conductor execute --agent TestAgent --input "test"
+conductor --agent TestAgent --input "test"
 # Output: ❌ Agent 'TestAgent' not found
 #         💡 Similar agents: TestingSpecialist_Agent, SystemGuide_Meta_Agent
 ```
