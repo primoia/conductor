@@ -29,12 +29,26 @@ class AgentDiscoveryService:
         if not definition_data:
             return None
         
-        # Remove agent_id from definition before creating AgentDefinition
-        definition_data = definition_data.copy()
-        definition_data.pop("agent_id", None)  # Remove agent_id if present
+        # Filter only valid fields for AgentDefinition
+        valid_fields = {
+            'name', 'version', 'schema_version', 'description', 'author', 
+            'tags', 'capabilities', 'allowed_tools'
+        }
+        
+        filtered_data = {k: v for k, v in definition_data.items() if k in valid_fields}
+        
+        # Ensure required fields have defaults
+        filtered_data.setdefault('name', agent_id)
+        filtered_data.setdefault('version', '1.0.0')
+        filtered_data.setdefault('schema_version', '1.0')
+        filtered_data.setdefault('description', f'Agent {agent_id}')
+        filtered_data.setdefault('author', 'Unknown')
+        filtered_data.setdefault('tags', [])
+        filtered_data.setdefault('capabilities', [])
+        filtered_data.setdefault('allowed_tools', [])
         
         # Add agent_id as optional parameter
-        return AgentDefinition(**definition_data, agent_id=agent_id)
+        return AgentDefinition(**filtered_data, agent_id=agent_id)
 
     def get_conversation_history(self, agent_id: str) -> List[dict]:
         """Carrega o histórico de conversas de um agente."""
@@ -77,6 +91,44 @@ class AgentDiscoveryService:
             return any(agent.agent_id == agent_id for agent in agents)
         except Exception:
             return False
+
+    def get_similar_agent_names(self, agent_id: str, max_suggestions: int = 3) -> List[str]:
+        """Retorna sugestões de agentes similares baseado no nome fornecido."""
+        try:
+            agents = self.discover_agents()
+            agent_names = [agent.agent_id for agent in agents]
+            
+            # Simple similarity based on common substrings and case-insensitive matching
+            suggestions = []
+            agent_id_lower = agent_id.lower()
+            
+            # First, look for exact case-insensitive matches
+            for name in agent_names:
+                if name.lower() == agent_id_lower:
+                    suggestions.append(name)
+            
+            # Then, look for partial matches
+            if len(suggestions) < max_suggestions:
+                for name in agent_names:
+                    if (agent_id_lower in name.lower() or name.lower() in agent_id_lower) and name not in suggestions:
+                        suggestions.append(name)
+                        if len(suggestions) >= max_suggestions:
+                            break
+            
+            # Finally, look for similar patterns (same length, similar characters)
+            if len(suggestions) < max_suggestions:
+                for name in agent_names:
+                    if name not in suggestions and len(name) == len(agent_id):
+                        # Count matching characters in same positions
+                        matches = sum(1 for a, b in zip(agent_id_lower, name.lower()) if a == b)
+                        if matches >= len(agent_id) * 0.6:  # 60% similarity
+                            suggestions.append(name)
+                            if len(suggestions) >= max_suggestions:
+                                break
+            
+            return suggestions[:max_suggestions]
+        except Exception:
+            return []
 
     def build_meta_agent_context(self, message: str, meta: bool = False, new_agent_id: str = None) -> str:
         """Constrói contexto enhanced para meta-agents."""

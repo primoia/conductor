@@ -80,7 +80,12 @@ class AdminCLI:
     def chat(self, message: str, debug_save_input: bool = False) -> str:
         """Envia uma mensagem ao agente através do ConductorService."""
         if not self.embodied:
-            return f"❌ Agente '{self.agent_id}' não encontrado pelo ConductorService."
+            suggestions = self.agent_service.get_similar_agent_names(self.agent_id)
+            error_msg = f"❌ Agente '{self.agent_id}' não encontrado em .conductor_workspace/agents/"
+            if suggestions:
+                error_msg += f"\n💡 Agentes similares disponíveis: {', '.join(suggestions)}"
+            error_msg += f"\n📋 Use 'conductor list-agents' para ver todos os agentes disponíveis"
+            return error_msg
 
         try:
             # Handle debug mode - save input without calling provider
