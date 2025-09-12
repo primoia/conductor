@@ -1,5 +1,0 @@
-radon
-GitPython
-bandit
-safety
-pipdeptree
