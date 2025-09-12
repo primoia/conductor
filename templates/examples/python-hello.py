@@ -21,7 +21,7 @@ def main():
     print()
     print("🚀 Next steps:")
     print(
-        "1. Explore your agents in: {{project_root}}/projects/{{environment}}/{{project_name}}/agents/"
+        "1. Explore your agents in: .conductor_workspace/agents/"
     )
     print("2. Start chatting with an agent:")
     print(

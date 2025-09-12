@@ -38,7 +38,3 @@ class ConductorService(IConductorService):
         """Delega para ToolManagementService."""
         self._tool_service.load_tools()
 
-    @property
-    def repository(self):
-        """Propriedade para compatibilidade com código legado."""
-        return self._storage_service.get_repository()

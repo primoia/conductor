@@ -135,4 +135,4 @@ Novos provedores de LLM, ferramentas e repositórios podem ser adicionados sem m
 
 ## 6. Migração e Compatibilidade
 
-Esta arquitetura representa a evolução pós-SAGA-017, mantendo compatibilidade com interfaces existentes enquanto deprecia componentes legados como `agent_logic.py` e `workspaces.yaml`.
+Esta arquitetura representa a evolução pós-SAGA-017, mantendo compatibilidade com interfaces existentes. A configuração é agora centralizada no `config.yaml` na raiz do projeto.

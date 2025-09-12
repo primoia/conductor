@@ -33,12 +33,21 @@ class AgentExecutor:
         Executa o ciclo de vida de uma tarefa: constrói o prompt, invoca o LLM e retorna o resultado.
         """
         try:
-            # Assume-se que o histórico da conversa está no contexto da tarefa
-            conversation_history = task.context.get("conversation_history", [])
+            # Use a função unificada do AgentDiscoveryService para construir o prompt completo
+            from src.container import container
+            agent_discovery_service = container.get_agent_discovery_service()
             
-            final_prompt = self._prompt_engine.build_prompt(
-                conversation_history=conversation_history,
-                message=task.user_input
+            # Extrair contexto meta do task
+            meta = task.context.get("meta", False)
+            new_agent_id = task.context.get("new_agent_id", None)
+            
+            # Usar a função unificada que já carrega histórico + contexto completo
+            final_prompt = agent_discovery_service.get_full_prompt(
+                agent_id=task.agent_id,
+                current_message=task.user_input,  # Mensagem atual do usuário
+                meta=meta,
+                new_agent_id=new_agent_id,
+                save_to_file=False  # Não salvar durante execução normal
             )
 
             response = self._llm_client.invoke(final_prompt)

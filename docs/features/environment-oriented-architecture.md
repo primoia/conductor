@@ -3,7 +3,7 @@
 To ensure security and organization, the framework operates with a concept of **environments** and **workspaces**. This prevents an agent intended for a `development` environment from accidentally modifying a `production` environment.
 
 **Key Configuration:**
-- **`config/workspaces.yaml`**: Maps logical environment names (e.g., `develop`, `production`) to physical directory paths on your system.
+- **`config.yaml`**: Centralized configuration for storage, agent discovery, and tool plugins.
 
 **Execution:**
 - The `src/cli/agent.py` command requires the `--environment` parameter to ensure that the agent is loaded and executed within the correct and secure context.

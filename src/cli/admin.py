@@ -23,7 +23,6 @@ if str(src_path) not in sys.path:
 from src.container import container
 from src.core.observability import configure_logging
 from src.core.domain import TaskDTO
-from src.infrastructure.utils import cleanup_orphan_sessions
 from src.cli.shared import (
     REPLManager,
     CLIArgumentParser,
@@ -66,37 +65,42 @@ class AdminCLI:
         # Store the target agent_id
         self.agent_id = agent_id
         
-        # Get the central service
+        # Get services from container (properly configured and singleton)
         self.conductor_service = container.get_conductor_service()
+        self.agent_service = container.get_agent_discovery_service()
         
         # The "embody" is now implicit in task execution by the service
-        print(f"✅ AdminCLI inicializado. Usando ConductorService.")
+        print(f"✅ AdminCLI inicializado. Usando ConductorService + AgentService.")
 
     @property
     def embodied(self) -> bool:
         """Verifica se o agente alvo existe no ecossistema."""
-        try:
-            # A nova forma de verificar é ver se o serviço consegue encontrar o agente
-            agents = self.conductor_service.discover_agents()
-            return any(agent.agent_id == self.agent_id for agent in agents)
-        except Exception:
-            return False
+        return self.agent_service.agent_exists(self.agent_id)
 
     def chat(self, message: str, debug_save_input: bool = False) -> str:
         """Envia uma mensagem ao agente através do ConductorService."""
         if not self.embodied:
-            return f"❌ Agente '{self.agent_id}' não encontrado pelo ConductorService."
+            suggestions = self.agent_service.get_similar_agent_names(self.agent_id)
+            error_msg = f"❌ Agente '{self.agent_id}' não encontrado em .conductor_workspace/agents/"
+            if suggestions:
+                error_msg += f"\n💡 Agentes similares disponíveis: {', '.join(suggestions)}"
+            error_msg += f"\n📋 Use 'conductor list-agents' para ver todos os agentes disponíveis"
+            return error_msg
 
         try:
             # Handle debug mode - save input without calling provider
             if debug_save_input:
-                enhanced_message = self._build_enhanced_message(message)
+                enhanced_message = self.agent_service.build_meta_agent_context(
+                    message, self.meta, self.new_agent_id
+                )
                 self.debug_utils.save_debug_input(enhanced_message)
                 return "✅ DEBUG MODE: Input captured and saved. Provider NOT called."
 
             # Handle simulation mode
             if self.simulate_mode:
-                enhanced_message = self._build_enhanced_message(message)
+                enhanced_message = self.agent_service.build_meta_agent_context(
+                    message, self.meta, self.new_agent_id
+                )
                 return self.debug_utils.generate_simulation_response(enhanced_message)
 
             # 1. Construir o DTO da tarefa
@@ -126,91 +130,52 @@ class AdminCLI:
             self.logger.error(f"Erro no chat do AdminCLI: {e}")
             return f"❌ Erro fatal no AdminCLI: {e}"
 
-    def _build_enhanced_message(self, message: str) -> str:
-        """Build enhanced message with agent creation context."""
-        context_parts = []
-
-        # Add new agent ID if specified
-        if self.new_agent_id:
-            context_parts.append(f"NEW_AGENT_ID={self.new_agent_id}")
-
-        # Add meta flag context
-        if self.meta:
-            context_parts.append("AGENT_TYPE=meta")
-        else:
-            context_parts.append("AGENT_TYPE=project")
-
-        # Build final message
-        if context_parts:
-            context_header = "\n".join(context_parts)
-            enhanced_message = f"{context_header}\n\n{message}"
-            self.logger.info(
-                f"Enhanced message with context: {len(context_parts)} context items"
-            )
-            return enhanced_message
-        else:
-            return message
 
 
     def get_available_tools(self) -> list:
-        """Get available tools from ConductorService."""
+        """Get available tools from agent definition."""
         try:
-            # Get the tools available through the service
-            # This might need to be adapted based on the actual ConductorService interface
-            return list(self.conductor_service._tools.keys())
+            agent_definition = self.agent_service.get_agent_definition(self.agent_id)
+            return agent_definition.allowed_tools if agent_definition else []
         except Exception as e:
             self.logger.error(f"Error getting available tools: {e}")
             return []
 
     def get_conversation_history(self) -> list:
-        """Get conversation history. In the new architecture, this is managed by ConductorService."""
+        """Get conversation history through AgentService."""
         try:
-            return self.conductor_service.repository.load_history(self.agent_id)
+            return self.agent_service.get_conversation_history(self.agent_id)
         except Exception as e:
             self.logger.error(f"Error getting conversation history: {e}")
             return []
 
     def clear_conversation_history(self) -> bool:
-        """Clear the agent's conversation history through ConductorService."""
+        """Clear the agent's conversation history through AgentService."""
         try:
-            # Get the repository from ConductorService to clear history
-            repository = self.conductor_service.repository
-            
-            # Clear the history log file by saving an empty list
-            # This effectively truncates the history.log file
-            success = True
-            
-            # Clear history.log - overwrite with empty content
-            try:
-                agent_home_path = repository.get_agent_home_path(self.agent_id)
-                history_file = os.path.join(agent_home_path, "history.log")
-                # Truncate the file by opening in write mode
-                with open(history_file, 'w', encoding='utf-8') as f:
-                    pass  # Just open and close to truncate
-                self.logger.info(f"Cleared history log for agent {self.agent_id}")
-            except Exception as e:
-                self.logger.warning(f"Could not clear history log: {e}")
-                # Don't fail completely if history log clearing fails
-            
-            # Optionally clear session conversation data if present
-            try:
-                session_data = repository.load_session(self.agent_id)
-                # Remove any conversation-related fields from session
-                conversation_fields = ["conversation_history", "last_messages", "chat_history"]
-                for field in conversation_fields:
-                    if field in session_data:
-                        del session_data[field]
-                        self.logger.info(f"Cleared {field} from session data")
-                repository.save_session(self.agent_id, session_data)
-            except Exception as e:
-                self.logger.warning(f"Could not clear session conversation data: {e}")
-                # Don't fail completely if session clearing fails
-
+            success = self.agent_service.clear_conversation_history(self.agent_id)
+            if success:
+                self.logger.info(f"Cleared conversation history for agent {self.agent_id}")
+            else:
+                self.logger.warning(f"Could not clear conversation history for agent {self.agent_id}")
             return success
-            
         except Exception as e:
             self.logger.error(f"Error clearing conversation history: {e}")
             return False
+
+    def get_full_prompt(self, sample_message: str = "Mensagem de exemplo") -> str:
+        """
+        Get the complete prompt that would be sent to the AI provider.
+        This always shows the REAL prompt, regardless of test mode.
+        """
+        # Use the unified function from AgentDiscoveryService
+        return self.agent_service.get_full_prompt(
+            agent_id=self.agent_id, 
+            sample_message=sample_message, 
+            meta=self.meta, 
+            new_agent_id=self.new_agent_id,
+            current_message=None,
+            save_to_file=False
+        )
 
 
 def start_repl_session(admin_cli: AdminCLI):
@@ -238,13 +203,8 @@ def main():
 
     # Execute cleanup for filesystem storage backend
     try:
-        config_manager = container.config_manager
-        storage_config = config_manager.load_storage_config()
-        
-        if storage_config.get('type') == 'filesystem':
-            workspace_path = storage_config.get('workspace_path')
-            if workspace_path:
-                cleanup_orphan_sessions(workspace_path)
+        session_service = container.get_session_management_service()
+        session_service.cleanup_orphan_sessions()
     except Exception as e:
         print(f"⚠️  Warning: Failed to execute session cleanup: {e}")
 

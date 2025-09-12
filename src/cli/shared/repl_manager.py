@@ -83,6 +83,7 @@ class REPLManager:
                     "tools",
                     "scope",
                     "debug",
+                    "prompt",
                     "state",
                     "history",
                 ]:
@@ -156,6 +157,7 @@ class REPLManager:
             "tools": self._show_available_tools,
             "scope": self._show_output_scope,
             "debug": self._show_debug_info,
+            "prompt": self._show_full_prompt,
             "status": self._show_safety_status,
             "reset": self._reset_circuit_breaker,
             "emergency": self._emergency_stop,
@@ -176,6 +178,8 @@ class REPLManager:
         print("🔧 Digite 'tools' para ver ferramentas disponíveis")
         print("🎯 Digite 'scope' para ver escopo de output")
         print("🔍 Digite 'debug' para ver informações de debug")
+        print("📝 Digite 'prompt' para ver prompt completo enviado para IA")
+        print("💾 Digite 'prompt save' para ver e salvar prompt em arquivo .md")
         print("🛡️ Digite 'status' para ver status de segurança")
         print("🔄 Digite 'reset' para reiniciar proteções")
         print("🚨 Digite 'emergency' para parada de emergência")
@@ -223,6 +227,11 @@ class REPLManager:
                 # Handle special commands
                 if user_input.lower() in self.custom_commands:
                     self.custom_commands[user_input.lower()]()
+                    continue
+                
+                # Handle compound commands like "prompt save"
+                if user_input.lower().startswith("prompt "):
+                    self._handle_prompt_command(user_input.lower())
                     continue
 
                 # Check rate limiting only for actual chat interactions
@@ -469,6 +478,67 @@ class REPLManager:
         if hasattr(self.cli_instance, "simulate_mode"):
             print(f"🎭 Simulation Mode: {self.cli_instance.simulate_mode}")
 
+        print("=" * 50)
+
+    def _show_full_prompt(self):
+        """Show the complete prompt that would be sent to the AI provider."""
+        self._show_prompt_internal(save_to_file=False)
+
+    def _handle_prompt_command(self, command: str):
+        """Handle prompt-related commands like 'prompt save'."""
+        parts = command.split()
+        if len(parts) == 2 and parts[1] == "save":
+            self._show_full_prompt_and_save()
+        else:
+            print("❌ Comando desconhecido. Use:")
+            print("   • prompt - Ver prompt completo")
+            print("   • prompt save - Ver e salvar prompt em arquivo .md")
+
+    def _show_full_prompt_and_save(self):
+        """Show the complete prompt and save to file."""
+        self._show_prompt_internal(save_to_file=True)
+    
+    def _show_prompt_internal(self, save_to_file: bool = False):
+        """Internal method to show prompt with optional saving."""
+        title = "PROMPT COMPLETO (SALVANDO)" if save_to_file else "PROMPT COMPLETO"
+        print(f"\n📝 === {title} ===")
+        
+        try:
+            from src.container import container
+            agent_discovery_service = container.get_agent_discovery_service()
+            
+            # First show the conversation history count
+            history = self.cli_instance.get_conversation_history()
+            print(f"\n💬 Histórico: {len(history)} interações anteriores salvas")
+            
+            # Get agent_id from CLI instance
+            agent_id = getattr(self.cli_instance, 'agent_id', 'unknown_agent')
+            meta = getattr(self.cli_instance, 'meta', False)
+            new_agent_id = getattr(self.cli_instance, 'new_agent_id', None)
+            
+            if not save_to_file:
+                print("\n💡 Dica: Use 'prompt save' para salvar em arquivo .md")
+            
+            # Get the complete prompt using the unified function
+            prompt = agent_discovery_service.get_full_prompt(
+                agent_id=agent_id,
+                sample_message="exemplo de mensagem para demonstração do prompt",
+                meta=meta,
+                new_agent_id=new_agent_id,
+                current_message=None,  # Use sample message for display
+                save_to_file=save_to_file
+            )
+            
+            print("\n🤖 Este é o prompt completo que seria enviado para Claude/Gemini:")
+            print("-" * 80)
+            print(prompt)
+            print("-" * 80)
+            print(f"📊 Tamanho do prompt: {len(prompt)} caracteres")
+            
+        except Exception as e:
+            print(f"❌ Erro ao gerar prompt: {e}")
+            print("💡 Talvez o agente não esteja configurado corretamente")
+        
         print("=" * 50)
 
     def _handle_error(self):
