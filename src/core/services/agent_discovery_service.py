@@ -219,7 +219,7 @@ class AgentDiscoveryService:
         """Lista todas as definições de agente (compatibilidade com AgentService legado)."""
         return self.discover_agents()
 
-    def get_full_prompt(self, agent_id: str, sample_message: str = "Mensagem de exemplo", meta: bool = False, new_agent_id: str = None, current_message: str = None, save_to_file: bool = False) -> str:
+    def get_full_prompt(self, agent_id: str, sample_message: str = "Mensagem de exemplo", meta: bool = False, new_agent_id: str = None, current_message: str = None, include_history: bool = True, save_to_file: bool = False) -> str:
         """
         Gera o prompt completo que será usado pelo LLM, combinando:
         - Persona do agente
@@ -264,11 +264,14 @@ class AgentDiscoveryService:
             prompt_engine = PromptEngine(agent_home_path)
             prompt_engine.load_context()
             
-            # Get conversation history (last interactions saved)
-            conversation_history = self.get_conversation_history(agent_id)
+            # Get conversation history (last interactions saved) - only if requested
+            if include_history:
+                conversation_history = self.get_conversation_history(agent_id)
+            else:
+                conversation_history = []
             
-            # Build the complete prompt - SEMPRE o prompt real
-            complete_prompt = prompt_engine.build_prompt(conversation_history, enhanced_message)
+            # Build the complete prompt
+            complete_prompt = prompt_engine.build_prompt(conversation_history, enhanced_message, include_history)
             
             # Add metadata header for clarity when displaying
             if save_to_file:

@@ -16,22 +16,22 @@ agent_templates/
 
 ## 🚀 Como Usar
 
-### Listar Templates Disponíveis
+### List Available Templates
 ```bash
-./conductor install --list
+conductor install --list
 ```
 
-### Instalar Categoria Completa
+### Install Complete Category
 ```bash
-./conductor install --category core_tools
-./conductor install --category web_development
-./conductor install --category backend_development
+conductor install --category core_tools
+conductor install --category web_development
+conductor install --category backend_development
 ```
 
-### Instalar Agente Específico
+### Install Specific Agent
 ```bash
-./conductor install --agent AgentCreator_Agent
-./conductor install --agent ReactExpert_Agent
+conductor install --agent AgentCreator_Agent
+conductor install --agent ReactExpert_Agent
 ```
 
 ## 📋 Categorias Disponíveis
@@ -107,18 +107,18 @@ Para adicionar novos templates:
 3. Teste o template localmente
 4. Faça commit das mudanças
 
-### Exemplo de Contribuição
+### Example Contribution
 ```bash
-# Criar novo template
+# Create new template
 mkdir -p agent_templates/web_development/VueExpert_Agent
 
-# Criar arquivos
+# Create files
 touch agent_templates/web_development/VueExpert_Agent/definition.yaml
 touch agent_templates/web_development/VueExpert_Agent/persona.md
 
-# Testar
-./conductor install --agent VueExpert_Agent
-./conductor execute --agent VueExpert_Agent --input "teste"
+# Test
+conductor install --agent VueExpert_Agent
+conductor execute --agent VueExpert_Agent --input "test"
 ```
 
 ## 🎯 Benefícios dos Templates
@@ -131,8 +131,8 @@ touch agent_templates/web_development/VueExpert_Agent/persona.md
 
 ## 💡 Dicas
 
-- Use `--list` para explorar templates disponíveis
-- Instale categorias completas para ter um toolkit abrangente
-- Templates são copiados para `.conductor_workspace/agents/` quando instalados
-- Agentes instalados podem ser personalizados localmente
-- Templates originais permanecem inalterados
+- Use `--list` to explore available templates
+- Install complete categories for a comprehensive toolkit
+- Templates are copied to `.conductor_workspace/agents/` when installed
+- Installed agents can be customized locally
+- Original templates remain unchanged
