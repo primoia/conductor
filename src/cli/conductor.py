@@ -7,21 +7,190 @@ project_root = Path(__file__).parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from src.cli.shared import CLIArgumentParser
+from src.cli.shared import CLIArgumentParser, REPLManager
 from src.container import container
 from src.core.domain import TaskDTO
+from src.core.observability import configure_logging
+
+
+class ConductorCLI:
+    """
+    Unified CLI interface that combines functionality from admin.py and agent.py
+    while maintaining compatibility and adding new features.
+    """
+
+    def __init__(
+        self,
+        agent_id: str,
+        environment: str = None,
+        project: str = None,
+        meta: bool = False,
+        new_agent_id: str = None,
+        simulate: bool = False,
+        timeout: int = 120,
+        debug_mode: bool = False,
+    ):
+        """Initialize Conductor CLI with unified parameters."""
+        self.agent_id = agent_id
+        self.environment = environment
+        self.project = project
+        self.meta = meta
+        self.new_agent_id = new_agent_id
+        self.simulate_mode = simulate
+        self.timeout = timeout
+        self.debug_mode = debug_mode
+        
+        # Initialize logging
+        self.logger = configure_logging(debug_mode, f"conductor_{agent_id}", agent_id)
+        
+        # Get services from container
+        self.conductor_service = container.get_conductor_service()
+        self.agent_service = container.get_agent_discovery_service()
+        
+        print(f"✅ ConductorCLI inicializado para agente: {agent_id}")
+
+    @property
+    def embodied(self) -> bool:
+        """Check if the target agent exists in the ecosystem."""
+        return self.agent_service.agent_exists(self.agent_id)
+
+    def chat(self, message: str, debug_save_input: bool = False) -> str:
+        """Send a message to the agent through ConductorService."""
+        if not self.embodied:
+            from src.core.constants import Messages, Paths
+            suggestions = self.agent_service.get_similar_agent_names(self.agent_id)
+            location = f"{Paths.WORKSPACE_ROOT}/{Paths.AGENTS_DIR}/"
+            error_msg = Messages.AGENT_NOT_FOUND.format(agent_id=self.agent_id, location=location)
+            if suggestions:
+                error_msg += f"\n{Messages.SUGGEST_SIMILAR.format(suggestions=', '.join(suggestions))}"
+            error_msg += f"\n{Messages.USE_LIST_COMMAND}"
+            return error_msg
+
+        try:
+            # Handle debug mode - save input without calling provider
+            if debug_save_input:
+                enhanced_message = self.agent_service.build_meta_agent_context(
+                    message, self.meta, self.new_agent_id
+                )
+                # For now, just return debug info
+                return f"✅ DEBUG MODE: Input captured. Enhanced message length: {len(enhanced_message)} chars"
+
+            # Handle simulation mode
+            if self.simulate_mode:
+                return f"🎭 SIMULATION: Would send '{message[:50]}...' to {self.agent_id}"
+
+            # Build task context
+            task_context = {
+                "meta": self.meta,
+                "new_agent_id": self.new_agent_id,
+                "debug_save_input": debug_save_input,
+                "simulate_mode": self.simulate_mode,
+                "timeout": self.timeout
+            }
+            
+            # Add project context if available
+            if self.environment:
+                task_context["environment"] = self.environment
+            if self.project:
+                task_context["project"] = self.project
+
+            # Create and execute task
+            task = TaskDTO(
+                agent_id=self.agent_id,
+                user_input=message,
+                context=task_context
+            )
+
+            # Execute through conductor service
+            result = self.conductor_service.execute_task(task)
+
+            # Process result
+            if result.status == "success":
+                return result.output
+            else:
+                return f"❌ Erro na execução da tarefa: {result.output}"
+
+        except Exception as e:
+            self.logger.error(f"Erro no chat do ConductorCLI: {e}")
+            return f"❌ Erro fatal no ConductorCLI: {e}"
+
+    def get_available_tools(self) -> list:
+        """Get available tools from agent definition."""
+        try:
+            agent_definition = self.agent_service.get_agent_definition(self.agent_id)
+            return agent_definition.allowed_tools if agent_definition else []
+        except Exception as e:
+            self.logger.error(f"Error getting available tools: {e}")
+            return []
+
+    def get_conversation_history(self) -> list:
+        """Get conversation history through AgentService."""
+        try:
+            return self.agent_service.get_conversation_history(self.agent_id)
+        except Exception as e:
+            self.logger.error(f"Error getting conversation history: {e}")
+            return []
+
+    def clear_conversation_history(self) -> bool:
+        """Clear the agent's conversation history through AgentService."""
+        try:
+            success = self.agent_service.clear_conversation_history(self.agent_id)
+            if success:
+                self.logger.info(f"Cleared conversation history for agent {self.agent_id}")
+            else:
+                self.logger.warning(f"Could not clear conversation history for agent {self.agent_id}")
+            return success
+        except Exception as e:
+            self.logger.error(f"Error clearing conversation history: {e}")
+            return False
+
+    def save_agent_state(self):
+        """Save agent state using AgentService."""
+        return self.agent_service.save_agent_state(self.agent_id)
+
+    def get_output_scope(self) -> list:
+        """Get output scope restrictions from agent definition."""
+        return self.agent_service.get_agent_output_scope(self.agent_id)
+
+    def get_full_prompt(self, sample_message: str = "Mensagem de exemplo") -> str:
+        """Get the complete prompt that would be sent to the AI provider."""
+        return self.agent_service.get_full_prompt(
+            agent_id=self.agent_id, 
+            sample_message=sample_message, 
+            meta=self.meta, 
+            new_agent_id=self.new_agent_id,
+            current_message=None,
+            save_to_file=False
+        )
+
 
 def main():
     """Ponto de entrada unificado para o Conductor CLI."""
     parser = CLIArgumentParser.create_main_parser()
     args = parser.parse_args()
 
-    if not hasattr(args, 'func'):
+    # Handle new unified interface
+    if args.list:
+        list_agents_command(args)
+    elif args.info:
+        info_agent_command_new(args)
+    elif args.validate:
+        validate_config_command(args)
+    elif args.install:
+        install_templates_command_new(args)
+    elif args.backup:
+        backup_agents_command(args)
+    elif args.restore:
+        restore_agents_command(args)
+    elif args.agent:
+        # Main agent interaction logic
+        handle_agent_interaction(args)
+    elif hasattr(args, 'func') and args.func:
+        # Legacy subcommand
+        args.func(args)
+    else:
         parser.print_help()
         sys.exit(1)
-    
-    # Executar a função associada ao subcomando
-    args.func(args)
 
 def list_agents_command(args):
     """Lista todos os agentes disponíveis."""
@@ -525,6 +694,361 @@ def run_agent_command(args):
     )
     result = service.execute_task(task)
     print(result.output)
+
+def repl_command(args):
+    """Start unified REPL session with different modes."""
+    print(f"🚀 Iniciando sessão REPL unificada")
+    print(f"   Agente: {args.agent}")
+    print(f"   Modo: {args.mode}")
+    
+    if args.environment:
+        print(f"   Environment: {args.environment}")
+    if args.project:
+        print(f"   Project: {args.project}")
+    if args.meta:
+        print(f"   Tipo: meta-agent")
+    if args.simulate:
+        print(f"   🎭 Modo simulação ativado")
+    
+    # Initialize unified CLI
+    cli = ConductorCLI(
+        agent_id=args.agent,
+        environment=args.environment,
+        project=args.project,
+        meta=args.meta,
+        new_agent_id=args.new_agent_id,
+        simulate=args.simulate,
+        timeout=args.timeout,
+        debug_mode=(args.mode == 'dev')
+    )
+    
+    if not cli.embodied:
+        print(f"❌ Agente não encontrado: {args.agent}")
+        return
+    
+    # Configure REPL based on mode
+    repl_manager = REPLManager(args.agent, cli)
+    
+    # Add mode-specific commands
+    if args.mode in ['advanced', 'dev']:
+        repl_manager.add_custom_command(
+            "debug", lambda: _show_debug_info(cli)
+        )
+        repl_manager.add_custom_command(
+            "prompt", lambda: _show_full_prompt(cli)
+        )
+        
+    if args.mode == 'dev':
+        repl_manager.add_custom_command(
+            "simulate", lambda: _toggle_simulation(cli)
+        )
+        repl_manager.add_custom_command(
+            "export-debug", lambda: _export_debug_report(cli)
+        )
+    
+    # Show mode-specific help
+    mode_help = _get_mode_help(args.mode)
+    
+    # Start REPL session
+    repl_manager.start_session(mode_help)
+
+def chat_command(args):
+    """Send a message with context preservation (like REPL but single message)."""
+    print(f"💬 Chat com {args.agent}")
+    
+    # Clear history if requested
+    if args.clear_history:
+        cli = ConductorCLI(agent_id=args.agent)
+        if cli.clear_conversation_history():
+            print("🗑️ Histórico limpo")
+        else:
+            print("⚠️ Não foi possível limpar o histórico")
+    
+    # Initialize CLI
+    cli = ConductorCLI(
+        agent_id=args.agent,
+        environment=args.environment,
+        project=args.project,
+        meta=args.meta,
+        new_agent_id=args.new_agent_id
+    )
+    
+    if not cli.embodied:
+        print(f"❌ Agente não encontrado: {args.agent}")
+        return
+    
+    # Send message
+    print(f"📝 Enviando: {args.input}")
+    print("-" * 50)
+    
+    response = cli.chat(args.input)
+    
+    print("🤖 Resposta:")
+    print("=" * 50)
+    print(response)
+    print("=" * 50)
+    
+    # Show history if requested
+    if args.show_history:
+        history = cli.get_conversation_history()
+        print(f"\n📚 Histórico ({len(history)} mensagens):")
+        for i, msg in enumerate(history[-3:], 1):  # Show last 3
+            user_msg = msg.get('user_input', 'N/A')
+            ai_msg = msg.get('ai_response', 'N/A')
+            print(f"  {i}. 👤: {user_msg[:50]}...")
+            print(f"     🤖: {ai_msg[:50]}...")
+
+# Helper functions for REPL modes
+def _get_mode_help(mode: str) -> str:
+    """Get help text for specific REPL mode."""
+    if mode == 'basic':
+        return "💡 Modo básico: Digite suas mensagens normalmente"
+    elif mode == 'advanced':
+        return "🔍 Modo avançado: Use 'debug' e 'prompt' para informações técnicas"
+    elif mode == 'dev':
+        return "🛠️ Modo desenvolvedor: Comandos completos de debug e desenvolvimento"
+    return ""
+
+def _show_debug_info(cli):
+    """Show debug information."""
+    print("\n🔍 === DEBUG INFO ===")
+    print(f"Agent ID: {cli.agent_id}")
+    print(f"Embodied: {cli.embodied}")
+    print(f"Meta mode: {cli.meta}")
+    print(f"Simulation: {cli.simulate_mode}")
+    print(f"Tools: {cli.get_available_tools()}")
+    print("=" * 30)
+
+def _show_full_prompt(cli):
+    """Show full prompt that would be sent to AI."""
+    print("\n📝 === PROMPT COMPLETO ===")
+    prompt = cli.get_full_prompt()
+    print(prompt)
+    print(f"\n📊 Tamanho: {len(prompt)} caracteres")
+    print("=" * 40)
+
+def _toggle_simulation(cli):
+    """Toggle simulation mode."""
+    cli.simulate_mode = not cli.simulate_mode
+    status = "ATIVADO" if cli.simulate_mode else "DESATIVADO"
+    print(f"\n🎭 Modo simulação: {status}")
+
+def _export_debug_report(cli):
+    """Export debug report (placeholder)."""
+    print("\n📊 === RELATÓRIO DE DEBUG ===")
+    print("Funcionalidade em desenvolvimento...")
+    print("=" * 40)
+
+def handle_agent_interaction(args):
+    """Handle the main agent interaction logic with new unified interface."""
+    # Validate arguments
+    if not args.input and not args.interactive:
+        print("❌ Erro: Especifique --input ou --interactive")
+        print("💡 Exemplos:")
+        print("   conductor --agent MyAgent --input 'sua mensagem'")
+        print("   conductor --agent MyAgent --chat --interactive")
+        return
+
+    if args.interactive and not args.chat:
+        print("❌ Erro: --interactive requer --chat")
+        print("💡 Use: conductor --agent MyAgent --chat --interactive")
+        return
+
+    # Determine execution mode
+    include_history = args.chat
+    save_to_history = args.chat
+    
+    # Show execution mode
+    if args.simulate:
+        mode_desc = "🎭 Modo simulação"
+    elif include_history:
+        mode_desc = "💬 Modo contextual (com histórico)"
+    else:
+        mode_desc = "⚡ Modo isolado (sem histórico)"
+    
+    print(f"🤖 Executando {args.agent}")
+    print(f"📋 {mode_desc}")
+    
+    if args.project:
+        print(f"🏗️ Projeto: {args.project}")
+    if args.environment:
+        print(f"🌐 Ambiente: {args.environment}")
+    if args.meta:
+        print(f"🔧 Meta-agent ativo")
+    
+    print("=" * 50)
+
+    try:
+        # Clear history if requested
+        if args.clear:
+            cli = ConductorCLI(agent_id=args.agent)
+            if cli.clear_conversation_history():
+                print("🗑️ Histórico limpo")
+            else:
+                print("⚠️ Não foi possível limpar o histórico")
+
+        # Initialize CLI
+        cli = ConductorCLI(
+            agent_id=args.agent,
+            environment=args.environment,
+            project=args.project,
+            meta=args.meta,
+            new_agent_id=args.new_agent,
+            simulate=args.simulate,
+            timeout=args.timeout,
+            debug_mode=False
+        )
+
+        if not cli.embodied:
+            agent_service = container.get_agent_discovery_service()
+            suggestions = agent_service.get_similar_agent_names(args.agent)
+            print(f"❌ Agente '{args.agent}' não encontrado")
+            if suggestions:
+                print(f"💡 Agentes similares: {', '.join(suggestions)}")
+            print("📋 Use 'conductor --list' para ver todos os agentes")
+            return
+
+        # Show history info if in contextual mode
+        if include_history:
+            history = cli.get_conversation_history()
+            print(f"📚 Histórico: {len(history)} interações anteriores")
+
+        # Execute initial message if provided
+        if args.input:
+            print(f"📝 Input: {args.input}")
+            print("-" * 50)
+
+            # Create task with history flags
+            task_context = {
+                "include_history": include_history,
+                "save_to_history": save_to_history,
+                "meta": args.meta,
+                "new_agent_id": args.new_agent,
+                "simulate_mode": args.simulate,
+                "timeout": args.timeout
+            }
+            
+            if args.environment:
+                task_context["environment"] = args.environment
+            if args.project:
+                task_context["project"] = args.project
+
+            task = TaskDTO(
+                agent_id=args.agent,
+                user_input=args.input,
+                context=task_context
+            )
+
+            result = cli.conductor_service.execute_task(task)
+
+            print("🤖 Resposta:")
+            print("=" * 50)
+            if result.status == "success":
+                print(result.output)
+            else:
+                print(f"❌ Erro: {result.output}")
+            print("=" * 50)
+
+            # Show execution stats
+            if args.simulate:
+                print("🎭 Simulação concluída (sem chamada real à IA)")
+            elif include_history:
+                print("✅ Resposta adicionada ao histórico")
+            else:
+                print("⚡ Execução isolada concluída")
+
+        # Enter interactive mode if requested
+        if args.interactive:
+            print("\n🎮 Entrando no modo interativo...")
+            print("💡 Digite 'exit' para sair")
+            
+            # Use existing REPL manager
+            repl_manager = REPLManager(args.agent, cli)
+            
+            # Add debug commands based on context
+            if args.meta or args.simulate:
+                repl_manager.add_custom_command("debug", lambda: _show_debug_info(cli))
+                repl_manager.add_custom_command("prompt", lambda: _show_full_prompt(cli))
+            
+            if args.simulate:
+                repl_manager.add_custom_command("simulate", lambda: _toggle_simulation(cli))
+            
+            mode_help = "🎮 Modo interativo ativo"
+            if args.simulate:
+                mode_help += " (simulação)"
+            
+            repl_manager.start_session(mode_help)
+
+    except Exception as e:
+        print(f"❌ Erro fatal: {e}")
+
+def info_agent_command_new(args):
+    """Show detailed information about an agent (new interface)."""
+    # Reuse existing logic but with new argument structure
+    class InfoArgs:
+        def __init__(self, agent_id):
+            self.agent = agent_id
+    
+    info_args = InfoArgs(args.info)
+    info_agent_command(info_args)
+
+def install_templates_command_new(args):
+    """Install agent templates (new interface)."""
+    if args.install == "list":
+        # Show available templates
+        print("📋 Templates Disponíveis:")
+        print("=" * 50)
+        
+        from pathlib import Path
+        templates_dir = Path("agent_templates")
+        
+        if not templates_dir.exists():
+            print("❌ Diretório de templates não encontrado")
+            return
+        
+        for category in templates_dir.iterdir():
+            if category.is_dir():
+                print(f"\n🏷️ {category.name.replace('_', ' ').title()}:")
+                for agent in category.iterdir():
+                    if agent.is_dir():
+                        # Read description from definition.yaml if exists
+                        def_file = agent / "definition.yaml"
+                        description = "Sem descrição"
+                        if def_file.exists():
+                            try:
+                                import yaml
+                                with open(def_file, 'r') as f:
+                                    data = yaml.safe_load(f)
+                                    description = data.get('description', 'Sem descrição')
+                            except:
+                                pass
+                        print(f"   • {agent.name}: {description}")
+        
+        print(f"\n💡 Para instalar:")
+        print(f"   conductor --install <categoria>")
+        print(f"   conductor --install <agent_name>")
+        return
+    
+    # Install specific category or agent
+    class InstallArgs:
+        def __init__(self, install_target):
+            # Try to determine if it's a category or specific agent
+            from pathlib import Path
+            templates_dir = Path("agent_templates")
+            
+            # Check if it's a category
+            if (templates_dir / install_target).exists():
+                self.category = install_target
+                self.agent = None
+                self.list = False
+            else:
+                # Assume it's a specific agent
+                self.category = None
+                self.agent = install_target
+                self.list = False
+    
+    install_args = InstallArgs(args.install)
+    install_templates_command(install_args)
 
 if __name__ == "__main__":
     main()
