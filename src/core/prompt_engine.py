@@ -39,14 +39,17 @@ class PromptEngine:
         self._load_agent_playbook()
         self._resolve_persona_placeholders()
 
-    def build_prompt(self, conversation_history: List[Dict], message: str) -> str:
+    def build_prompt(self, conversation_history: List[Dict], message: str, include_history: bool = True) -> str:
         """Constrói o prompt final usando o contexto já carregado."""
         if not self.persona_content or not self.agent_config:
             raise ValueError(
                 "Contexto não foi carregado. Chame load_context() primeiro."
             )
 
-        formatted_history = self._format_history(conversation_history)
+        if include_history:
+            formatted_history = self._format_history(conversation_history)
+        else:
+            formatted_history = "Execução isolada - sem histórico de conversas anteriores."
         agent_instructions = self.agent_config.get("prompt", "")
 
         # SAFETY: Truncate persona if too long to prevent system errors
