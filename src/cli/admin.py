@@ -80,11 +80,13 @@ class AdminCLI:
     def chat(self, message: str, debug_save_input: bool = False) -> str:
         """Envia uma mensagem ao agente através do ConductorService."""
         if not self.embodied:
+            from src.core.constants import Messages, Paths
             suggestions = self.agent_service.get_similar_agent_names(self.agent_id)
-            error_msg = f"❌ Agente '{self.agent_id}' não encontrado em .conductor_workspace/agents/"
+            location = f"{Paths.WORKSPACE_ROOT}/{Paths.AGENTS_DIR}/"
+            error_msg = Messages.AGENT_NOT_FOUND.format(agent_id=self.agent_id, location=location)
             if suggestions:
-                error_msg += f"\n💡 Agentes similares disponíveis: {', '.join(suggestions)}"
-            error_msg += f"\n📋 Use 'conductor list-agents' para ver todos os agentes disponíveis"
+                error_msg += f"\n{Messages.SUGGEST_SIMILAR.format(suggestions=', '.join(suggestions))}"
+            error_msg += f"\n{Messages.USE_LIST_COMMAND}"
             return error_msg
 
         try:

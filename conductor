@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+"""
+Conductor CLI - Executable wrapper
+"""
+import sys
+import os
+from pathlib import Path
+
+# Add project root to path
+project_root = Path(__file__).parent.absolute()
+sys.path.insert(0, str(project_root))
+
+# Import and run the main conductor CLI
+from src.cli.conductor import main
+
+if __name__ == "__main__":
+    main()
