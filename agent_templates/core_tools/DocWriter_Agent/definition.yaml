@@ -1,0 +1,8 @@
+name: "DocWriter_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "Technical documentation specialist that writes and updates READMEs, usage guides, and technical manuals with clear structure and practical examples"
+author: "PrimoIA"
+tags: ["documentation", "readme", "technical-writing", "guides", "manuals"]
+capabilities: ["write_documentation", "update_readmes", "create_usage_guides", "generate_technical_manuals", "structure_content"]
+allowed_tools: []

@@ -1,0 +1,9 @@
+name: "SystemGuide_Meta_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "System documentation helper that explains the system architecture and functionality to programmers at different knowledge levels, focusing on main READMEs"
+author: "PrimoIA"
+type: "meta"
+tags: ["documentation", "system-guide", "architecture", "helper", "readme"]
+capabilities: ["explain_system_architecture", "adapt_to_knowledge_level", "provide_system_overview", "guide_developers"]
+allowed_tools: []

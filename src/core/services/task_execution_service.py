@@ -26,6 +26,9 @@ class TaskExecutionService:
     def execute_task(self, task: TaskDTO) -> TaskResultDTO:
         """Executa uma tarefa de agente."""
         try:
+            # Armazenar task atual para acesso em _create_agent_executor
+            self._current_task = task
+            
             # 1. Carregar a definição do agente
             agent_definition = self._load_agent_definition(task.agent_id)
             
@@ -111,10 +114,26 @@ class TaskExecutionService:
             llm_client = PlaceholderLLMClient()
         else:
             ai_provider = getattr(agent_definition, 'ai_provider', 'claude')
+            # Determinar working directory e timeout
+            # Se project_path foi fornecido no contexto, usar ele
+            # Senão, usar agent_home_path (comportamento atual)
+            working_directory = agent_home_path
+            timeout = 120  # Default timeout
+            
+            if hasattr(self, '_current_task') and self._current_task:
+                project_path = self._current_task.context.get("project_path")
+                if project_path and os.path.exists(project_path):
+                    working_directory = project_path
+                
+                # Usar timeout do contexto se fornecido
+                context_timeout = self._current_task.context.get("timeout")
+                if context_timeout and isinstance(context_timeout, int):
+                    timeout = context_timeout
+            
             llm_client = create_llm_client(
                 ai_provider=ai_provider,
-                working_directory=agent_home_path,
-                timeout=120,
+                working_directory=working_directory,
+                timeout=timeout,
                 is_admin_agent=True
             )
         

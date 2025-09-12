@@ -1,0 +1,8 @@
+name: "CodeReviewer_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "Analyzes Python code quality, detects code smells, and suggests improvements following best practices"
+author: "PrimoIA"
+tags: ["python", "code-review", "quality-analysis", "best-practices"]
+capabilities: ["analyze_python_code", "detect_code_smells", "suggest_improvements", "check_best_practices"]
+allowed_tools: [] # Starts empty for security
