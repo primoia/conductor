@@ -126,6 +126,9 @@ conductor --agent <agent_id> --input "<your_message>"
 # With custom timeout
 conductor --agent <agent_id> --input "<your_message>" --timeout 300
 
+# JSON output (machine-friendly)
+conductor --agent <agent_id> --input "<your_message>" --output json
+
 # Practical examples
 conductor --agent SystemGuide_Meta_Agent --input "Explain the system architecture"
 conductor --agent CommitMessage_Agent --input "Generate commit message for current changes"
@@ -176,7 +179,7 @@ conductor --restore
 
 #### **1. Discover Available Agents**
 ```bash
-conductor list-agents
+conductor --list
 ```
 
 #### **2. Create a New Agent (if needed)**
@@ -292,17 +295,6 @@ conductor --validate
 - **History**: Each agent maintains conversation history when using `--chat` mode
 - **Validation**: Use `--validate` to diagnose problems
 - **Performance**: Use stateless mode (without `--chat`) for faster execution
-[SystemGuide_Meta_Agent]> exit
-```
-
-
-
-
-[AgentCreator_Agent]> exit
-
-# 4. Verify the agent was created
-conductor list-agents
-```
 
 #### Scenario 2: Project Analysis
 ```bash
@@ -324,22 +316,24 @@ conductor execute --agent DocumentAnalyst_Agent --input "Analyze all README file
 #### **Install Agent Templates**
 ```bash
 # List available templates
-conductor install --list
+conductor --install list
 
 # Install specific category
-conductor install --category web_development
+conductor --install web_development
 
 # Install specific agent
-conductor install --agent ReactExpert_Agent
+conductor --install ReactExpert_Agent
 ```
 
 #### **Backup and Restore**
 ```bash
 # Backup all agents
-conductor backup
+conductor --backup
 
 # Restore agents from backup
-conductor restore
+conductor --restore
+```
+
 ### 🔨 How to Create New Agents
 
 #### Method 1: Using AgentCreator_Agent (Recommended)
@@ -397,7 +391,7 @@ conductor info --agent MyNewAgent_Agent
 conductor execute --agent MyAgent --input "test"
 
 # ✅ Solution: List available agents
-conductor list-agents
+conductor --list
 
 # ✅ Or get similar suggestions
 conductor info --agent MyAgent
@@ -406,7 +400,7 @@ conductor info --agent MyAgent
 #### Problem: Configuration error
 ```bash
 # ✅ Always validate configuration first
-conductor validate-config
+conductor --validate
 
 # If there are problems, check:
 # 1. Se o arquivo config.yaml existe
@@ -459,11 +453,11 @@ conductor execute --agent MyAgent --input "Analyze the $CONDUCTOR_ENV environmen
 #### 2. **Piping and Automation**
 ```bash
 # Chain commands
-conductor list-agents | grep "Analyst" | head -5
+conductor --list | grep "Analyst" | head -5
 
 # Use in bash scripts
 #!/bin/bash
-for agent in $(conductor list-agents | grep "Agent" | awk '{print $2}'); do
+for agent in $(conductor --list | grep "Agent" | awk '{print $2}'); do
     echo "Checking $agent..."
     conductor info --agent "$agent"
 done
@@ -488,6 +482,7 @@ conductor execute --agent ProjectAnalyst_Agent --project "$PROJECT" --input "Ana
 | `--validate` | Validate configuration | `conductor --validate` |
 | `--install` | Install templates | `conductor --install web_development` |
 | `--backup` | Backup agents | `conductor --backup` |
+| `--output json` | JSON output | `conductor --agent MyAgent --input "text" --output json` |
 
 ### 🎯 **When to Use Each Mode**
 

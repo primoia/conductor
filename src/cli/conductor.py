@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys
 from pathlib import Path
+import json
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent
@@ -278,12 +279,24 @@ def execute_agent_command(args):
         
         result = conductor_service.execute_task(task)
         
-        if result.status == "success":
-            print("✅ Execução bem-sucedida:")
-            print(result.output)
+        output_mode = getattr(args, 'output', 'text')
+        if output_mode == 'json':
+            payload = {
+                "status": result.status,
+                "output": result.output,
+                "metadata": result.metadata,
+                "updated_session": result.updated_session,
+                "updated_knowledge": result.updated_knowledge,
+                "history_entry": result.history_entry,
+            }
+            print(json.dumps(payload, ensure_ascii=False))
         else:
-            print("❌ Erro na execução:")
-            print(result.output)
+            if result.status == "success":
+                print("✅ Execução bem-sucedida:")
+                print(result.output)
+            else:
+                print("❌ Erro na execução:")
+                print(result.output)
             
     except Exception as e:
         print(f"❌ Erro fatal: {e}")
@@ -893,7 +906,7 @@ def handle_agent_interaction(args):
             environment=args.environment,
             project=args.project,
             meta=args.meta,
-            new_agent_id=args.new_agent,
+            new_agent_id=args.new_agent_id,
             simulate=args.simulate,
             timeout=args.timeout,
             debug_mode=False
@@ -923,7 +936,7 @@ def handle_agent_interaction(args):
                 "include_history": include_history,
                 "save_to_history": save_to_history,
                 "meta": args.meta,
-                "new_agent_id": args.new_agent,
+                "new_agent_id": args.new_agent_id,
                 "simulate_mode": args.simulate,
                 "timeout": args.timeout
             }
@@ -941,13 +954,25 @@ def handle_agent_interaction(args):
 
             result = cli.conductor_service.execute_task(task)
 
-            print("🤖 Resposta:")
-            print("=" * 50)
-            if result.status == "success":
-                print(result.output)
+            output_mode = getattr(args, 'output', 'text')
+            if output_mode == 'json':
+                payload = {
+                    "status": result.status,
+                    "output": result.output,
+                    "metadata": result.metadata,
+                    "updated_session": result.updated_session,
+                    "updated_knowledge": result.updated_knowledge,
+                    "history_entry": result.history_entry,
+                }
+                print(json.dumps(payload, ensure_ascii=False))
             else:
-                print(f"❌ Erro: {result.output}")
-            print("=" * 50)
+                print("🤖 Resposta:")
+                print("=" * 50)
+                if result.status == "success":
+                    print(result.output)
+                else:
+                    print(f"❌ Erro: {result.output}")
+                print("=" * 50)
 
             # Show execution stats
             if args.simulate:
