@@ -72,3 +72,9 @@ docker-compose.override.yml
 state.json
 
 # Example template projects that should not be tracked
+
+# IDE and local tooling
+.kiro/
+.vscode/
+.idea/
+.claude/
