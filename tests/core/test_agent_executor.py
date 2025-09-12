@@ -28,24 +28,26 @@ def mock_dependencies():
 
 def test_run_success_scenario(mock_dependencies):
     """Testa o fluxo de execução bem-sucedido de uma tarefa."""
-    # Setup
-    mock_dependencies["prompt_engine"].build_prompt.return_value = "Prompt final"
+    # Setup - Mock the agent discovery service that's actually used
+    from unittest.mock import patch
     mock_dependencies["llm_client"].invoke.return_value = "Resposta da IA"
     
-    executor = AgentExecutor(**mock_dependencies)
-    task = TaskDTO(agent_id="test_agent", user_input="Olá")
-    
-    # Execução
-    result = executor.run(task)
-    
-    # Verificação
-    mock_dependencies["prompt_engine"].build_prompt.assert_called_once_with(
-        conversation_history=[], message="Olá"
-    )
-    mock_dependencies["llm_client"].invoke.assert_called_once_with("Prompt final")
-    assert result.status == "success"
-    assert result.output == "Resposta da IA"
-    assert result.metadata["agent_id"] == "test_agent"
+    with patch('src.container.container') as mock_container:
+        mock_agent_discovery = mock_container.get_agent_discovery_service.return_value
+        mock_agent_discovery.get_full_prompt.return_value = "Prompt final"
+        
+        executor = AgentExecutor(**mock_dependencies)
+        task = TaskDTO(agent_id="test_agent", user_input="Olá")
+        
+        # Execução
+        result = executor.run(task)
+        
+        # Verificação
+        mock_agent_discovery.get_full_prompt.assert_called_once()
+        mock_dependencies["llm_client"].invoke.assert_called_once_with("Prompt final")
+        assert result.status == "success"
+        assert result.output == "Resposta da IA"
+        assert result.metadata["agent_id"] == "test_agent"
 
 def test_run_llm_failure_scenario(mock_dependencies):
     """Testa o tratamento de erro quando o cliente LLM falha."""

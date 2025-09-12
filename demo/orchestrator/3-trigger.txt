@@ -1,5 +1,0 @@
-TRIGGER: agent-documentation
-COMMAND: document gradle status for microservice-x and microservice-y
-TIMESTAMP: 2025-01-09T10:40:00Z
-EXPECTED_DURATION: 60s
-DEPENDENCIES: requires completion of triggers 1 AND 2
