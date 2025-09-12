@@ -14,7 +14,26 @@ docker compose build --no-cache
 
 ## Basic Execution
 
-### Admin CLI
+### Unified Conductor CLI (recommended)
+
+```bash
+# Help
+docker compose run --rm conductor -- --help
+
+# List agents
+docker compose run --rm conductor -- --list
+
+# Stateless execution
+docker compose run --rm conductor -- --agent CodeReviewer_Agent --input "Review this file"
+
+# Contextual chat
+docker compose run --rm conductor -- --agent AgentCreator_Agent --chat --input "Create a new agent"
+
+# Interactive REPL
+docker compose run --rm conductor -- --agent AgentCreator_Agent --chat --interactive
+```
+
+### Admin CLI (legacy-compatible)
 
 ```bash
 # Admin CLI Help (Docker Compose)
@@ -55,7 +74,7 @@ poetry run python -m src.cli.admin \
   --agent AgentCreator_Agent --ai-provider gemini --simulate-chat --repl --timeout 300
 ```
 
-### Agent CLI
+### Agent CLI (legacy-compatible)
 
 ```bash
 # Agent CLI Help (Docker Compose)
@@ -102,7 +121,7 @@ docker run --rm \
   -e "GOOGLE_CLOUD_PROJECT=your-project-id" \
   -e "GOOGLE_CLOUD_LOCATION=us-central1" \
   conductor-api \
-  # Your Conductor command here, e.g., python -m src.cli.agent ...
+  # Your Conductor command here, e.g., conductor --list
 ```
 
 ## Important Environment Variables
@@ -174,7 +193,8 @@ services:
       - GOOGLE_CLOUD_LOCATION=us-central1
     env_file:
       - .env
-    
+    command: ["python", "src/cli/conductor.py", "--list"]
+  
   mongodb:
     image: mongo:7
     environment:
