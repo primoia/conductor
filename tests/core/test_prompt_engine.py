@@ -116,8 +116,8 @@ Your name is {{agent_name}} and you work with {{agent_description}}.
         prompt_engine.load_context()
 
         conversation_history = [
-            {"prompt": "First question", "response": "First answer"},
-            {"prompt": "Second question", "response": "Second answer"},
+            {"user_input": "First question", "ai_response": "First answer"},
+            {"user_input": "Second question", "ai_response": "Second answer"},
         ]
         user_input = "New question"
 
@@ -156,15 +156,15 @@ Your name is {{agent_name}} and you work with {{agent_description}}.
         assert result_empty == "Nenhum histórico de conversa para esta tarefa ainda."
 
         # Test with single turn
-        single_turn = [{"prompt": "Test", "response": "Response test"}]
+        single_turn = [{"user_input": "Test", "ai_response": "Response test"}]
         result_single = prompt_engine._format_history(single_turn)
         assert "Usuário: Test" in result_single
         assert "IA: Response test" in result_single
 
         # Test with multiple turns
         multiple_turns = [
-            {"prompt": "Q1", "response": "A1"},
-            {"prompt": "Q2", "response": "A2"},
+            {"user_input": "Q1", "ai_response": "A1"},
+            {"user_input": "Q2", "ai_response": "A2"},
         ]
         result_multiple = prompt_engine._format_history(multiple_turns)
         assert "Usuário: Q1" in result_multiple
@@ -179,17 +179,17 @@ Your name is {{agent_name}} and you work with {{agent_description}}.
         prompt_engine = PromptEngine(temp_agent_dir)
         prompt_engine.load_context()
 
-        # Test with missing prompt field
-        history_missing_prompt = [{"response": "Response without question"}]
+        # Test with missing user_input field
+        history_missing_prompt = [{"ai_response": "Response without question"}]
         result = prompt_engine._format_history(history_missing_prompt)
-        assert "Usuário: " in result  # Should handle missing prompt gracefully
+        assert "Usuário: " in result  # Should handle missing user_input gracefully
         assert "IA: Response without question" in result
 
-        # Test with missing response field
-        history_missing_response = [{"prompt": "Question without answer"}]
+        # Test with missing ai_response field
+        history_missing_response = [{"user_input": "Question without answer"}]
         result = prompt_engine._format_history(history_missing_response)
         assert "Usuário: Question without answer" in result
-        assert "IA: " in result  # Should handle missing response gracefully
+        assert "IA: " in result  # Should handle missing ai_response gracefully
 
     def test_get_available_tools(self, temp_agent_dir):
         """Test get_available_tools method."""
