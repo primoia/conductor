@@ -25,12 +25,13 @@ This guide explains the purpose and parameters of each configuration file within
 ### `state-template.json`
 **Purpose:** Provides a default structure for the `state.json` file of new agents. This ensures consistency in how agent memory and conversation history are initialized.
 
-### `workspaces.yaml`
-**Purpose:** Maps logical environment names to physical directory paths on your system. This is crucial for Conductor to operate securely and contextually within different projects and environments.
+### `config.yaml` (Centralized Configuration)
+**Purpose:** Centralized configuration for all Conductor operations, including storage backend, agent discovery, and tool plugins.
 **Parameters:**
-- `workspaces`: A dictionary mapping environment names to absolute paths.
-  - `environment_name`: A logical name for your environment (e.g., `develop`, `production`).
-  - `path`: The absolute file system path corresponding to the environment.
+- `storage`: Configuration for data storage backend.
+  - `type`: Storage type (`filesystem` or `mongodb`).
+  - `path`: Path for filesystem storage (default: `.conductor_workspace`).
+- `tool_plugins`: List of directories containing custom tool plugins.
 
 ## `config/teams/` Directory
 

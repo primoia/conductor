@@ -58,10 +58,25 @@ class TaskExecutionService:
         if not definition:
             raise FileNotFoundError(f"Definição não encontrada para o agente: {agent_id}")
 
-        # Remove agent_id from definition before creating AgentDefinition
-        definition_data = definition.copy()
-        definition_data.pop("agent_id", None)
-        return AgentDefinition(**definition_data)
+        # Filter only valid fields for AgentDefinition
+        valid_fields = {
+            'name', 'version', 'schema_version', 'description', 'author', 
+            'tags', 'capabilities', 'allowed_tools'
+        }
+        
+        filtered_data = {k: v for k, v in definition.items() if k in valid_fields}
+        
+        # Ensure required fields have defaults
+        filtered_data.setdefault('name', agent_id)
+        filtered_data.setdefault('version', '1.0.0')
+        filtered_data.setdefault('schema_version', '1.0')
+        filtered_data.setdefault('description', f'Agent {agent_id}')
+        filtered_data.setdefault('author', 'Unknown')
+        filtered_data.setdefault('tags', [])
+        filtered_data.setdefault('capabilities', [])
+        filtered_data.setdefault('allowed_tools', [])
+        
+        return AgentDefinition(**filtered_data)
 
     def _load_session_data(self, agent_id: str) -> dict:
         """Carrega dados da sessão do agente."""

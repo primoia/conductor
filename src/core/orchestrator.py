@@ -3,14 +3,14 @@
 from typing import List
 
 from src.core.domain import AgentDefinition
-from src.core.agent_service import AgentService
+from src.core.services.agent_discovery_service import AgentDiscoveryService
 from src.cli.shared.utils import confirm_action
 
 class NoSuitableAgentFoundError(Exception):
     pass
 
 class Orchestrator:
-    def __init__(self, agent_service: AgentService):
+    def __init__(self, agent_service: AgentDiscoveryService):
         self.agent_service = agent_service
         # O LLM para a decisão semântica seria injetado aqui também
         # self.llm_client = llm_client 

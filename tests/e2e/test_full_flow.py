@@ -104,6 +104,3 @@ def test_filesystem_flow(MockLLMClient, filesystem_service):
 # Testes para MongoDB seriam similares, mas exigiriam uma fixture
 # para se conectar ao DB do docker-compose, inserir dados e limpar.
 # Ex: @pytest.mark.usefixtures("docker_services")
-def test_mongodb_flow_placeholder():
-    """Placeholder para o teste de integração com MongoDB."""
-    pytest.skip("Teste de MongoDB a ser implementado com fixture de DB.")

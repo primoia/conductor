@@ -12,6 +12,44 @@ class CLIArgumentParser:
     """Base argument parser for CLI applications."""
 
     @staticmethod
+    def create_main_parser() -> argparse.ArgumentParser:
+        """Create main conductor CLI parser with subcommands."""
+        parser = argparse.ArgumentParser(
+            prog="conductor",
+            description="Conductor - AI-Powered Orchestration Framework",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog="""
+Examples:
+  conductor list-agents                    # List all available agents
+  conductor execute --agent MyAgent --input "Hello"  # Execute agent task
+  conductor validate-config                # Validate configuration
+
+For more information, visit: https://github.com/cezarfuhr/conductor
+            """
+        )
+        
+        # Create subparsers
+        subparsers = parser.add_subparsers(dest='command', help='Available commands')
+        
+        # List agents command
+        list_parser = subparsers.add_parser('list-agents', help='List all available agents')
+        list_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['list_agents_command']).list_agents_command(args))
+        
+        # Execute command
+        exec_parser = subparsers.add_parser('execute', help='Execute an agent task')
+        exec_parser.add_argument('--agent', required=True, help='Agent ID to execute')
+        exec_parser.add_argument('--input', required=True, help='Input message for the agent')
+        exec_parser.add_argument('--environment', help='Environment context (for project agents)')
+        exec_parser.add_argument('--project', help='Project context (for project agents)')
+        exec_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['execute_agent_command']).execute_agent_command(args))
+        
+        # Validate config command
+        validate_parser = subparsers.add_parser('validate-config', help='Validate configuration')
+        validate_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['validate_config_command']).validate_config_command(args))
+        
+        return parser
+
+    @staticmethod
     def create_base_parser(
         description: str, epilog: str = None
     ) -> argparse.ArgumentParser:
@@ -96,7 +134,7 @@ Examples:
         parser.add_argument(
             "--meta",
             action="store_true",
-            help="Create a meta-agent (resides in _common/agents/)",
+            help="Create a meta-agent (managed in .conductor_workspace/agents/)",
         )
         parser.add_argument(
             "--new-agent-id",
