@@ -59,15 +59,18 @@ For more information, visit: https://github.com/cezarfuhr/conductor
                            help='Simulation mode (no real AI calls)')
         parser.add_argument('--timeout', type=int, default=120,
                            help='Timeout in seconds for AI operations')
+        parser.add_argument('--output', choices=['text', 'json'], default='text',
+                           help='Output format (text or json). When json, prints TaskResultDTO as JSON')
         
         # Project context
         parser.add_argument('--project', help='Project context')
         parser.add_argument('--environment', help='Environment context (dev, prod, etc.)')
         
-        # Meta-agent support
+        # Meta-agent support (normalize to new_agent_id, keep legacy alias)
         parser.add_argument('--meta', action='store_true',
                            help='Meta-agent mode (for framework management)')
-        parser.add_argument('--new-agent', help='ID for new agent creation (meta mode)')
+        parser.add_argument('--new-agent-id', '--new-agent', dest='new_agent_id',
+                           help='ID for new agent creation (meta mode)')
         
         # System operations (mutually exclusive with --agent)
         parser.add_argument('--list', action='store_true',
