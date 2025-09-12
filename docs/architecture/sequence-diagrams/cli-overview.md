@@ -6,8 +6,8 @@
 
 ```mermaid
 flowchart TD
-    A[User] --> B[conductor (args)]
-    B --> C[CLIArgumentParser.create_main_parser()]
+    A[User] --> B[conductor args]
+    B --> C[CLIArgumentParser.create_main_parser]
     C --> D{Branch}
 
     D -->|--list| E[list_agents_command]
@@ -32,11 +32,11 @@ flowchart TD
       K1 -->|não| K2[Execução Stateless]
       K1 -->|sim| K3[Execução Contextual/REPL]
 
-      K2 --> K2a[TaskDTO(context: {timeout, env, project})]
+      K2 --> K2a[TaskDTO context: timeout, env, project]
       K2a --> K2b[ConductorService.execute_task]
 
-      K3 --> K3a[flags: include_history/save_to_history]
-      K3a --> K3b[TaskDTO(context: {history=true, meta?, simulate?, timeout})]
+      K3 --> K3a[flags include_history/save_to_history]
+      K3a --> K3b[TaskDTO context: history=true, meta?, simulate?, timeout]
       K3b --> K3c[ConductorService.execute_task]
     end
 ```
