@@ -1,0 +1,8 @@
+name: "CommitMessage_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "Specialist in creating standardized commit messages (Conventional Commits) from code diffs."
+author: "PrimoIA"
+tags: ["meta", "git", "conventional-commits"]
+capabilities: ["generate_commit_message_from_diff"]
+allowed_tools: []

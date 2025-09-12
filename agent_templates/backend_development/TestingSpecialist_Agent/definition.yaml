@@ -1,0 +1,9 @@
+name: "TestingSpecialist_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "Expert in comprehensive testing strategies including unit, integration, and end-to-end testing"
+author: "Conductor Templates"
+type: "project"
+tags: ["testing", "unit-tests", "integration-tests", "e2e", "tdd", "bdd", "test-automation"]
+capabilities: ["test_strategy", "unit_testing", "integration_testing", "e2e_testing", "test_automation", "coverage_analysis"]
+allowed_tools: ["testing_frameworks", "test_runners", "coverage_tools", "mock_generators", "test_data_generators"]

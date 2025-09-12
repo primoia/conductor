@@ -1,0 +1,9 @@
+name: "AngularExpert_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "Expert in Angular development, TypeScript, RxJS, NgRx, and modern Angular patterns and best practices"
+author: "Conductor Templates"
+type: "project"
+tags: ["angular", "typescript", "rxjs", "ngrx", "frontend", "web-development", "spa"]
+capabilities: ["angular_development", "component_architecture", "service_design", "rxjs_patterns", "ngrx_state_management", "angular_testing", "performance_optimization"]
+allowed_tools: ["file_operations", "code_analysis", "npm_commands", "angular_cli", "testing_tools"]

@@ -133,10 +133,16 @@ Mostra todos os agentes disponíveis com suas capacidades e tags.
 # Sintaxe básica
 ./conductor execute --agent <agent_id> --input "<sua_mensagem>"
 
+# Com timeout personalizado (em segundos)
+./conductor execute --agent <agent_id> --input "<sua_mensagem>" --timeout 300
+
 # Exemplos práticos
 ./conductor execute --agent SystemGuide_Meta_Agent --input "Explique a arquitetura do sistema"
 ./conductor execute --agent CommitMessage_Agent --input "Gere mensagem de commit para as mudanças atuais"
 ./conductor execute --agent AgentCreator_Agent --input "Crie um agente para revisar código Python"
+
+# Para tarefas complexas que precisam de mais tempo
+./conductor execute --agent APIArchitect_Agent --input "Projete uma API completa" --timeout 300
 ```
 
 ##### 🔍 **Informações Detalhadas de um Agente**
@@ -243,6 +249,15 @@ chmod +x conductor
 ./conductor execute --agent AgenteTeste --input "teste"
 # Output: ❌ Agente 'AgenteTeste' não encontrado
 #         💡 Agentes similares: TestAgent, SystemGuide_Meta_Agent
+```
+
+#### **Timeout em operações longas**
+```bash
+# Se o agente demorar muito (timeout padrão: 120s)
+./conductor execute --agent MyAgent --input "tarefa complexa" --timeout 300
+
+# Para tarefas muito complexas
+./conductor execute --agent MyAgent --input "análise completa" --timeout 600
 ```
 
 #### **Validar se tudo está funcionando**

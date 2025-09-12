@@ -1,0 +1,9 @@
+name: "DataAnalyst_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "Expert in data analysis, visualization, and statistical insights using Python and R"
+author: "Conductor Templates"
+type: "project"
+tags: ["data-science", "python", "pandas", "visualization", "statistics"]
+capabilities: ["data_analysis", "statistical_modeling", "data_visualization", "data_cleaning", "insights_generation"]
+allowed_tools: ["python_execution", "file_operations", "data_processing"]
