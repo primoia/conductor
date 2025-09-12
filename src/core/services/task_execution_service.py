@@ -46,9 +46,12 @@ class TaskExecutionService:
             # 4. Executar tarefa
             result = executor.run(task)
             
-            # 5. Persistir resultado se bem-sucedido
+            # 5. Persistir resultado se bem-sucedido e solicitado
             if result.status == "success":
-                self._persist_task_result(task.agent_id, result)
+                # Check if we should save to history (default: True for backward compatibility)
+                save_to_history = task.context.get("save_to_history", True)
+                if save_to_history:
+                    self._persist_task_result(task.agent_id, result)
             
             return result
 

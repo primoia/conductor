@@ -13,30 +13,83 @@ class CLIArgumentParser:
 
     @staticmethod
     def create_main_parser() -> argparse.ArgumentParser:
-        """Create main conductor CLI parser with subcommands."""
+        """Create main conductor CLI parser with new unified interface."""
         parser = argparse.ArgumentParser(
             prog="conductor",
             description="Conductor - AI-Powered Orchestration Framework",
             formatter_class=argparse.RawDescriptionHelpFormatter,
             epilog="""
 Examples:
-  conductor list-agents                    # List all available agents
-  conductor execute --agent MyAgent --input "Hello"  # Execute agent task
-  conductor validate-config                # Validate configuration
+  # Stateless execution (fast, no history)
+  conductor --agent MyAgent --input "Analyze this code"
+  
+  # Contextual chat (with history)
+  conductor --agent MyAgent --chat --input "Continue the analysis"
+  
+  # Interactive session (REPL after response)
+  conductor --agent MyAgent --chat --input "Start analysis" --interactive
+  
+  # Direct REPL (no initial message)
+  conductor --agent MyAgent --chat --interactive
+  
+  # System operations
+  conductor --list                              # List all agents
+  conductor --info MyAgent                      # Agent information
+  conductor --validate                          # Validate system
+  conductor --install web_development           # Install templates
 
 For more information, visit: https://github.com/cezarfuhr/conductor
             """
         )
         
-        # Create subparsers
-        subparsers = parser.add_subparsers(dest='command', help='Available commands')
+        # Main agent interaction
+        parser.add_argument('--agent', help='Agent ID to interact with')
+        parser.add_argument('--input', help='Message to send to the agent')
         
-        # List agents command
-        list_parser = subparsers.add_parser('list-agents', help='List all available agents')
+        # Execution modes
+        parser.add_argument('--chat', action='store_true', 
+                           help='Enable contextual mode (loads and saves conversation history)')
+        parser.add_argument('--interactive', action='store_true',
+                           help='Enter REPL mode after response (requires --chat)')
+        
+        # Context and behavior modifiers
+        parser.add_argument('--clear', action='store_true',
+                           help='Clear conversation history before execution')
+        parser.add_argument('--simulate', action='store_true',
+                           help='Simulation mode (no real AI calls)')
+        parser.add_argument('--timeout', type=int, default=120,
+                           help='Timeout in seconds for AI operations')
+        
+        # Project context
+        parser.add_argument('--project', help='Project context')
+        parser.add_argument('--environment', help='Environment context (dev, prod, etc.)')
+        
+        # Meta-agent support
+        parser.add_argument('--meta', action='store_true',
+                           help='Meta-agent mode (for framework management)')
+        parser.add_argument('--new-agent', help='ID for new agent creation (meta mode)')
+        
+        # System operations (mutually exclusive with --agent)
+        parser.add_argument('--list', action='store_true',
+                           help='List all available agents')
+        parser.add_argument('--info', help='Show detailed information about an agent')
+        parser.add_argument('--validate', action='store_true',
+                           help='Validate system configuration')
+        parser.add_argument('--install', help='Install agent templates (category name or --list)')
+        parser.add_argument('--backup', action='store_true',
+                           help='Backup agents to persistent storage')
+        parser.add_argument('--restore', action='store_true',
+                           help='Restore agents from persistent storage')
+        
+        # Legacy subcommands (for backward compatibility)
+        subparsers = parser.add_subparsers(dest='command', help='Legacy commands (deprecated)')
+        
+        # Legacy list-agents command
+        list_parser = subparsers.add_parser('list-agents', help='[DEPRECATED] Use --list instead')
         list_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['list_agents_command']).list_agents_command(args))
         
-        # Execute command
-        exec_parser = subparsers.add_parser('execute', help='Execute an agent task')
+        # Legacy execute command
+        exec_parser = subparsers.add_parser('execute', help='[DEPRECATED] Use --agent --input instead')
         exec_parser.add_argument('--agent', required=True, help='Agent ID to execute')
         exec_parser.add_argument('--input', required=True, help='Input message for the agent')
         exec_parser.add_argument('--environment', help='Environment context (for project agents)')
@@ -45,29 +98,54 @@ For more information, visit: https://github.com/cezarfuhr/conductor
         exec_parser.add_argument('--timeout', type=int, default=120, help='Timeout in seconds for AI operations')
         exec_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['execute_agent_command']).execute_agent_command(args))
         
-        # Validate config command
-        validate_parser = subparsers.add_parser('validate-config', help='Validate configuration')
+        # Legacy validate-config command
+        validate_parser = subparsers.add_parser('validate-config', help='[DEPRECATED] Use --validate instead')
         validate_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['validate_config_command']).validate_config_command(args))
         
-        # Info command
-        info_parser = subparsers.add_parser('info', help='Show detailed information about an agent')
+        # Legacy info command
+        info_parser = subparsers.add_parser('info', help='[DEPRECATED] Use --info <agent> instead')
         info_parser.add_argument('--agent', required=True, help='Agent ID to show info for')
         info_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['info_agent_command']).info_agent_command(args))
         
-        # Backup command
-        backup_parser = subparsers.add_parser('backup', help='Backup agents to persistent storage')
+        # Legacy backup command
+        backup_parser = subparsers.add_parser('backup', help='[DEPRECATED] Use --backup instead')
         backup_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['backup_agents_command']).backup_agents_command(args))
         
-        # Restore command
-        restore_parser = subparsers.add_parser('restore', help='Restore agents from persistent storage')
+        # Legacy restore command
+        restore_parser = subparsers.add_parser('restore', help='[DEPRECATED] Use --restore instead')
         restore_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['restore_agents_command']).restore_agents_command(args))
         
-        # Install templates command
-        install_parser = subparsers.add_parser('install', help='Install agent templates')
+        # Legacy install command
+        install_parser = subparsers.add_parser('install', help='[DEPRECATED] Use --install instead')
         install_parser.add_argument('--category', help='Category to install (web_development, data_science, etc.)')
         install_parser.add_argument('--agent', help='Specific agent to install')
         install_parser.add_argument('--list', action='store_true', help='List available templates')
         install_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['install_templates_command']).install_templates_command(args))
+        
+        # Legacy REPL command
+        repl_parser = subparsers.add_parser('repl', help='[DEPRECATED] Use --agent --chat --interactive instead')
+        repl_parser.add_argument('--agent', required=True, help='Agent ID for REPL session')
+        repl_parser.add_argument('--mode', choices=['basic', 'advanced', 'dev'], default='basic', 
+                                help='REPL mode: basic (simple), advanced (debug commands), dev (full developer mode)')
+        repl_parser.add_argument('--environment', help='Environment context (for project agents)')
+        repl_parser.add_argument('--project', help='Project context (for project agents)')
+        repl_parser.add_argument('--meta', action='store_true', help='Meta-agent mode (for framework management)')
+        repl_parser.add_argument('--new-agent-id', help='ID for new agent creation (meta-agent mode)')
+        repl_parser.add_argument('--simulate', action='store_true', help='Simulation mode (no real API calls)')
+        repl_parser.add_argument('--timeout', type=int, default=120, help='Timeout in seconds for AI operations')
+        repl_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['repl_command']).repl_command(args))
+        
+        # Legacy chat command
+        chat_parser = subparsers.add_parser('chat', help='[DEPRECATED] Use --agent --chat --input instead')
+        chat_parser.add_argument('--agent', required=True, help='Agent ID to chat with')
+        chat_parser.add_argument('--input', required=True, help='Message to send')
+        chat_parser.add_argument('--environment', help='Environment context (for project agents)')
+        chat_parser.add_argument('--project', help='Project context (for project agents)')
+        chat_parser.add_argument('--meta', action='store_true', help='Meta-agent mode')
+        chat_parser.add_argument('--new-agent-id', help='ID for new agent creation (meta-agent mode)')
+        chat_parser.add_argument('--show-history', action='store_true', help='Show conversation history after response')
+        chat_parser.add_argument('--clear-history', action='store_true', help='Clear conversation history before sending')
+        chat_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['chat_command']).chat_command(args))
         
         return parser
 

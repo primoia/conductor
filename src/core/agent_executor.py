@@ -40,6 +40,7 @@ class AgentExecutor:
             # Extrair contexto meta do task
             meta = task.context.get("meta", False)
             new_agent_id = task.context.get("new_agent_id", None)
+            include_history = task.context.get("include_history", True)  # Default: True for backward compatibility
             
             # Usar a função unificada que já carrega histórico + contexto completo
             final_prompt = agent_discovery_service.get_full_prompt(
@@ -47,6 +48,7 @@ class AgentExecutor:
                 current_message=task.user_input,  # Mensagem atual do usuário
                 meta=meta,
                 new_agent_id=new_agent_id,
+                include_history=include_history,  # Pass the history flag
                 save_to_file=False  # Não salvar durante execução normal
             )
 
