@@ -1,0 +1,9 @@
+name: "ReactExpert_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "Expert in React development, hooks, state management, and modern React patterns"
+author: "Conductor Templates"
+type: "project"
+tags: ["react", "frontend", "javascript", "web-development", "hooks"]
+capabilities: ["react_development", "component_optimization", "state_management", "hooks_implementation", "performance_tuning"]
+allowed_tools: ["file_operations", "code_analysis", "npm_commands"]

@@ -1,0 +1,9 @@
+name: "SecuritySpecialist_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "Expert in application security, authentication, authorization, and security best practices"
+author: "Conductor Templates"
+type: "project"
+tags: ["security", "authentication", "authorization", "jwt", "oauth", "encryption", "vulnerability"]
+capabilities: ["security_audit", "auth_implementation", "vulnerability_assessment", "encryption_setup", "security_testing", "compliance_check"]
+allowed_tools: ["security_scanner", "file_operations", "code_analysis", "penetration_testing"]
