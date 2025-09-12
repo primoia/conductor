@@ -95,6 +95,10 @@ def execute_agent_command(args):
             context["environment"] = args.environment
         if args.project:
             context["project"] = args.project
+        if hasattr(args, 'project_path') and args.project_path:
+            context["project_path"] = args.project_path
+        if hasattr(args, 'timeout') and args.timeout:
+            context["timeout"] = args.timeout
         
         # Criar e executar tarefa
         task = TaskDTO(
@@ -361,6 +365,151 @@ def info_agent_command(args):
         
     except Exception as e:
         print(f"❌ Erro ao obter informações: {e}")
+
+def backup_agents_command(args):
+    """Faz backup dos agentes para armazenamento persistente."""
+    print("💾 Fazendo backup dos agentes...")
+    print("=" * 50)
+    
+    try:
+        import subprocess
+        import os
+        
+        # Executar script de backup
+        script_path = os.path.join(os.getcwd(), "scripts", "backup_agents.sh")
+        
+        if not os.path.exists(script_path):
+            print(f"❌ Script de backup não encontrado: {script_path}")
+            return
+        
+        result = subprocess.run([script_path], capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            print(result.stdout)
+        else:
+            print(f"❌ Erro no backup: {result.stderr}")
+            
+    except Exception as e:
+        print(f"❌ Erro ao executar backup: {e}")
+
+def restore_agents_command(args):
+    """Restaura agentes do armazenamento persistente."""
+    print("📥 Restaurando agentes do backup...")
+    print("=" * 50)
+    
+    try:
+        import subprocess
+        import os
+        
+        # Executar script de restore
+        script_path = os.path.join(os.getcwd(), "scripts", "restore_agents.sh")
+        
+        if not os.path.exists(script_path):
+            print(f"❌ Script de restore não encontrado: {script_path}")
+            return
+        
+        result = subprocess.run([script_path], capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            print(result.stdout)
+            # Limpar cache após restore
+            agent_service = container.get_agent_discovery_service()
+            agent_service.clear_cache()
+            print("🔄 Cache de descoberta limpo")
+        else:
+            print(f"❌ Erro no restore: {result.stderr}")
+            
+    except Exception as e:
+        print(f"❌ Erro ao executar restore: {e}")
+
+def install_templates_command(args):
+    """Instala templates de agentes por categoria ou agente específico."""
+    import os
+    import shutil
+    from pathlib import Path
+    
+    templates_dir = Path("agent_templates")
+    workspace_agents = Path(".conductor_workspace/agents")
+    
+    if args.list:
+        print("📋 Templates Disponíveis:")
+        print("=" * 50)
+        
+        if not templates_dir.exists():
+            print("❌ Diretório de templates não encontrado")
+            return
+        
+        for category in templates_dir.iterdir():
+            if category.is_dir():
+                print(f"\n🏷️  {category.name.replace('_', ' ').title()}:")
+                for agent in category.iterdir():
+                    if agent.is_dir():
+                        # Ler descrição do definition.yaml se existir
+                        def_file = agent / "definition.yaml"
+                        description = "Sem descrição"
+                        if def_file.exists():
+                            try:
+                                import yaml
+                                with open(def_file, 'r') as f:
+                                    data = yaml.safe_load(f)
+                                    description = data.get('description', 'Sem descrição')
+                            except:
+                                pass
+                        print(f"   • {agent.name}: {description}")
+        return
+    
+    if args.category:
+        category_path = templates_dir / args.category
+        if not category_path.exists():
+            print(f"❌ Categoria '{args.category}' não encontrada")
+            print("💡 Use --list para ver categorias disponíveis")
+            return
+        
+        print(f"📦 Instalando categoria: {args.category}")
+        print("=" * 50)
+        
+        installed = 0
+        for agent_dir in category_path.iterdir():
+            if agent_dir.is_dir():
+                target = workspace_agents / agent_dir.name
+                if target.exists():
+                    print(f"⚠️  {agent_dir.name}: já existe, pulando")
+                else:
+                    shutil.copytree(agent_dir, target)
+                    print(f"✅ {agent_dir.name}: instalado")
+                    installed += 1
+        
+        print(f"\n📊 {installed} agentes instalados da categoria '{args.category}'")
+        
+        # Limpar cache para descobrir novos agentes
+        agent_service = container.get_agent_discovery_service()
+        agent_service.clear_cache()
+        
+    elif args.agent:
+        # Procurar agente específico em todas as categorias
+        found = False
+        for category in templates_dir.iterdir():
+            if category.is_dir():
+                agent_path = category / args.agent
+                if agent_path.exists():
+                    target = workspace_agents / args.agent
+                    if target.exists():
+                        print(f"⚠️  Agente '{args.agent}' já existe")
+                    else:
+                        shutil.copytree(agent_path, target)
+                        print(f"✅ Agente '{args.agent}' instalado da categoria '{category.name}'")
+                        
+                        # Limpar cache
+                        agent_service = container.get_agent_discovery_service()
+                        agent_service.clear_cache()
+                    found = True
+                    break
+        
+        if not found:
+            print(f"❌ Agente '{args.agent}' não encontrado nos templates")
+            print("💡 Use --list para ver agentes disponíveis")
+    else:
+        print("❌ Especifique --category, --agent ou --list")
 
 def run_agent_command(args):
     """Lógica para executar o fluxo do 'agent' (legacy)."""

@@ -1,0 +1,9 @@
+name: "DatabaseExpert_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "Expert in database design, optimization, migrations, and both SQL and NoSQL technologies"
+author: "Conductor Templates"
+type: "project"
+tags: ["database", "sql", "nosql", "postgresql", "mongodb", "redis", "migrations", "optimization"]
+capabilities: ["database_design", "query_optimization", "migration_scripts", "indexing_strategy", "data_modeling", "performance_tuning"]
+allowed_tools: ["sql_execution", "file_operations", "database_tools", "migration_tools"]

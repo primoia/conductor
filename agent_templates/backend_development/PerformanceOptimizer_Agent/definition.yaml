@@ -1,0 +1,9 @@
+name: "PerformanceOptimizer_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "Expert in application performance optimization, caching strategies, and scalability solutions"
+author: "Conductor Templates"
+type: "project"
+tags: ["performance", "optimization", "caching", "scalability", "monitoring", "profiling"]
+capabilities: ["performance_analysis", "caching_implementation", "load_testing", "bottleneck_identification", "scaling_strategies", "monitoring_setup"]
+allowed_tools: ["profiling_tools", "load_testing", "monitoring_tools", "code_analysis", "performance_metrics"]

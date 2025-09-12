@@ -41,6 +41,8 @@ For more information, visit: https://github.com/cezarfuhr/conductor
         exec_parser.add_argument('--input', required=True, help='Input message for the agent')
         exec_parser.add_argument('--environment', help='Environment context (for project agents)')
         exec_parser.add_argument('--project', help='Project context (for project agents)')
+        exec_parser.add_argument('--project-path', help='Working directory for the agent (default: agent home)')
+        exec_parser.add_argument('--timeout', type=int, default=120, help='Timeout in seconds for AI operations')
         exec_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['execute_agent_command']).execute_agent_command(args))
         
         # Validate config command
@@ -51,6 +53,21 @@ For more information, visit: https://github.com/cezarfuhr/conductor
         info_parser = subparsers.add_parser('info', help='Show detailed information about an agent')
         info_parser.add_argument('--agent', required=True, help='Agent ID to show info for')
         info_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['info_agent_command']).info_agent_command(args))
+        
+        # Backup command
+        backup_parser = subparsers.add_parser('backup', help='Backup agents to persistent storage')
+        backup_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['backup_agents_command']).backup_agents_command(args))
+        
+        # Restore command
+        restore_parser = subparsers.add_parser('restore', help='Restore agents from persistent storage')
+        restore_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['restore_agents_command']).restore_agents_command(args))
+        
+        # Install templates command
+        install_parser = subparsers.add_parser('install', help='Install agent templates')
+        install_parser.add_argument('--category', help='Category to install (web_development, data_science, etc.)')
+        install_parser.add_argument('--agent', help='Specific agent to install')
+        install_parser.add_argument('--list', action='store_true', help='List available templates')
+        install_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['install_templates_command']).install_templates_command(args))
         
         return parser
 

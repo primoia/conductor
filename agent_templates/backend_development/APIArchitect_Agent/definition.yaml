@@ -1,0 +1,9 @@
+name: "APIArchitect_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "Expert in designing RESTful APIs, GraphQL, microservices architecture, and API documentation"
+author: "Conductor Templates"
+type: "project"
+tags: ["api", "rest", "graphql", "microservices", "architecture", "openapi", "swagger"]
+capabilities: ["api_design", "rest_architecture", "graphql_schema", "microservices_design", "api_documentation", "endpoint_optimization"]
+allowed_tools: ["file_operations", "code_generation", "documentation_tools", "yaml_processing"]
