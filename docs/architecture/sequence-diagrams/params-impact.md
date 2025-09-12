@@ -6,7 +6,7 @@
 
 ```mermaid
 flowchart LR
-    A[Parâmetros CLI] --> B[ConductorCLI.__init__]
+    A[Parametros CLI] --> B[ConductorCLI.__init__]
     B --> C{Efeitos}
 
     A1[--agent <id>] -->|alimenta| B
@@ -19,11 +19,11 @@ flowchart LR
     A8[--chat] -->|include/save history| D
     A9[--interactive] -->|REPL| E
 
-    C --> D[TaskDTO.context]
+    C --> D[TaskDTO context]
     C --> E[REPLManager]
-    C --> F[Logging via configure_logging(debug_mode)]
+    C --> F[Logging via configure_logging debug_mode]
 
-    E -->|dev/advanced| E1[comandos: debug, prompt, simulate]
+    E -->|dev/advanced| E1[comandos debug, prompt, simulate]
     D -->|entregue a| G[ConductorService.execute_task]
 ```
 
