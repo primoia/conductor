@@ -5,6 +5,7 @@ from src.core.domain import AgentDefinition, TaskDTO, TaskResultDTO
 from src.core.services import (
     ConfigurationService,
     StorageService,
+    AgentStorageService,
     AgentDiscoveryService,
     ToolManagementService,
     TaskExecutionService
@@ -18,10 +19,11 @@ class ConductorService(IConductorService):
         # Inicializa serviços especializados
         self._config_service = ConfigurationService(config_path)
         self._storage_service = StorageService(self._config_service)
+        self._agent_storage_service = AgentStorageService(self._config_service)
         self._agent_service = AgentDiscoveryService(self._storage_service)
         self._tool_service = ToolManagementService(self._config_service)
         self._execution_service = TaskExecutionService(
-            self._storage_service, 
+            self._agent_storage_service, 
             self._tool_service, 
             self._config_service
         )

@@ -85,6 +85,13 @@ For more information, visit: https://github.com/cezarfuhr/conductor
                            help='Backup agents to persistent storage')
         parser.add_argument('--restore', action='store_true',
                            help='Restore agents from persistent storage')
+        parser.add_argument('--migrate-to', choices=['mongodb', 'filesystem'],
+                           help='Migrate agents to specified backend')
+        parser.add_argument('--migrate-from', choices=['mongodb', 'filesystem'],
+                           help='Source backend for migration (defaults to current config)')
+        parser.add_argument('--no-config-update', action='store_true',
+                           help='Do not update config.yaml during migration')
+        parser.add_argument('--path', help='Custom path for filesystem operations')
         
         # Legacy subcommands (for backward compatibility)
         subparsers = parser.add_subparsers(dest='command', help='Legacy commands (deprecated)')
