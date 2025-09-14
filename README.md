@@ -109,7 +109,29 @@ conductor --agent AgentCreator_Agent --chat --interactive
 # Install agent templates
 conductor --install list
 conductor --install web_development
+
+# Storage migration (filesystem ↔ MongoDB)
+conductor --migrate-to mongodb --no-config-update  # Safe backup
+conductor --migrate-to mongodb                      # Permanent migration
 ```
+
+### 💾 Storage Migration
+
+Conductor supports bidirectional migration between filesystem and MongoDB:
+
+```bash
+# Backup to MongoDB (preserves filesystem config)
+conductor --migrate-to mongodb --no-config-update
+
+# Restore from MongoDB  
+conductor --migrate-from mongodb --migrate-to filesystem --no-config-update
+
+# External backup (private Git repos)
+conductor --migrate-to filesystem --path /path/to/backup
+```
+
+Perfect for RAMDisk workflows and team scaling. See [Storage Migration Guide](docs/guides/storage-migration.md) for details.
+
 ## 🎯 How to Use Conductor
 
 ### 📋 **Basic Commands**
