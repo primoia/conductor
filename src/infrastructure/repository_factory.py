@@ -5,15 +5,16 @@ from typing import Dict
 from src.config import ConfigManager
 from src.infrastructure.filesystem_storage import FileSystemStorage
 from src.infrastructure.mongodb_storage import MongoDbStorage
+from src.ports.agent_storage import IAgentStorage
 
 
 class RepositoryFactory:
     """
     Factory class para criar instâncias de repositório baseadas na configuração.
     """
-    
+
     @staticmethod
-    def get_repository(config: Dict):
+    def get_repository(config: Dict) -> IAgentStorage:
         """Cria e retorna a instância de repositório apropriada com base na configuração."""
         repo_type = config.get('type')
         if repo_type == 'filesystem':
