@@ -5,18 +5,18 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.service
-    container_name: conductor_service
+    container_name: conductor_service_e2e_test
     ports:
-      - "8000:8000"
+      - "8001:8000"
     volumes:
       - ./src:/home/appuser/app/src
       - ./scripts/docker:/home/appuser/app/scripts/docker # Mapear o script
     environment:
-      - MONGODB_CONNECTION_STRING=mongodb://mongodb:27017/conductor
+      - MONGODB_CONNECTION_STRING=mongodb://mongodb_test:27017/conductor
     networks:
       - conductor_net
     depends_on:
-      - mongodb
+      - mongodb_test
     healthcheck:
       test: ["CMD", "python", "scripts/docker/healthcheck.py"]
       interval: 10s
@@ -24,11 +24,11 @@ services:
       retries: 5
       start_period: 30s
 
-  mongodb:
+  mongodb_test:
     image: mongo:5.0
-    container_name: mongodb
+    container_name: mongodb_e2e_test
     ports:
-      - "27017:27017"
+      - "27018:27017"
     volumes:
       - mongodb_data:/data/db
     networks:
