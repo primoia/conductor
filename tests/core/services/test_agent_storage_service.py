@@ -60,17 +60,21 @@ class TestAgentStorageService:
             AgentStorageService(mock_config_service)
 
     def test_mongodb_without_connection_string_raises_error(self):
-        """Testa erro quando MongoDB não tem connection_string."""
+        """Testa erro quando MongoDB não tem connection_string no .env."""
         # Arrange
         mock_config_service = MagicMock()
         mock_storage_config = MagicMock()
         mock_storage_config.type = "mongodb"
-        mock_storage_config.connection_string = None
         mock_config_service.get_storage_config.return_value = mock_storage_config
 
-        # Act & Assert
-        with pytest.raises(ConfigurationError, match="MongoDB connection_string é obrigatória"):
-            AgentStorageService(mock_config_service)
+        # Mock settings sem mongo_uri
+        with patch('src.config.settings') as mock_settings:
+            mock_settings.mongo_uri = None
+            mock_settings.mongo_database = "test_db"
+
+            # Act & Assert
+            with pytest.raises(ConfigurationError, match="MongoDB connection_string é obrigatória"):
+                AgentStorageService(mock_config_service)
 
     def test_get_state_repository_for_migration(self):
         """Testa método para obter repository de baixo nível para migração."""

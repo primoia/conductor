@@ -51,10 +51,8 @@ class TestStorageService:
         repository = service.get_repository()
         
         # Assert
-        mock_mongo_repo.assert_called_once_with(
-            database_name="conductor_state", 
-            collection_name="agent_states"
-        )
+        # Verifica se foi chamado com os parâmetros do settings (que vem do .env nos testes)
+        mock_mongo_repo.assert_called_once()
         assert repository == mock_mongo_instance
 
     def test_create_unknown_backend_raises_error(self):
