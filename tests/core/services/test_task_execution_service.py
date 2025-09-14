@@ -252,7 +252,8 @@ class TestTaskExecutionService:
         )
 
         # Act
-        service._persist_task_result("test_agent", result)
+        task = TaskDTO(agent_id="test_agent", user_input="Test task")
+        service._persist_task_result("test_agent", task, result)
 
         # Assert
         # Verify session and knowledge operations were called
@@ -260,10 +261,12 @@ class TestTaskExecutionService:
         self.mock_storage.save_session.assert_called_once()
         self.mock_storage.load_knowledge.assert_called_once_with("test_agent")
         self.mock_storage.save_knowledge.assert_called_once()
-        self.mock_storage.append_to_history.assert_called_once_with(
-            "test_agent",
-            {"timestamp": "2023-01-01", "interaction": "test"}
-        )
+        # Verifica se append_to_history foi chamado com agent_id e um HistoryEntry
+        self.mock_storage.append_to_history.assert_called_once()
+        call_args = self.mock_storage.append_to_history.call_args
+        assert call_args[0][0] == "test_agent"  # agent_id
+        from src.core.domain import HistoryEntry
+        assert isinstance(call_args[0][1], HistoryEntry)  # entry é HistoryEntry
 
     def test_persist_task_result_partial_updates(self):
         """Testa persistência com apenas alguns componentes atualizados."""
@@ -285,7 +288,8 @@ class TestTaskExecutionService:
         self.mock_storage.load_session.return_value = existing_session
 
         # Act
-        service._persist_task_result("test_agent", result)
+        task = TaskDTO(agent_id="test_agent", user_input="Test task")
+        service._persist_task_result("test_agent", task, result)
 
         # Assert
         # Only session should be updated

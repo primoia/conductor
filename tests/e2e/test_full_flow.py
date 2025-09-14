@@ -75,9 +75,15 @@ def filesystem_service(tmp_path):
     
     # Criar memory.json (vazio por enquanto)
     memory_content = {}
-    
+
     with open(fs_agent_storage_dir / "memory.json", "w") as f:
         json.dump(memory_content, f, indent=2)
+
+    # Criar knowledge.json (vazio por enquanto)
+    knowledge_content = {"artifacts": {}}
+
+    with open(fs_agent_storage_dir / "knowledge.json", "w") as f:
+        json.dump(knowledge_content, f, indent=2)
 
     return ConductorService(config_path=str(config_path))
 
@@ -98,7 +104,7 @@ def test_filesystem_flow(MockLLMClient, filesystem_service):
     task = TaskDTO(agent_id="fs_agent", user_input="Olá")
     result = filesystem_service.execute_task(task)
     
-    assert result.status == "success"
+    assert result.status == "success", f"Task failed with output: {result.output}"
     assert result.output == "Resposta do FS"
 
 # Testes para MongoDB seriam similares, mas exigiriam uma fixture
