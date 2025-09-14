@@ -29,6 +29,17 @@ class FileSystemStateRepository(IStateRepository):
         except Exception:
             return {}
 
+    def save_definition(self, agent_id: str, definition_data: Dict) -> bool:
+        """Salva a definição do agente (definition.yaml)."""
+        try:
+            agent_dir = self._get_agent_dir(agent_id)
+            definition_file = os.path.join(agent_dir, "definition.yaml")
+            with open(definition_file, 'w', encoding='utf-8') as f:
+                yaml.safe_dump(definition_data, f, default_flow_style=False, allow_unicode=True)
+            return True
+        except Exception:
+            return False
+
     def load_persona(self, agent_id: str) -> str:
         """Carrega a persona do agente (persona.md)."""
         try:
@@ -40,6 +51,17 @@ class FileSystemStateRepository(IStateRepository):
             return ""
         except Exception:
             return ""
+
+    def save_persona(self, agent_id: str, persona_content: str) -> bool:
+        """Salva a persona do agente (persona.md)."""
+        try:
+            agent_dir = self._get_agent_dir(agent_id)
+            persona_file = os.path.join(agent_dir, "persona.md")
+            with open(persona_file, 'w', encoding='utf-8') as f:
+                f.write(persona_content)
+            return True
+        except Exception:
+            return False
 
     def save_session(self, agent_id: str, session_data: Dict) -> bool:
         """Salva os dados da sessão (session.json)."""

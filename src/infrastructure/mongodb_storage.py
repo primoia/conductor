@@ -1,63 +1,43 @@
 # src/infrastructure/mongodb_storage.py
 
-import json
-from typing import List, Dict
-from pymongo import MongoClient
-from datetime import datetime
+from typing import List
 
 from src.core.domain import (
     AgentDefinition, AgentPersona, AgentPlaybook, AgentKnowledge, HistoryEntry, AgentSession,
     PlaybookBestPractice, PlaybookAntiPattern, KnowledgeItem
 )
+from src.ports.agent_storage import IAgentStorage
+from src.infrastructure.storage.mongo_repository import MongoStateRepository
 
-class MongoDbStorage:
+class MongoDbStorage(IAgentStorage):
     """
-    Implementa a persistência de artefatos de agente usando MongoDB.
+    Implementa a camada de alto nível para artefatos de agente no MongoDB.
+    Trabalha com objetos de domínio e delega a persistência para MongoStateRepository.
     """
 
-    def __init__(self, connection_string: str, db_name: str = "conductor", agent_name: str = None):
-        self.client = MongoClient(connection_string)
-        self.db = self.client[db_name]
-        self.agents_collection = self.db["agents"]
-        self.history_collection = self.db["history"]
-        self.sessions_collection = self.db["sessions"]
-        self.agent_name = agent_name
-        
-        # Criar índice TTL na coleção de sessões, se não existir
-        self.sessions_collection.create_index("createdAt", expireAfterSeconds=86400)
-        
-        # Criar índices para otimização
-        self.agents_collection.create_index("name")
-        self.history_collection.create_index("agent_id")
-        self.sessions_collection.create_index("agent_id")
+    def __init__(self, connection_string: str, db_name: str = "conductor"):
+        self.repository = MongoStateRepository(connection_string, db_name)
 
-    def load_definition(self) -> AgentDefinition:
-        """Carrega a definição de um agente a partir do MongoDB."""
-        if not self.agent_name:
-            raise ValueError("Agent name must be set to load definition")
-            
-        doc = self.agents_collection.find_one({"name": self.agent_name})
-        if not doc or "definition" not in doc:
-            raise FileNotFoundError(f"Definition not found for agent: {self.agent_name}")
-        
-        def_data = doc["definition"]
+    def load_definition(self, agent_id: str) -> AgentDefinition:
+        """Carrega a definição do agente."""
+        data = self.repository.load_definition(agent_id)
+        if not data:
+            raise FileNotFoundError(f"Definition not found for agent: {agent_id}")
+
         return AgentDefinition(
-            name=def_data['name'],
-            version=def_data['version'],
-            schema_version=def_data['schema_version'],
-            description=def_data['description'],
-            author=def_data['author'],
-            tags=def_data.get('tags', []),
-            capabilities=def_data.get('capabilities', []),
-            allowed_tools=def_data.get('allowed_tools', [])
+            name=data['name'],
+            version=data['version'],
+            schema_version=data['schema_version'],
+            description=data['description'],
+            author=data['author'],
+            tags=data.get('tags', []),
+            capabilities=data.get('capabilities', []),
+            allowed_tools=data.get('allowed_tools', [])
         )
 
-    def save_definition(self, definition: AgentDefinition):
-        """Salva (ou atualiza) a definição de um agente no MongoDB."""
-        if not self.agent_name:
-            raise ValueError("Agent name must be set to save definition")
-            
-        def_data = {
+    def save_definition(self, agent_id: str, definition: AgentDefinition):
+        """Salva a definição do agente."""
+        data = {
             'name': definition.name,
             'version': definition.version,
             'schema_version': definition.schema_version,
@@ -67,80 +47,60 @@ class MongoDbStorage:
             'capabilities': definition.capabilities,
             'allowed_tools': definition.allowed_tools
         }
-        
-        self.agents_collection.update_one(
-            {"name": self.agent_name},
-            {"$set": {"definition": def_data}},
-            upsert=True
-        )
 
-    def load_persona(self) -> AgentPersona:
-        """Carrega a persona do agente a partir do MongoDB."""
-        if not self.agent_name:
-            raise ValueError("Agent name must be set to load persona")
-            
-        doc = self.agents_collection.find_one({"name": self.agent_name})
-        if not doc or "persona" not in doc:
-            raise FileNotFoundError(f"Persona not found for agent: {self.agent_name}")
-        
-        return AgentPersona(content=doc["persona"]["content"])
+        success = self.repository.save_definition(agent_id, data)
+        if not success:
+            raise RuntimeError(f"Failed to save definition for agent: {agent_id}")
 
-    def save_persona(self, persona: AgentPersona):
-        """Salva a persona do agente no MongoDB."""
-        if not self.agent_name:
-            raise ValueError("Agent name must be set to save persona")
-            
-        persona_data = {"content": persona.content}
-        
-        self.agents_collection.update_one(
-            {"name": self.agent_name},
-            {"$set": {"persona": persona_data}},
-            upsert=True
-        )
+    def load_persona(self, agent_id: str) -> AgentPersona:
+        """Carrega a persona do agente."""
+        content = self.repository.load_persona(agent_id)
+        if not content:
+            raise FileNotFoundError(f"Persona not found for agent: {agent_id}")
 
-    def load_playbook(self) -> AgentPlaybook:
-        """Carrega o playbook do agente a partir do MongoDB."""
-        if not self.agent_name:
-            raise ValueError("Agent name must be set to load playbook")
-            
-        doc = self.agents_collection.find_one({"name": self.agent_name})
-        if not doc or "playbook" not in doc:
-            raise FileNotFoundError(f"Playbook not found for agent: {self.agent_name}")
-        
-        playbook_data = doc["playbook"]
-        
+        return AgentPersona(content=content)
+
+    def save_persona(self, agent_id: str, persona: AgentPersona):
+        """Salva a persona do agente."""
+        success = self.repository.save_persona(agent_id, persona.content)
+        if not success:
+            raise RuntimeError(f"Failed to save persona for agent: {agent_id}")
+
+    def load_playbook(self, agent_id: str) -> AgentPlaybook:
+        """Carrega o playbook do agente."""
+        data = self.repository.load_playbook(agent_id)
+        if not data:
+            raise FileNotFoundError(f"Playbook not found for agent: {agent_id}")
+
         best_practices = []
-        if 'best_practices' in playbook_data:
-            for bp_data in playbook_data['best_practices']:
+        if 'best_practices' in data:
+            for bp_data in data['best_practices']:
                 best_practices.append(PlaybookBestPractice(
                     id=bp_data['id'],
                     title=bp_data['title'],
                     description=bp_data['description']
                 ))
-        
+
         anti_patterns = []
-        if 'anti_patterns' in playbook_data:
-            for ap_data in playbook_data['anti_patterns']:
+        if 'anti_patterns' in data:
+            for ap_data in data['anti_patterns']:
                 anti_patterns.append(PlaybookAntiPattern(
                     id=ap_data['id'],
                     title=ap_data['title'],
                     description=ap_data['description']
                 ))
-        
+
         return AgentPlaybook(
             best_practices=best_practices,
             anti_patterns=anti_patterns
         )
 
-    def save_playbook(self, playbook: AgentPlaybook):
-        """Salva o playbook do agente no MongoDB."""
-        if not self.agent_name:
-            raise ValueError("Agent name must be set to save playbook")
-            
-        playbook_data = {}
-        
+    def save_playbook(self, agent_id: str, playbook: AgentPlaybook):
+        """Salva o playbook do agente."""
+        data = {}
+
         if playbook.best_practices:
-            playbook_data['best_practices'] = [
+            data['best_practices'] = [
                 {
                     'id': bp.id,
                     'title': bp.title,
@@ -148,9 +108,9 @@ class MongoDbStorage:
                 }
                 for bp in playbook.best_practices
             ]
-        
+
         if playbook.anti_patterns:
-            playbook_data['anti_patterns'] = [
+            data['anti_patterns'] = [
                 {
                     'id': ap.id,
                     'title': ap.title,
@@ -158,40 +118,31 @@ class MongoDbStorage:
                 }
                 for ap in playbook.anti_patterns
             ]
-        
-        self.agents_collection.update_one(
-            {"name": self.agent_name},
-            {"$set": {"playbook": playbook_data}},
-            upsert=True
-        )
 
-    def load_knowledge(self) -> AgentKnowledge:
-        """Carrega o conhecimento do agente a partir do MongoDB."""
-        if not self.agent_name:
-            raise ValueError("Agent name must be set to load knowledge")
-            
-        doc = self.agents_collection.find_one({"name": self.agent_name})
-        if not doc or "knowledge" not in doc:
-            raise FileNotFoundError(f"Knowledge not found for agent: {self.agent_name}")
-        
-        knowledge_data = doc["knowledge"]
+        success = self.repository.save_playbook(agent_id, data)
+        if not success:
+            raise RuntimeError(f"Failed to save playbook for agent: {agent_id}")
+
+    def load_knowledge(self, agent_id: str) -> AgentKnowledge:
+        """Carrega o conhecimento do agente."""
+        data = self.repository.load_knowledge(agent_id)
+        if not data:
+            raise FileNotFoundError(f"Knowledge not found for agent: {agent_id}")
+
         artifacts = {}
-        if 'artifacts' in knowledge_data:
-            for path, item_data in knowledge_data['artifacts'].items():
+        if 'artifacts' in data:
+            for path, item_data in data['artifacts'].items():
                 artifacts[path] = KnowledgeItem(
                     summary=item_data['summary'],
                     purpose=item_data['purpose'],
                     last_modified_by_task=item_data['last_modified_by_task']
                 )
-        
+
         return AgentKnowledge(artifacts=artifacts)
 
-    def save_knowledge(self, knowledge: AgentKnowledge):
-        """Salva o conhecimento do agente no MongoDB."""
-        if not self.agent_name:
-            raise ValueError("Agent name must be set to save knowledge")
-            
-        knowledge_data = {
+    def save_knowledge(self, agent_id: str, knowledge: AgentKnowledge):
+        """Salva o conhecimento do agente."""
+        data = {
             'artifacts': {
                 path: {
                     'summary': item.summary,
@@ -201,78 +152,65 @@ class MongoDbStorage:
                 for path, item in knowledge.artifacts.items()
             }
         }
-        
-        self.agents_collection.update_one(
-            {"name": self.agent_name},
-            {"$set": {"knowledge": knowledge_data}},
-            upsert=True
-        )
 
-    def load_history(self) -> List[HistoryEntry]:
-        """Carrega o histórico de um agente a partir do MongoDB."""
-        if not self.agent_name:
-            raise ValueError("Agent name must be set to load history")
-            
-        cursor = self.history_collection.find({"agent_id": self.agent_name}).sort("_id", 1)
+        success = self.repository.save_knowledge(agent_id, data)
+        if not success:
+            raise RuntimeError(f"Failed to save knowledge for agent: {agent_id}")
+
+    def load_history(self, agent_id: str) -> List[HistoryEntry]:
+        """Carrega o histórico do agente."""
+        history_data = self.repository.load_history(agent_id)
+
         history_entries = []
-        
-        for doc in cursor:
+        for data in history_data:
             history_entries.append(HistoryEntry(
-                _id=doc['_id'],
-                agent_id=doc['agent_id'],
-                task_id=doc['task_id'],
-                status=doc['status'],
-                summary=doc['summary'],
-                git_commit_hash=doc['git_commit_hash']
+                _id=data.get('_id'),
+                agent_id=data['agent_id'],
+                task_id=data['task_id'],
+                status=data['status'],
+                summary=data['summary'],
+                git_commit_hash=data['git_commit_hash']
             ))
-        
+
         return history_entries
 
-    def append_to_history(self, entry: HistoryEntry):
-        """Adiciona uma nova entrada ao histórico no MongoDB."""
-        if not self.agent_name:
-            raise ValueError("Agent name must be set to append to history")
-            
-        doc = {
+    def append_to_history(self, agent_id: str, entry: HistoryEntry):
+        """Adiciona uma entrada ao histórico do agente."""
+        data = {
             '_id': entry._id,
             'agent_id': entry.agent_id,
             'task_id': entry.task_id,
             'status': entry.status,
             'summary': entry.summary,
-            'git_commit_hash': entry.git_commit_hash,
-            'createdAt': datetime.utcnow()
+            'git_commit_hash': entry.git_commit_hash
         }
-        
-        self.history_collection.insert_one(doc)
 
-    def load_session(self) -> AgentSession:
-        """Carrega a sessão a partir do MongoDB."""
-        if not self.agent_name:
-            raise ValueError("Agent name must be set to load session")
-            
-        doc = self.sessions_collection.find_one({"agent_id": self.agent_name})
-        if not doc:
-            raise FileNotFoundError(f"Session not found for agent: {self.agent_name}")
-        
+        success = self.repository.append_to_history(agent_id, data)
+        if not success:
+            raise RuntimeError(f"Failed to append to history for agent: {agent_id}")
+
+    def load_session(self, agent_id: str) -> AgentSession:
+        """Carrega a sessão do agente."""
+        data = self.repository.load_session(agent_id)
+        if not data:
+            raise FileNotFoundError(f"Session not found for agent: {agent_id}")
+
         return AgentSession(
-            current_task_id=doc['current_task_id'],
-            state=doc.get('state', {})
+            current_task_id=data['current_task_id'],
+            state=data.get('state', {})
         )
 
-    def save_session(self, session: AgentSession):
-        """Salva a sessão no MongoDB."""
-        if not self.agent_name:
-            raise ValueError("Agent name must be set to save session")
-            
-        doc = {
-            'agent_id': self.agent_name,
+    def save_session(self, agent_id: str, session: AgentSession):
+        """Salva a sessão do agente."""
+        data = {
             'current_task_id': session.current_task_id,
-            'state': session.state,
-            'createdAt': datetime.utcnow()
+            'state': session.state
         }
-        
-        self.sessions_collection.replace_one(
-            {"agent_id": self.agent_name},
-            doc,
-            upsert=True
-        )
+
+        success = self.repository.save_session(agent_id, data)
+        if not success:
+            raise RuntimeError(f"Failed to save session for agent: {agent_id}")
+
+    def list_agents(self) -> List[str]:
+        """Lista todos os agentes disponíveis."""
+        return self.repository.list_agents()
