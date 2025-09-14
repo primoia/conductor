@@ -28,14 +28,16 @@ class AgentStorageService:
         if storage_config.type == "filesystem":
             return FileSystemStorage(base_path=Path(storage_config.path))
         elif storage_config.type == "mongodb":
-            # Para MongoDB, precisamos da connection_string
-            connection_string = storage_config.connection_string
+            # Para MongoDB, usar credenciais do .env (mesma lógica do StorageService)
+            from src.config import settings
+
+            connection_string = settings.mongo_uri
             if not connection_string:
-                raise ConfigurationError("MongoDB connection_string é obrigatória")
+                raise ConfigurationError("MongoDB connection_string é obrigatória (configure MONGO_URI no .env)")
 
             return MongoDbStorage(
                 connection_string=connection_string,
-                db_name=getattr(storage_config, 'database_name', 'conductor')
+                db_name=settings.mongo_database
             )
         else:
             raise ConfigurationError(f"Tipo de armazenamento desconhecido: {storage_config.type}")
