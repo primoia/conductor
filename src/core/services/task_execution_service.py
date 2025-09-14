@@ -67,8 +67,8 @@ class TaskExecutionService:
                 'current_task_id': session.current_task_id,
                 'state': session.state
             }
-        except FileNotFoundError:
-            # Sessão não existe, retornar padrão
+        except (FileNotFoundError, AttributeError):
+            # Sessão não existe ou é um dict (baixo nível), retornar padrão
             return {'current_task_id': None, 'state': {}}
 
     def _get_agent_home_path(self, agent_id: str, session_data: dict) -> str:
