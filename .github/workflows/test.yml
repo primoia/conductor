@@ -43,7 +43,7 @@ jobs:
     - name: Install project
       run: poetry install --no-interaction
 
-    - name: Run unit tests only (exclude e2e, integration, manual, mongo)
+    - name: Run CI-safe tests
       run: |
         poetry run pytest \
           -v \
@@ -51,17 +51,3 @@ jobs:
           -m "not e2e and not integration and not manual and not mongo" \
           --maxfail=10 \
           tests/
-
-    - name: Run specific safe test files
-      run: |
-        poetry run pytest \
-          -v \
-          --tb=short \
-          tests/core/services/test_task_execution_service.py \
-          tests/core/services/test_agent_storage_service.py \
-          tests/core/test_prompt_engine.py \
-          tests/core/services/test_configuration_service.py \
-          tests/core/services/test_tool_management_service.py \
-          tests/core/services/test_session_management_service.py \
-          tests/core/services/test_storage_service.py \
-          tests/test_argument_parser.py

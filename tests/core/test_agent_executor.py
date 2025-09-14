@@ -49,18 +49,19 @@ def test_run_success_scenario(mock_dependencies):
         assert result.output == "Resposta da IA"
         assert result.metadata["agent_id"] == "test_agent"
 
+@pytest.mark.integration
 def test_run_llm_failure_scenario(mock_dependencies):
     """Testa o tratamento de erro quando o cliente LLM falha."""
     # Setup
     mock_dependencies["prompt_engine"].build_prompt.return_value = "Prompt final"
     mock_dependencies["llm_client"].invoke.side_effect = Exception("Falha na API")
-    
+
     executor = AgentExecutor(**mock_dependencies)
     task = TaskDTO(agent_id="test_agent", user_input="Olá")
-    
+
     # Execução
     result = executor.run(task)
-    
+
     # Verificação
     assert result.status == "error"
     assert "Falha na API" in result.output

@@ -29,6 +29,7 @@ def test_workspace():
         shutil.rmtree(temp_dir)
 
 
+@pytest.mark.e2e
 def test_full_persistence_flow_for_agent_task(test_workspace):
     """
     Test the complete persistence flow from task execution to file creation.
@@ -211,6 +212,7 @@ Your responses should be helpful and concise.
 
 
 # Additional test for multiple task executions
+@pytest.mark.e2e
 def test_persistence_with_multiple_tasks(test_workspace):
     """
     Test that persistence works correctly with multiple sequential task executions.
