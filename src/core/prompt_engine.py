@@ -26,7 +26,16 @@ class PromptEngine:
         self.persona_content: str = ""
         self.playbook: Dict[str, Any] = {}
         self.playbook_content: str = ""
-        logger.debug(f"PromptEngine inicializado para o caminho: {agent_home_path}")
+        self.is_mongodb = str(agent_home_path).startswith("mongodb://")
+
+        # Extract agent_id from MongoDB path
+        if self.is_mongodb:
+            # mongodb://agents/{agent_id} -> {agent_id}
+            self.agent_id = str(agent_home_path).split("/")[-1]
+        else:
+            self.agent_id = None
+
+        logger.debug(f"PromptEngine inicializado para o caminho: {agent_home_path} (MongoDB: {self.is_mongodb})")
 
     def load_context(self) -> None:
         """
@@ -112,16 +121,32 @@ class PromptEngine:
         return self.agent_config.get("available_tools", [])
 
     def _load_agent_config(self) -> None:
-        """Carrega configuração do agente a partir do definition.yaml."""
-        definition_yaml_path = self.agent_home_path / "definition.yaml"
-        if not definition_yaml_path.exists():
-            raise AgentNotFoundError(f"definition.yaml not found: {definition_yaml_path}")
+        """Carrega configuração do agente a partir do definition.yaml ou MongoDB."""
+        if self.is_mongodb:
+            # Load from MongoDB storage
+            try:
+                from src.container import container
+                storage_service = container.get_storage_service()
+                repository = storage_service.get_repository()
+                config_data = repository.load_definition(self.agent_id)
 
-        try:
-            with open(definition_yaml_path, "r", encoding="utf-8") as f:
-                self.agent_config = yaml.safe_load(f)
-        except yaml.YAMLError as e:
-            raise ConfigurationError(f"Error parsing definition.yaml: {e}")
+                if not config_data:
+                    raise AgentNotFoundError(f"Definition not found for agent: {self.agent_id}")
+
+                self.agent_config = config_data
+            except Exception as e:
+                raise ConfigurationError(f"Error loading agent definition from MongoDB: {e}")
+        else:
+            # Load from filesystem
+            definition_yaml_path = self.agent_home_path / "definition.yaml"
+            if not definition_yaml_path.exists():
+                raise AgentNotFoundError(f"definition.yaml not found: {definition_yaml_path}")
+
+            try:
+                with open(definition_yaml_path, "r", encoding="utf-8") as f:
+                    self.agent_config = yaml.safe_load(f)
+            except yaml.YAMLError as e:
+                raise ConfigurationError(f"Error parsing definition.yaml: {e}")
 
     def _validate_agent_config(self) -> None:
         """Valida a configuração carregada do agente."""
@@ -136,44 +161,82 @@ class PromptEngine:
 
     def _load_agent_persona(self) -> None:
         """Carrega o conteúdo da persona do agente."""
-        persona_prompt_path = self.agent_config.get("persona_prompt_path", "persona.md")
-        persona_path = self.agent_home_path / persona_prompt_path
+        if self.is_mongodb:
+            # Load from MongoDB storage
+            try:
+                from src.container import container
+                storage_service = container.get_storage_service()
+                repository = storage_service.get_repository()
+                persona_content = repository.load_persona(self.agent_id)
 
-        if not persona_path.exists():
-            raise AgentNotFoundError(f"Persona file not found: {persona_path}")
+                if not persona_content:
+                    raise AgentNotFoundError(f"Persona not found for agent: {self.agent_id}")
 
-        try:
-            with open(persona_path, "r", encoding="utf-8") as f:
-                self.persona_content = f.read()
+                self.persona_content = persona_content
+            except Exception as e:
+                raise ConfigurationError(f"Error loading agent persona from MongoDB: {e}")
+        else:
+            # Load from filesystem
+            persona_prompt_path = self.agent_config.get("persona_prompt_path", "persona.md")
+            persona_path = self.agent_home_path / persona_prompt_path
 
-        except Exception as e:
-            raise ConfigurationError(f"Error loading agent persona: {e}")
+            if not persona_path.exists():
+                raise AgentNotFoundError(f"Persona file not found: {persona_path}")
+
+            try:
+                with open(persona_path, "r", encoding="utf-8") as f:
+                    self.persona_content = f.read()
+
+            except Exception as e:
+                raise ConfigurationError(f"Error loading agent persona: {e}")
 
     def _load_agent_playbook(self) -> None:
         """Carrega o conteúdo do playbook do agente (opcional)."""
-        playbook_path = self.agent_home_path / "playbook.yaml"
-        
-        if not playbook_path.exists():
-            logger.debug(f"Playbook file not found: {playbook_path} (optional)")
-            self.playbook = {}
-            self.playbook_content = ""
-            return
+        if self.is_mongodb:
+            # Load from MongoDB storage
+            try:
+                from src.container import container
+                storage_service = container.get_storage_service()
+                repository = storage_service.get_repository()
+                playbook_data = repository.load_playbook(self.agent_id)
 
-        try:
-            with open(playbook_path, "r", encoding="utf-8") as f:
-                playbook_raw_content = f.read()
-                self.playbook = yaml.safe_load(playbook_raw_content)
-                self.playbook_content = self._format_playbook_for_prompt(self.playbook)
-                logger.debug(f"Playbook loaded successfully from: {playbook_path}")
+                if playbook_data:
+                    self.playbook = playbook_data
+                    self.playbook_content = self._format_playbook_for_prompt(self.playbook)
+                    logger.debug(f"Playbook loaded successfully from MongoDB for agent: {self.agent_id}")
+                else:
+                    logger.debug(f"Playbook not found for agent: {self.agent_id} (optional)")
+                    self.playbook = {}
+                    self.playbook_content = ""
+            except Exception as e:
+                logger.warning(f"Error loading agent playbook from MongoDB: {e}")
+                self.playbook = {}
+                self.playbook_content = ""
+        else:
+            # Load from filesystem
+            playbook_path = self.agent_home_path / "playbook.yaml"
 
-        except yaml.YAMLError as e:
-            logger.warning(f"Error parsing playbook.yaml: {e}")
-            self.playbook = {}
-            self.playbook_content = ""
-        except Exception as e:
-            logger.warning(f"Error loading agent playbook: {e}")
-            self.playbook = {}
-            self.playbook_content = ""
+            if not playbook_path.exists():
+                logger.debug(f"Playbook file not found: {playbook_path} (optional)")
+                self.playbook = {}
+                self.playbook_content = ""
+                return
+
+            try:
+                with open(playbook_path, "r", encoding="utf-8") as f:
+                    playbook_raw_content = f.read()
+                    self.playbook = yaml.safe_load(playbook_raw_content)
+                    self.playbook_content = self._format_playbook_for_prompt(self.playbook)
+                    logger.debug(f"Playbook loaded successfully from: {playbook_path}")
+
+            except yaml.YAMLError as e:
+                logger.warning(f"Error parsing playbook.yaml: {e}")
+                self.playbook = {}
+                self.playbook_content = ""
+            except Exception as e:
+                logger.warning(f"Error loading agent playbook: {e}")
+                self.playbook = {}
+                self.playbook_content = ""
 
     def _format_playbook_for_prompt(self, playbook_data: Dict[str, Any]) -> str:
         """Formata o playbook para inclusão no prompt."""
