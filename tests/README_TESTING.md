@@ -3,10 +3,10 @@
 ## 🚀 Execução Rápida (Padrão)
 
 ```bash
-# Executar todos os testes unitários CI-safe (PADRÃO - 103 testes em ~21s)
+# LOCAL: Executar TODOS os testes (PADRÃO - incluindo integration)
 poetry run pytest
 
-# Configuração explícita (pytest.ini automático)
+# CI: Executar apenas testes CI-safe (sem dependencies externas)
 poetry run pytest -m "not manual and not e2e and not integration and not mongo"
 
 # Script helper para CI-safe tests
@@ -18,13 +18,13 @@ poetry run pytest --cov=src --cov-report=html
 
 ## 🏷️ Categorias de Testes
 
-### ✅ Testes CI-Safe (GitHub Actions) - 103 testes
+### ✅ Testes CI-Safe (GitHub Actions) - 93 testes
 ```bash
-# Testes que rodam automaticamente no CI (PADRÃO)
-poetry run pytest
-
-# Configuração explícita (já aplicada em pytest.ini)
+# CI: Testes que rodam automaticamente no GitHub Actions
 poetry run pytest -m "not manual and not e2e and not integration and not mongo"
+
+# LOCAL: Todos os testes (padrão para desenvolvimento)
+poetry run pytest
 ```
 
 **Incluem:**
@@ -220,8 +220,9 @@ python -m pytest --cov=src --cov-report=term-missing
 
 | Situação | Comando | Testes | Tempo |
 |----------|---------|--------|-------|
-| **Desenvolvimento/CI (padrão)** | `poetry run pytest` | 103 CI-safe | ~21s ⚡ |
-| **CI Helper Script** | `python run_ci_tests.py` | 103 CI-safe | ~21s ⚡ |
+| **Desenvolvimento (padrão local)** | `poetry run pytest` | 104 todos | ~21s ⚡ |
+| **CI Safe (GitHub Actions)** | `poetry run pytest -m "not e2e and not integration and not manual and not mongo"` | 93 CI-safe | ~3s ⚡ |
+| **CI Helper Script** | `python run_ci_tests.py` | 93 CI-safe | ~3s ⚡ |
 | **Com MongoDB** | `poetry run pytest -m "not manual and not e2e"` | ~111 (unit+mongo) | ~25s |
 | **E2E Manual** | `poetry run pytest tests/e2e/ -v` | E2E completos | ~60s+ |
 | **Tudo** | `poetry run pytest --override-ini addopts="-v"` | Todos completos | ~90s+ |
@@ -229,6 +230,6 @@ python -m pytest --cov=src --cov-report=term-missing
 ## 🚀 **GitHub Actions CI**
 - **Trigger:** Push/PR para main/develop
 - **Python:** 3.11 e 3.12
-- **Testes:** 103 CI-safe (sem Claude/Gemini/MongoDB)
-- **Tempo:** ~2 minutos total (setup + testes)
+- **Testes:** 93 CI-safe (sem Claude/Gemini/MongoDB/config.yaml)
+- **Tempo:** ~1 minuto total (setup + testes)
 - **Dependências:** Zero externas ✅
