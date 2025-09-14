@@ -183,6 +183,8 @@ def main():
         backup_agents_command(args)
     elif args.restore:
         restore_agents_command(args)
+    elif args.migrate_to:
+        migrate_agents_command(args)
     elif args.agent:
         # Main agent interaction logic
         handle_agent_interaction(args)
@@ -603,6 +605,63 @@ def restore_agents_command(args):
             
     except Exception as e:
         print(f"❌ Erro ao executar restore: {e}")
+
+def migrate_agents_command(args):
+    """Migrar agentes entre backends usando o motor de sincronização."""
+    import subprocess
+    import os
+    from src.core.services.configuration_service import ConfigurationService
+    
+    try:
+        # Determinar backend de origem
+        if args.migrate_from:
+            source = args.migrate_from
+        else:
+            # Usar configuração atual como padrão
+            config_service = ConfigurationService()
+            source = config_service.get_storage_config().type
+        
+        destination = args.migrate_to
+        
+        print(f"🔄 Migrando agentes: {source} → {destination}")
+        print("=" * 50)
+        
+        # Preparar argumentos para o sync_engine
+        sync_script = os.path.join(os.getcwd(), "scripts", "helpers", "sync_engine.py")
+        
+        if not os.path.exists(sync_script):
+            print(f"❌ Script de sincronização não encontrado: {sync_script}")
+            return
+        
+        cmd = [
+            "python3", sync_script,
+            "--source", source,
+            "--destination", destination
+        ]
+        
+        # Adicionar flags opcionais
+        if args.no_config_update:
+            cmd.append("--no-config-update")
+        
+        if args.path:
+            cmd.extend(["--path", args.path])
+        
+        # Executar migração
+        result = subprocess.run(cmd, capture_output=False, text=True)
+        
+        if result.returncode == 0:
+            print("\n🎉 Migração concluída com sucesso!")
+            
+            # Limpar cache após migração se houve mudança de backend
+            if not args.no_config_update:
+                agent_service = container.get_agent_discovery_service()
+                agent_service.clear_cache()
+                print("🔄 Cache de descoberta limpo")
+        else:
+            print(f"❌ Erro na migração (código: {result.returncode})")
+            
+    except Exception as e:
+        print(f"❌ Erro ao executar migração: {e}")
 
 def install_templates_command(args):
     """Instala templates de agentes por categoria ou agente específico."""

@@ -1,12 +1,20 @@
-# SAGA-019: Implementação do Script de Sincronização de Storage
+# SAGA-019 (Revisão Final): Implementação da Sincronização de Storage
 
 ## Visão Geral
 
-Com a arquitetura de persistência agora unificada e refatorada na SAGA-018, esta saga foca em implementar a funcionalidade originalmente desejada: um script robusto e amigável para sincronizar e migrar o estado dos agentes entre os backends `filesystem` e `mongodb`.
+Esta saga implementa a funcionalidade de **migração bidirecional** de dados de agentes entre os backends `filesystem` e `mongodb`. A solução foi projetada especificamente para suportar workflows com RAMDisk, permitindo backup seguro sem forçar alterações de configuração, mantendo a simplicidade para novos desenvolvedores.
 
-## Artefato Principal
+## Casos de Uso Principais
 
-O resultado será um novo comando CLI, `conductor storage sync`, que encapsula esta lógica. O comando terá um duplo propósito, controlado por uma flag `--backup`:
+1. **Backup Seguro (RAMDisk)**: Migração temporária filesystem → mongodb sem alterar config.yaml
+2. **Restore de Emergência**: Migração temporária mongodb → filesystem sem alterar config.yaml  
+3. **Migração Permanente**: Mudança definitiva de backend com atualização do config.yaml
+4. **Backup Externo**: Suporte a paths externos para repositórios Git privados
 
-1.  **Modo Migração (Padrão):** Copia os dados e atualiza o `config.yaml` para usar o novo backend.
-2.  **Modo Backup (`--backup`):** Apenas copia os dados, sem alterar a configuração, ideal para backups manuais.
+## Arquitetura da Solução
+
+A solução opera em três níveis, respeitando a arquitetura de serviços estabelecida na SAGA-018:
+
+1.  **CLI (`conductor.py`):** Interface unificada com comando `--migrate-to` e flag opcional `--no-config-update`
+2.  **Scripts Shell (`backup_agents.sh`, etc.):** Mantêm funcionalidade `rsync` existente, com extensão para novo sistema
+3.  **Motor de Sincronização (`sync_engine.py`):** Lógica de negócio operando na camada `IStateRepository` para máxima performance, usando configuração do `.env` existente

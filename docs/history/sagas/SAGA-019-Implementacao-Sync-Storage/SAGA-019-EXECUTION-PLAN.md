@@ -1,31 +1,70 @@
-# Plano de Execução: SAGA-019
+# Plano de Execução (Revisão Final): SAGA-019
 
-**Objetivo:** Construir sobre a arquitetura de persistência unificada para implementar um comando CLI que sincroniza e migra dados de agentes entre os backends de `filesystem` e `mongodb`.
+**Objetivo:** Implementar funcionalidade de **migração bidirecional** entre backends filesystem e mongodb, com suporte especial para workflows RAMDisk e preservação de configurações locais.
 
----
+## Interface CLI Final
 
-### Fase 1: Implementação do Motor de Sincronização e CLI
+```bash
+# Migração com preservação de config (uso principal)
+conductor --migrate-to mongodb --no-config-update
+conductor --migrate-to filesystem --no-config-update
 
-**Descrição:** Criar o script auxiliar que contém a lógica de negócio e a interface de linha de comando para a operação.
+# Migração permanente (altera config.yaml)
+conductor --migrate-to mongodb
+conductor --migrate-to filesystem
 
-*   **Playbook de Implementação:**
-    *   `0001-A-criar-script-sync-engine.md`: Cria o arquivo `scripts/helpers/sync_engine.py` contendo a classe `SyncEngine` e o bloco `main` para parse de argumentos (`--direction`, `--backup`). A classe usará a arquitetura de serviços e repositórios já refatorada para realizar a transferência de dados.
-
----
-
-### Fase 2: Integração com o CLI Principal e Scripts Shell
-
-**Descrição:** Conectar o novo motor de sincronização aos comandos `conductor --backup` e `conductor --restore` existentes, e criar o novo comando de migração.
-
-*   **Playbook de Implementação:**
-    *   `0002-B-evoluir-scripts-shell.md`: Modifica `backup_agents.sh` e `restore_agents.sh` para se tornarem "dispatchers", chamando o novo `sync_engine.py` quando a flag `--backend mongodb` for utilizada, e mantendo o comportamento de `rsync` como padrão para garantir retrocompatibilidade.
-    *   `0003-C-integrar-comandos-cli.md`: Ajusta `conductor.py` para passar a flag `--backend` para os scripts shell e implementa o novo comando `conductor --migrate-to <backend>`.
+# Suporte a paths externos
+conductor --migrate-to filesystem --path "/path/to/external/backup"
+```
 
 ---
 
-### Fase 3: Testes e Validação
+### Fase 1: Motor de Sincronização Inteligente
 
-**Descrição:** Garantir a robustez e a corretude da nova funcionalidade através de testes de integração.
+**Descrição:** Criar motor que usa configuração do `.env`, detecta disponibilidade de backends e opera bidirecionalmente.
 
 *   **Playbook de Implementação:**
-    *   `0004-D-implementar-testes-integracao-sync.md`: Cria os testes de integração para os cenários de Backup, Migração e Restauração, validando tanto a transferência de dados quanto a modificação do `config.yaml`.
+    *   `0001-A-criar-script-sync-engine.md`: Cria `scripts/helpers/sync_engine.py` com:
+        - Uso de configuração do `.env` (mongo_uri, mongo_database)
+        - Detecção automática de disponibilidade MongoDB
+        - Suporte bidirecional (filesystem ↔ mongodb)
+        - Logs detalhados de progresso
+        - Validação de pré-requisitos
+
+---
+
+### Fase 2: Interface CLI Unificada
+
+**Descrição:** Implementar comando `--migrate-to` com flag `--no-config-update` para preservar configurações locais.
+
+*   **Playbook de Implementação:**
+    *   `0002-B-implementar-cli-migrate.md`: Adiciona ao `conductor.py`:
+        - Argumento `--migrate-to` com opções [mongodb, filesystem]
+        - Flag `--no-config-update` para preservar config.yaml
+        - Parâmetro `--path` para backups externos
+        - Validações e alertas de configuração
+
+---
+
+### Fase 3: Compatibilidade com Scripts Existentes
+
+**Descrição:** Manter funcionalidade rsync/SSD existente e integrar com novo sistema.
+
+*   **Playbook de Implementação:**
+    *   `0003-C-manter-compatibilidade-scripts.md`: 
+        - Preservar `backup_agents.sh` e `restore_agents.sh` existentes
+        - Adicionar integração opcional com novo sistema
+        - Garantir retrocompatibilidade total
+
+---
+
+### Fase 4: Testes e Validação
+
+**Descrição:** Validar workflows completos, especialmente cenarios RAMDisk.
+
+*   **Playbook de Implementação:**
+    *   `0004-D-implementar-testes-completos.md`: 
+        - Testes de migração bidirecional
+        - Validação de preservação de config.yaml
+        - Testes de conectividade e erro handling
+        - Testes de coexistência com backup SSD
