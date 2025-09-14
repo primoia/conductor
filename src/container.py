@@ -7,6 +7,7 @@ from src.config import settings, ConfigManager
 from src.core.conductor_service import ConductorService
 from src.core.services.configuration_service import ConfigurationService
 from src.core.services.storage_service import StorageService
+from src.core.services.agent_storage_service import AgentStorageService
 from src.core.services.agent_discovery_service import AgentDiscoveryService
 from src.core.services.tool_management_service import ToolManagementService
 from src.core.services.task_execution_service import TaskExecutionService
@@ -39,6 +40,7 @@ class DIContainer:
         self._conductor_service = None
         self._configuration_service = None
         self._storage_service = None
+        self._agent_storage_service = None
         self._agent_discovery_service = None
         self._tool_management_service = None
         self._task_execution_service = None
@@ -83,6 +85,13 @@ class DIContainer:
             self._storage_service = StorageService(config_service)
         return self._storage_service
 
+    def get_agent_storage_service(self) -> AgentStorageService:
+        """Get singleton AgentStorageService instance."""
+        if self._agent_storage_service is None:
+            config_service = self.get_configuration_service()
+            self._agent_storage_service = AgentStorageService(config_service)
+        return self._agent_storage_service
+
     def get_agent_discovery_service(self) -> AgentDiscoveryService:
         """Get singleton AgentDiscoveryService instance."""
         if self._agent_discovery_service is None:
@@ -101,11 +110,10 @@ class DIContainer:
         """Get singleton TaskExecutionService instance."""
         if self._task_execution_service is None:
             config_service = self.get_configuration_service()
-            storage_service = self.get_storage_service()
-            agent_service = self.get_agent_discovery_service()
+            agent_storage_service = self.get_agent_storage_service()
             tool_service = self.get_tool_management_service()
             self._task_execution_service = TaskExecutionService(
-                config_service, storage_service, agent_service, tool_service
+                agent_storage_service, tool_service, config_service
             )
         return self._task_execution_service
 

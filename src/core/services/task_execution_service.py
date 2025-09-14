@@ -1,7 +1,7 @@
 # src/core/services/task_execution_service.py
 import os
 import sys
-from src.core.services.storage_service import StorageService
+from src.core.services.agent_storage_service import AgentStorageService
 from src.core.services.tool_management_service import ToolManagementService
 from src.core.services.configuration_service import ConfigurationService
 from src.core.domain import AgentDefinition, TaskDTO, TaskResultDTO
@@ -14,12 +14,12 @@ class TaskExecutionService:
     """Responsável por executar tarefas de agentes."""
 
     def __init__(
-        self, 
-        storage_service: StorageService,
+        self,
+        agent_storage_service: AgentStorageService,
         tool_service: ToolManagementService,
         config_service: ConfigurationService
     ):
-        self._storage = storage_service.get_repository()
+        self._storage = agent_storage_service.get_storage()
         self._tools = tool_service
         self._config = config_service
 
@@ -30,7 +30,7 @@ class TaskExecutionService:
             self._current_task = task
             
             # 1. Carregar a definição do agente
-            agent_definition = self._load_agent_definition(task.agent_id)
+            agent_definition = self._storage.load_definition(task.agent_id)
             
             # 2. Carregar dados da sessão
             session_data = self._load_session_data(task.agent_id)
@@ -58,44 +58,37 @@ class TaskExecutionService:
         except Exception as e:
             return TaskResultDTO(status="error", output=str(e), metadata={})
 
-    def _load_agent_definition(self, agent_id: str) -> AgentDefinition:
-        """Carrega e cria a definição do agente."""
-        definition = self._storage.load_definition(agent_id)
-        if not definition:
-            raise FileNotFoundError(f"Definição não encontrada para o agente: {agent_id}")
-
-        # Filter only valid fields for AgentDefinition
-        valid_fields = {
-            'name', 'version', 'schema_version', 'description', 'author', 
-            'tags', 'capabilities', 'allowed_tools'
-        }
-        
-        filtered_data = {k: v for k, v in definition.items() if k in valid_fields}
-        
-        # Ensure required fields have defaults
-        filtered_data.setdefault('name', agent_id)
-        filtered_data.setdefault('version', '1.0.0')
-        filtered_data.setdefault('schema_version', '1.0')
-        filtered_data.setdefault('description', f'Agent {agent_id}')
-        filtered_data.setdefault('author', 'Unknown')
-        filtered_data.setdefault('tags', [])
-        filtered_data.setdefault('capabilities', [])
-        filtered_data.setdefault('allowed_tools', [])
-        
-        return AgentDefinition(**filtered_data)
 
     def _load_session_data(self, agent_id: str) -> dict:
         """Carrega dados da sessão do agente."""
-        return self._storage.load_session(agent_id)
+        try:
+            session = self._storage.load_session(agent_id)
+            return {
+                'current_task_id': session.current_task_id,
+                'state': session.state
+            }
+        except FileNotFoundError:
+            # Sessão não existe, retornar padrão
+            return {'current_task_id': None, 'state': {}}
 
     def _get_agent_home_path(self, agent_id: str, session_data: dict) -> str:
         """Obtém o caminho home do agente."""
         agent_home_path = session_data.get("agent_home_path")
         if not agent_home_path:
-            # Fall back to deriving the path from the repository if missing from session
-            agent_home_path = self._storage.get_agent_home_path(agent_id)
-            # Update session with the derived path for future use
-            self._storage.save_session(agent_id, session_data)
+            # Para storage de alto nível, precisamos acessar o repository de baixo nível
+            # para obter o caminho físico. Isso é uma exceção necessária.
+            from src.core.services.storage_service import StorageService
+            storage_service = StorageService(self._config)
+            repository = storage_service.get_repository()
+            agent_home_path = repository.get_agent_home_path(agent_id)
+
+            # Atualizar session com o path derivado para uso futuro
+            from src.core.domain import AgentSession
+            session = AgentSession(
+                current_task_id=session_data.get('current_task_id'),
+                state={**session_data.get('state', {}), 'agent_home_path': agent_home_path}
+            )
+            self._storage.save_session(agent_id, session)
         return agent_home_path
 
     def _create_agent_executor(
@@ -128,6 +121,16 @@ class TaskExecutionService:
                 if project_path and os.path.exists(project_path):
                     working_directory = project_path
                 
+                # Para agentes meta que criam outros agentes, usar diretório raiz do projeto
+                # em vez do diretório do agente atual
+                if (self._current_task.context.get("meta", False) or 
+                    self._current_task.context.get("new_agent_id") or
+                    agent_definition.tags and "meta" in agent_definition.tags):
+                    # Usar diretório raiz do projeto para agentes meta
+                    project_root = os.path.dirname(os.path.dirname(os.path.dirname(agent_home_path)))
+                    if os.path.exists(project_root):
+                        working_directory = project_root
+                
                 # Usar timeout do contexto se fornecido
                 context_timeout = self._current_task.context.get("timeout")
                 if context_timeout and isinstance(context_timeout, int):
@@ -159,18 +162,39 @@ class TaskExecutionService:
 
     def _persist_task_result(self, agent_id: str, result: TaskResultDTO) -> None:
         """Persiste o resultado da tarefa no repositório."""
+        from src.core.domain import AgentSession, AgentKnowledge, KnowledgeItem
+
         # Save updated session data
         if result.updated_session:
             current_session = self._storage.load_session(agent_id)
-            current_session.update(result.updated_session)
-            self._storage.save_session(agent_id, current_session)
-        
+            # Merge state dictionaries
+            merged_state = {**current_session.state, **result.updated_session}
+            new_session = AgentSession(
+                current_task_id=current_session.current_task_id,
+                state=merged_state
+            )
+            self._storage.save_session(agent_id, new_session)
+
         # Save updated knowledge data
         if result.updated_knowledge:
             current_knowledge = self._storage.load_knowledge(agent_id)
-            current_knowledge.update(result.updated_knowledge)
-            self._storage.save_knowledge(agent_id, current_knowledge)
-        
+            # Merge knowledge artifacts
+            merged_artifacts = {**current_knowledge.artifacts}
+
+            # Convert updated_knowledge dict to proper KnowledgeItem objects if needed
+            for path, data in result.updated_knowledge.items():
+                if isinstance(data, dict):
+                    merged_artifacts[path] = KnowledgeItem(
+                        summary=data.get('summary', ''),
+                        purpose=data.get('purpose', ''),
+                        last_modified_by_task=data.get('last_modified_by_task', '')
+                    )
+                else:
+                    merged_artifacts[path] = data
+
+            new_knowledge = AgentKnowledge(artifacts=merged_artifacts)
+            self._storage.save_knowledge(agent_id, new_knowledge)
+
         # Append history entry
         if result.history_entry:
             self._storage.append_to_history(agent_id, result.history_entry)

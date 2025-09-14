@@ -1,7 +1,5 @@
 # src/infrastructure/filesystem_storage.py
 
-import json
-import yaml
 from pathlib import Path
 from typing import List
 
@@ -9,26 +7,24 @@ from src.core.domain import (
     AgentDefinition, AgentPersona, AgentPlaybook, AgentKnowledge, HistoryEntry, AgentSession,
     PlaybookBestPractice, PlaybookAntiPattern, KnowledgeItem
 )
+from src.ports.agent_storage import IAgentStorage
+from src.infrastructure.storage.filesystem_repository import FileSystemStateRepository
 
-class FileSystemStorage:
+class FileSystemStorage(IAgentStorage):
     """
-    Implementa a persistência de artefatos de agente usando o sistema de arquivos local.
+    Implementa a camada de alto nível para artefatos de agente no sistema de arquivos.
+    Trabalha com objetos de domínio e delega a persistência para FileSystemStateRepository.
     """
 
     def __init__(self, base_path: Path):
-        self.base_path = base_path
-        # Garante que o diretório base do agente exista.
-        self.base_path.mkdir(parents=True, exist_ok=True)
+        self.repository = FileSystemStateRepository(str(base_path))
 
-    def load_definition(self) -> AgentDefinition:
-        """Carrega a definição do agente de definition.yaml."""
-        definition_path = self.base_path / "definition.yaml"
-        if not definition_path.exists():
-            raise FileNotFoundError(f"Definition file not found: {definition_path}")
-        
-        with open(definition_path, 'r', encoding='utf-8') as f:
-            data = yaml.safe_load(f)
-        
+    def load_definition(self, agent_id: str) -> AgentDefinition:
+        """Carrega a definição do agente."""
+        data = self.repository.load_definition(agent_id)
+        if not data:
+            raise FileNotFoundError(f"Definition not found for agent: {agent_id}")
+
         return AgentDefinition(
             name=data['name'],
             version=data['version'],
@@ -40,10 +36,8 @@ class FileSystemStorage:
             allowed_tools=data.get('allowed_tools', [])
         )
 
-    def save_definition(self, definition: AgentDefinition):
-        """Salva a definição do agente em definition.yaml."""
-        definition_path = self.base_path / "definition.yaml"
-        
+    def save_definition(self, agent_id: str, definition: AgentDefinition):
+        """Salva a definição do agente."""
         data = {
             'name': definition.name,
             'version': definition.version,
@@ -54,37 +48,31 @@ class FileSystemStorage:
             'capabilities': definition.capabilities,
             'allowed_tools': definition.allowed_tools
         }
-        
-        with open(definition_path, 'w', encoding='utf-8') as f:
-            yaml.safe_dump(data, f, default_flow_style=False, allow_unicode=True)
 
-    def load_persona(self) -> AgentPersona:
-        """Carrega a persona do agente de persona.md."""
-        persona_path = self.base_path / "persona.md"
-        if not persona_path.exists():
-            raise FileNotFoundError(f"Persona file not found: {persona_path}")
-        
-        with open(persona_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
+        success = self.repository.save_definition(agent_id, data)
+        if not success:
+            raise RuntimeError(f"Failed to save definition for agent: {agent_id}")
+
+    def load_persona(self, agent_id: str) -> AgentPersona:
+        """Carrega a persona do agente."""
+        content = self.repository.load_persona(agent_id)
+        if not content:
+            raise FileNotFoundError(f"Persona not found for agent: {agent_id}")
+
         return AgentPersona(content=content)
 
-    def save_persona(self, persona: AgentPersona):
-        """Salva a persona do agente em persona.md."""
-        persona_path = self.base_path / "persona.md"
-        
-        with open(persona_path, 'w', encoding='utf-8') as f:
-            f.write(persona.content)
+    def save_persona(self, agent_id: str, persona: AgentPersona):
+        """Salva a persona do agente."""
+        success = self.repository.save_persona(agent_id, persona.content)
+        if not success:
+            raise RuntimeError(f"Failed to save persona for agent: {agent_id}")
 
-    def load_playbook(self) -> AgentPlaybook:
-        """Carrega o playbook do agente de playbook.yaml."""
-        playbook_path = self.base_path / "playbook.yaml"
-        if not playbook_path.exists():
-            raise FileNotFoundError(f"Playbook file not found: {playbook_path}")
-        
-        with open(playbook_path, 'r', encoding='utf-8') as f:
-            data = yaml.safe_load(f)
-        
+    def load_playbook(self, agent_id: str) -> AgentPlaybook:
+        """Carrega o playbook do agente."""
+        data = self.repository.load_playbook(agent_id)
+        if not data:
+            raise FileNotFoundError(f"Playbook not found for agent: {agent_id}")
+
         best_practices = []
         if 'best_practices' in data:
             for bp_data in data['best_practices']:
@@ -93,7 +81,7 @@ class FileSystemStorage:
                     title=bp_data['title'],
                     description=bp_data['description']
                 ))
-        
+
         anti_patterns = []
         if 'anti_patterns' in data:
             for ap_data in data['anti_patterns']:
@@ -102,18 +90,16 @@ class FileSystemStorage:
                     title=ap_data['title'],
                     description=ap_data['description']
                 ))
-        
+
         return AgentPlaybook(
             best_practices=best_practices,
             anti_patterns=anti_patterns
         )
 
-    def save_playbook(self, playbook: AgentPlaybook):
-        """Salva o playbook do agente em playbook.yaml."""
-        playbook_path = self.base_path / "playbook.yaml"
-        
+    def save_playbook(self, agent_id: str, playbook: AgentPlaybook):
+        """Salva o playbook do agente."""
         data = {}
-        
+
         if playbook.best_practices:
             data['best_practices'] = [
                 {
@@ -123,7 +109,7 @@ class FileSystemStorage:
                 }
                 for bp in playbook.best_practices
             ]
-        
+
         if playbook.anti_patterns:
             data['anti_patterns'] = [
                 {
@@ -133,19 +119,17 @@ class FileSystemStorage:
                 }
                 for ap in playbook.anti_patterns
             ]
-        
-        with open(playbook_path, 'w', encoding='utf-8') as f:
-            yaml.safe_dump(data, f, default_flow_style=False, allow_unicode=True)
 
-    def load_knowledge(self) -> AgentKnowledge:
-        """Carrega o conhecimento do agente de knowledge.json."""
-        knowledge_path = self.base_path / "knowledge.json"
-        if not knowledge_path.exists():
-            raise FileNotFoundError(f"Knowledge file not found: {knowledge_path}")
-        
-        with open(knowledge_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
+        success = self.repository.save_playbook(agent_id, data)
+        if not success:
+            raise RuntimeError(f"Failed to save playbook for agent: {agent_id}")
+
+    def load_knowledge(self, agent_id: str) -> AgentKnowledge:
+        """Carrega o conhecimento do agente."""
+        data = self.repository.load_knowledge(agent_id)
+        if not data:
+            raise FileNotFoundError(f"Knowledge not found for agent: {agent_id}")
+
         artifacts = {}
         if 'artifacts' in data:
             for path, item_data in data['artifacts'].items():
@@ -154,13 +138,11 @@ class FileSystemStorage:
                     purpose=item_data['purpose'],
                     last_modified_by_task=item_data['last_modified_by_task']
                 )
-        
+
         return AgentKnowledge(artifacts=artifacts)
 
-    def save_knowledge(self, knowledge: AgentKnowledge):
-        """Salva o conhecimento do agente em knowledge.json."""
-        knowledge_path = self.base_path / "knowledge.json"
-        
+    def save_knowledge(self, agent_id: str, knowledge: AgentKnowledge):
+        """Salva o conhecimento do agente."""
         data = {
             'artifacts': {
                 path: {
@@ -171,37 +153,30 @@ class FileSystemStorage:
                 for path, item in knowledge.artifacts.items()
             }
         }
-        
-        with open(knowledge_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
 
-    def load_history(self) -> List[HistoryEntry]:
-        """Carrega o histórico de um agente a partir de history.log (JSON Lines)."""
-        history_path = self.base_path / "history.log"
-        if not history_path.exists():
-            return []
-        
+        success = self.repository.save_knowledge(agent_id, data)
+        if not success:
+            raise RuntimeError(f"Failed to save knowledge for agent: {agent_id}")
+
+    def load_history(self, agent_id: str) -> List[HistoryEntry]:
+        """Carrega o histórico do agente."""
+        history_data = self.repository.load_history(agent_id)
+
         history_entries = []
-        with open(history_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    data = json.loads(line)
-                    history_entries.append(HistoryEntry(
-                        _id=data['_id'],
-                        agent_id=data['agent_id'],
-                        task_id=data['task_id'],
-                        status=data['status'],
-                        summary=data['summary'],
-                        git_commit_hash=data['git_commit_hash']
-                    ))
-        
+        for data in history_data:
+            history_entries.append(HistoryEntry(
+                _id=data['_id'],
+                agent_id=data['agent_id'],
+                task_id=data['task_id'],
+                status=data['status'],
+                summary=data['summary'],
+                git_commit_hash=data['git_commit_hash']
+            ))
+
         return history_entries
 
-    def append_to_history(self, entry: HistoryEntry):
-        """Adiciona uma nova entrada ao final de history.log (JSON Lines)."""
-        history_path = self.base_path / "history.log"
-        
+    def append_to_history(self, agent_id: str, entry: HistoryEntry):
+        """Adiciona uma entrada ao histórico do agente."""
         data = {
             '_id': entry._id,
             'agent_id': entry.agent_id,
@@ -210,32 +185,33 @@ class FileSystemStorage:
             'summary': entry.summary,
             'git_commit_hash': entry.git_commit_hash
         }
-        
-        with open(history_path, 'a', encoding='utf-8') as f:
-            f.write(json.dumps(data, ensure_ascii=False) + '\n')
+
+        success = self.repository.append_to_history(agent_id, data)
+        if not success:
+            raise RuntimeError(f"Failed to append to history for agent: {agent_id}")
     
-    def load_session(self) -> AgentSession:
-        """Carrega a sessão de session.json."""
-        session_path = self.base_path / "session.json"
-        if not session_path.exists():
-            raise FileNotFoundError(f"Session file not found: {session_path}")
-        
-        with open(session_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
+    def load_session(self, agent_id: str) -> AgentSession:
+        """Carrega a sessão do agente."""
+        data = self.repository.load_session(agent_id)
+        if not data:
+            raise FileNotFoundError(f"Session not found for agent: {agent_id}")
+
         return AgentSession(
             current_task_id=data['current_task_id'],
             state=data.get('state', {})
         )
 
-    def save_session(self, session: AgentSession):
-        """Salva a sessão em session.json."""
-        session_path = self.base_path / "session.json"
-        
+    def save_session(self, agent_id: str, session: AgentSession):
+        """Salva a sessão do agente."""
         data = {
             'current_task_id': session.current_task_id,
             'state': session.state
         }
-        
-        with open(session_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+
+        success = self.repository.save_session(agent_id, data)
+        if not success:
+            raise RuntimeError(f"Failed to save session for agent: {agent_id}")
+
+    def list_agents(self) -> List[str]:
+        """Lista todos os agentes disponíveis."""
+        return self.repository.list_agents()

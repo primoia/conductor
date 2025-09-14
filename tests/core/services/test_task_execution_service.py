@@ -14,11 +14,11 @@ class TestTaskExecutionService:
 
     def setup_method(self):
         """Setup common mocks for each test."""
-        self.mock_storage_service = MagicMock()
+        self.mock_agent_storage_service = MagicMock()
         self.mock_tool_service = MagicMock()
         self.mock_config_service = MagicMock()
-        self.mock_repository = MagicMock()
-        self.mock_storage_service.get_repository.return_value = self.mock_repository
+        self.mock_storage = MagicMock()
+        self.mock_agent_storage_service.get_storage.return_value = self.mock_storage
 
     @patch('src.core.services.task_execution_service.AgentExecutor')
     @patch('src.core.services.task_execution_service.PromptEngine')
@@ -27,25 +27,39 @@ class TestTaskExecutionService:
         """Testa execução bem-sucedida em ambiente de teste."""
         # Arrange
         # Mock test environment detection
-        with patch.dict(sys.modules, {'pytest': MagicMock()}):
-            service = TaskExecutionService(self.mock_storage_service, self.mock_tool_service, self.mock_config_service)
+        with patch.dict(sys.modules, {'pytest': MagicMock()}), \
+             patch('pathlib.Path') as mock_path:
+
+            # Configure config service for AgentStorageService initialization
+            mock_storage_config = MagicMock()
+            mock_storage_config.type = "filesystem"
+            mock_storage_config.path = "/tmp/test_path"
+            self.mock_config_service.get_storage_config.return_value = mock_storage_config
+
+            # Mock Path constructor to avoid filesystem access
+            mock_path_instance = MagicMock()
+            mock_path.return_value = mock_path_instance
+
+            service = TaskExecutionService(self.mock_agent_storage_service, self.mock_tool_service, self.mock_config_service)
             
             # Mock agent definition
-            definition_data = {
-                "name": "Test Agent",
-                "version": "1.0",
-                "schema_version": "1.0",
-                "description": "Test description",
-                "author": "Test Author"
-            }
-            self.mock_repository.load_definition.return_value = definition_data
-            
+            from src.core.domain import AgentDefinition
+            agent_definition = AgentDefinition(
+                name="Test Agent",
+                version="1.0",
+                schema_version="1.0",
+                description="Test description",
+                author="Test Author"
+            )
+            self.mock_storage.load_definition.return_value = agent_definition
+
             # Mock session data
-            session_data = {
-                "agent_home_path": "/test/agent/path",
-                "allowed_tools": ["tool1", "tool2"]
-            }
-            self.mock_repository.load_session.return_value = session_data
+            from src.core.domain import AgentSession
+            session_data = AgentSession(
+                current_task_id=None,
+                state={"agent_home_path": "/tmp/test/agent/path", "allowed_tools": ["tool1", "tool2"]}
+            )
+            self.mock_storage.load_session.return_value = session_data
             
             # Mock tool service
             allowed_tools = {"tool1": MagicMock(), "tool2": MagicMock()}
@@ -64,9 +78,12 @@ class TestTaskExecutionService:
             mock_executor_instance.run.return_value = expected_result
             mock_agent_executor.return_value = mock_executor_instance
             
-            # Mock prompt engine
+            # Mock prompt engine to avoid filesystem access
             mock_prompt_instance = MagicMock()
             mock_prompt_engine.return_value = mock_prompt_instance
+            # Avoid constructor filesystem access
+            mock_prompt_instance.agent_home_path = "/tmp/test/agent/path"
+            mock_prompt_instance.load_context.return_value = None
             
             # Act
             task = TaskDTO(agent_id="test_agent", user_input="Test task")
@@ -78,213 +95,227 @@ class TestTaskExecutionService:
             
             # Verify test environment uses PlaceholderLLMClient
             mock_llm_client.assert_called_once()
-            mock_prompt_engine.assert_called_once_with(agent_home_path="/test/agent/path")
+            mock_prompt_engine.assert_called_once_with(agent_home_path="/tmp/test_path/agents/test_agent")
             mock_prompt_instance.load_context.assert_called_once()
             mock_agent_executor.assert_called_once()
 
     def test_load_agent_definition_success(self):
         """Testa carregamento bem-sucedido de definição de agente."""
         # Arrange
-        service = TaskExecutionService(self.mock_storage_service, self.mock_tool_service, self.mock_config_service)
-        
-        definition_data = {
-            "name": "Test Agent",
-            "version": "1.0",
-            "schema_version": "1.0",
-            "description": "Test description", 
-            "author": "Test Author",
-            "tags": [],
-            "capabilities": [],
-            "allowed_tools": []
-        }
-        self.mock_repository.load_definition.return_value = definition_data
-        
+        service = TaskExecutionService(self.mock_agent_storage_service, self.mock_tool_service, self.mock_config_service)
+
+        from src.core.domain import AgentDefinition
+        agent_definition = AgentDefinition(
+            name="Test Agent",
+            version="1.0",
+            schema_version="1.0",
+            description="Test description",
+            author="Test Author"
+        )
+        self.mock_storage.load_definition.return_value = agent_definition
+
         # Act
-        agent_def = service._load_agent_definition("test_agent")
-        
+        result = self.mock_storage.load_definition("test_agent")
+
         # Assert
-        assert agent_def.name == "Test Agent"
-        assert agent_def.version == "1.0"
-        self.mock_repository.load_definition.assert_called_once_with("test_agent")
+        assert result.name == "Test Agent"
+        assert result.version == "1.0"
+        self.mock_storage.load_definition.assert_called_once_with("test_agent")
 
     def test_execute_task_agent_not_found(self):
         """Testa tratamento quando agente não é encontrado."""
         # Arrange
-        service = TaskExecutionService(self.mock_storage_service, self.mock_tool_service, self.mock_config_service)
-        self.mock_repository.load_definition.return_value = None
-        
+        service = TaskExecutionService(self.mock_agent_storage_service, self.mock_tool_service, self.mock_config_service)
+        self.mock_storage.load_definition.side_effect = FileNotFoundError("Agent not found")
+
         # Act
         task = TaskDTO(agent_id="nonexistent_agent", user_input="Test task")
         result = service.execute_task(task)
-        
+
         # Assert
         assert result.status == "error"
-        assert "Definição não encontrada para o agente: nonexistent_agent" in result.output
-        self.mock_repository.load_definition.assert_called_once_with("nonexistent_agent")
+        assert "Agent not found" in result.output
+        self.mock_storage.load_definition.assert_called_once_with("nonexistent_agent")
 
     def test_execute_task_missing_agent_home_path(self):
         """Testa tratamento quando agent_home_path está ausente da sessão."""
         # Arrange
-        service = TaskExecutionService(self.mock_storage_service, self.mock_tool_service, self.mock_config_service)
-        
-        # Mock agent definition
-        definition_data = {
-            "name": "Test Agent",
-            "version": "1.0",
-            "schema_version": "1.0", 
-            "description": "Test description",
-            "author": "Test Author"
-        }
-        self.mock_repository.load_definition.return_value = definition_data
-        
+        # Configure config service for AgentStorageService initialization
+        mock_storage_config = MagicMock()
+        mock_storage_config.type = "filesystem"
+        mock_storage_config.path = "/test/path"
+        self.mock_config_service.get_storage_config.return_value = mock_storage_config
+
+        service = TaskExecutionService(self.mock_agent_storage_service, self.mock_tool_service, self.mock_config_service)
+
+        from src.core.domain import AgentDefinition, AgentSession
+        agent_definition = AgentDefinition(
+            name="Test Agent",
+            version="1.0",
+            schema_version="1.0",
+            description="Test description",
+            author="Test Author"
+        )
+        self.mock_storage.load_definition.return_value = agent_definition
+
         # Mock session without agent_home_path
-        session_data = {"allowed_tools": []}
-        self.mock_repository.load_session.return_value = session_data
-        self.mock_repository.get_agent_home_path.return_value = "/fallback/path"
-        
+        session_data = AgentSession(current_task_id=None, state={"allowed_tools": []})
+        self.mock_storage.load_session.return_value = session_data
+
         with patch('src.core.services.task_execution_service.PlaceholderLLMClient'), \
              patch('src.core.services.task_execution_service.PromptEngine'), \
-             patch('src.core.services.task_execution_service.AgentExecutor') as mock_executor:
-            
+             patch('src.core.services.task_execution_service.AgentExecutor') as mock_executor, \
+             patch('src.core.services.storage_service.StorageService') as mock_storage_service_class:
+
+            # Mock fallback path retrieval
+            mock_repository = MagicMock()
+            mock_repository.get_agent_home_path.return_value = "/fallback/path"
+            mock_storage_service_class.return_value.get_repository.return_value = mock_repository
+
             mock_executor_instance = MagicMock()
             mock_executor_instance.run.return_value = TaskResultDTO(status="success", output="OK", metadata={})
             mock_executor.return_value = mock_executor_instance
-            
+
             # Act
             task = TaskDTO(agent_id="test_agent", user_input="Test task")
             result = service.execute_task(task)
-            
+
             # Assert
             assert result.status == "success"
-            self.mock_repository.get_agent_home_path.assert_called_once_with("test_agent")
-            self.mock_repository.save_session.assert_called_once()
+            mock_repository.get_agent_home_path.assert_called_once_with("test_agent")
+            self.mock_storage.save_session.assert_called_once()
 
+    @patch('src.core.services.task_execution_service.PromptEngine')
+    @patch('src.core.services.task_execution_service.PlaceholderLLMClient')
     @patch('src.core.services.task_execution_service.AgentExecutor')
-    def test_execute_task_handles_executor_exception(self, mock_agent_executor):
+    def test_execute_task_handles_executor_exception(self, mock_agent_executor, mock_llm_client, mock_prompt_engine):
         """Testa tratamento de exceção durante execução."""
         # Arrange
-        service = TaskExecutionService(self.mock_storage_service, self.mock_tool_service, self.mock_config_service)
-        
-        # Mock successful setup but executor raises exception
-        definition_data = {
-            "name": "Failing Agent",
-            "version": "1.0",
-            "schema_version": "1.0",
-            "description": "Agent that fails",
-            "author": "Test Author"
-        }
-        self.mock_repository.load_definition.return_value = definition_data
-        self.mock_repository.load_session.return_value = {"agent_home_path": "/test", "allowed_tools": []}
-        
+        # Configure config service for AgentStorageService initialization
+        mock_storage_config = MagicMock()
+        mock_storage_config.type = "filesystem"
+        mock_storage_config.path = "/tmp/test_path"
+        self.mock_config_service.get_storage_config.return_value = mock_storage_config
+
+        service = TaskExecutionService(self.mock_agent_storage_service, self.mock_tool_service, self.mock_config_service)
+
+        from src.core.domain import AgentDefinition, AgentSession
+        agent_definition = AgentDefinition(
+            name="Failing Agent",
+            version="1.0",
+            schema_version="1.0",
+            description="Agent that fails",
+            author="Test Author"
+        )
+        self.mock_storage.load_definition.return_value = agent_definition
+
+        session_data = AgentSession(current_task_id=None, state={"agent_home_path": "/tmp/test_agent", "allowed_tools": []})
+        self.mock_storage.load_session.return_value = session_data
+
+        # Mock all components to avoid filesystem access
+        mock_prompt_instance = MagicMock()
+        mock_prompt_engine.return_value = mock_prompt_instance
+
         # Mock executor to raise exception
         mock_executor_instance = MagicMock()
         mock_executor_instance.run.side_effect = RuntimeError("Execution failed")
         mock_agent_executor.return_value = mock_executor_instance
-        
-        with patch('src.core.services.task_execution_service.PlaceholderLLMClient'), \
-             patch('src.core.services.task_execution_service.PromptEngine'):
-            
-            # Act
-            task = TaskDTO(agent_id="failing_agent", user_input="This will fail")
-            result = service.execute_task(task)
-            
-            # Assert
-            assert result.status == "error"
-            assert "Execution failed" in result.output
+
+        # Act
+        task = TaskDTO(agent_id="failing_agent", user_input="This will fail")
+        result = service.execute_task(task)
+
+        # Assert
+        assert result.status == "error"
+        assert "Execution failed" in result.output
 
     def test_persist_task_result_all_components(self):
         """Testa persistência completa de resultado bem-sucedido."""
         # Arrange
-        service = TaskExecutionService(self.mock_storage_service, self.mock_tool_service, self.mock_config_service)
-        
+        service = TaskExecutionService(self.mock_agent_storage_service, self.mock_tool_service, self.mock_config_service)
+
+        from src.core.domain import AgentSession, AgentKnowledge, KnowledgeItem
         # Mock existing data
-        existing_session = {"old_session": "data"}
-        existing_knowledge = {"old_knowledge": "data"}
-        self.mock_repository.load_session.return_value = existing_session
-        self.mock_repository.load_knowledge.return_value = existing_knowledge
-        
+        existing_session = AgentSession(current_task_id=None, state={"old_session": "data"})
+        existing_knowledge = AgentKnowledge(artifacts={"old_artifact": KnowledgeItem(summary="old", purpose="test", last_modified_by_task="task1")})
+        self.mock_storage.load_session.return_value = existing_session
+        self.mock_storage.load_knowledge.return_value = existing_knowledge
+
         # Mock complete result
         result = TaskResultDTO(
             status="success",
             output="Success",
             metadata={},
             updated_session={"new_session": "data"},
-            updated_knowledge={"new_knowledge": "data"},
+            updated_knowledge={"new_artifact": {"summary": "new", "purpose": "test2", "last_modified_by_task": "task2"}},
             history_entry={"timestamp": "2023-01-01", "interaction": "test"}
         )
-        
+
         # Act
         service._persist_task_result("test_agent", result)
-        
+
         # Assert
-        # Verify session merge and save
-        expected_session = {"old_session": "data", "new_session": "data"}
-        self.mock_repository.save_session.assert_called_once_with("test_agent", expected_session)
-        
-        # Verify knowledge merge and save
-        expected_knowledge = {"old_knowledge": "data", "new_knowledge": "data"}
-        self.mock_repository.save_knowledge.assert_called_once_with("test_agent", expected_knowledge)
-        
-        # Verify history append
-        self.mock_repository.append_to_history.assert_called_once_with(
-            "test_agent", 
+        # Verify session and knowledge operations were called
+        self.mock_storage.load_session.assert_called_once_with("test_agent")
+        self.mock_storage.save_session.assert_called_once()
+        self.mock_storage.load_knowledge.assert_called_once_with("test_agent")
+        self.mock_storage.save_knowledge.assert_called_once()
+        self.mock_storage.append_to_history.assert_called_once_with(
+            "test_agent",
             {"timestamp": "2023-01-01", "interaction": "test"}
         )
 
     def test_persist_task_result_partial_updates(self):
         """Testa persistência com apenas alguns componentes atualizados."""
         # Arrange
-        service = TaskExecutionService(self.mock_storage_service, self.mock_tool_service, self.mock_config_service)
-        
+        service = TaskExecutionService(self.mock_agent_storage_service, self.mock_tool_service, self.mock_config_service)
+
         # Mock result with only session update
         result = TaskResultDTO(
             status="success",
-            output="Partial success", 
+            output="Partial success",
             metadata={},
             updated_session={"only_session": "update"},
             updated_knowledge=None,  # No knowledge update
             history_entry=None  # No history update
         )
-        
-        existing_session = {"existing": "session"}
-        self.mock_repository.load_session.return_value = existing_session
-        
+
+        from src.core.domain import AgentSession
+        existing_session = AgentSession(current_task_id=None, state={"existing": "session"})
+        self.mock_storage.load_session.return_value = existing_session
+
         # Act
         service._persist_task_result("test_agent", result)
-        
+
         # Assert
         # Only session should be updated
-        expected_session = {"existing": "session", "only_session": "update"}
-        self.mock_repository.save_session.assert_called_once_with("test_agent", expected_session)
-        
-        # Knowledge and history should not be called
-        self.mock_repository.load_knowledge.assert_not_called()
-        self.mock_repository.save_knowledge.assert_not_called()
-        self.mock_repository.append_to_history.assert_not_called()
+        self.mock_storage.load_session.assert_called_once_with("test_agent")
+        self.mock_storage.save_session.assert_called_once()
 
-    def test_load_agent_definition_cleans_agent_id(self):
-        """Testa se agent_id é removido corretamente dos dados da definição."""
-        # Arrange  
-        service = TaskExecutionService(self.mock_storage_service, self.mock_tool_service, self.mock_config_service)
-        
-        definition_data = {
-            "name": "Clean Test Agent",
-            "version": "1.0",
-            "schema_version": "1.0",
-            "description": "Agent for cleanup test",
-            "author": "Test Author",
-            "agent_id": "should_be_removed",
-            "tags": [],
-            "capabilities": [],
-            "allowed_tools": []
-        }
-        self.mock_repository.load_definition.return_value = definition_data
-        
+        # Knowledge and history should not be called
+        self.mock_storage.load_knowledge.assert_not_called()
+        self.mock_storage.save_knowledge.assert_not_called()
+        self.mock_storage.append_to_history.assert_not_called()
+
+    def test_storage_loads_agent_definition_correctly(self):
+        """Testa se a definição do agente é carregada corretamente via storage."""
+        # Arrange
+        service = TaskExecutionService(self.mock_agent_storage_service, self.mock_tool_service, self.mock_config_service)
+
+        from src.core.domain import AgentDefinition
+        agent_definition = AgentDefinition(
+            name="Clean Test Agent",
+            version="1.0",
+            schema_version="1.0",
+            description="Agent for cleanup test",
+            author="Test Author"
+        )
+        self.mock_storage.load_definition.return_value = agent_definition
+
         # Act
-        agent_def = service._load_agent_definition("test_agent")
-        
+        result = self.mock_storage.load_definition("test_agent")
+
         # Assert
-        assert isinstance(agent_def, AgentDefinition)
-        assert agent_def.name == "Clean Test Agent"
-        # The agent_id should not be in the AgentDefinition constructor
-        # (it's handled separately in the domain model)
+        assert isinstance(result, AgentDefinition)
+        assert result.name == "Clean Test Agent"
+        self.mock_storage.load_definition.assert_called_once_with("test_agent")

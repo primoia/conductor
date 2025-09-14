@@ -59,6 +59,10 @@ def configure_logging(
 
     # Create a single handler that writes to standard output
     handler = logging.StreamHandler(sys.stdout)
+    
+    # Set handler level to INFO to filter out DEBUG messages in terminal
+    # but keep root logger at DEBUG to capture all logs for observability
+    handler.setLevel(logging.INFO)
 
     # Apply the smart formatter
     handler.setFormatter(SmartFormatter())
