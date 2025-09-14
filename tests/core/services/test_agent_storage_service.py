@@ -60,6 +60,7 @@ class TestAgentStorageService:
         with pytest.raises(ConfigurationError, match="Tipo de armazenamento desconhecido: unknown_type"):
             AgentStorageService(mock_config_service)
 
+    @pytest.mark.mongo
     def test_mongodb_without_connection_string_raises_error(self):
         """Testa erro quando MongoDB não tem connection_string no .env."""
         # Arrange
