@@ -30,6 +30,7 @@ class TestAgentStorageService:
         # Assert
         assert isinstance(storage, FileSystemStorage)
 
+    @pytest.mark.mongo
     def test_create_mongodb_storage_success(self):
         """Testa criação bem-sucedida do storage MongoDB."""
         # Arrange

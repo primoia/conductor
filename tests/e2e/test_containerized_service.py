@@ -51,6 +51,7 @@ def docker_services():
         subprocess.run(["docker", "compose", "down"], check=True)
 
 @pytest.mark.skipif(not docker_available(), reason="Docker not available or not running")
+@pytest.mark.e2e
 def test_service_smoke_run(docker_services):
     """
     Executa um comando simples dentro do contêiner para verificar
