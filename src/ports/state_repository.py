@@ -17,10 +17,26 @@ class IStateRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def save_definition(self, agent_id: str, definition_data: Dict) -> bool:
+        """
+        Salva a definição do agente (agent.yaml).
+        Retorna True em caso de sucesso, False caso contrário.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def load_persona(self, agent_id: str) -> str:
         """
         Carrega a persona do agente (persona.md).
         Retorna string vazia se não encontrado.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def save_persona(self, agent_id: str, persona_content: str) -> bool:
+        """
+        Salva a persona do agente (persona.md).
+        Retorna True em caso de sucesso, False caso contrário.
         """
         raise NotImplementedError
 
