@@ -18,7 +18,7 @@ poetry run pytest --cov=src --cov-report=html
 
 ## 🏷️ Categorias de Testes
 
-### ✅ Testes CI-Safe (GitHub Actions) - 93 testes
+### ✅ Testes CI-Safe (GitHub Actions) - 87 testes
 ```bash
 # CI: Testes que rodam automaticamente no GitHub Actions
 poetry run pytest -m "not manual and not e2e and not integration and not mongo"
@@ -221,8 +221,8 @@ python -m pytest --cov=src --cov-report=term-missing
 | Situação | Comando | Testes | Tempo |
 |----------|---------|--------|-------|
 | **Desenvolvimento (padrão local)** | `poetry run pytest` | 104 todos | ~21s ⚡ |
-| **CI Safe (GitHub Actions)** | `poetry run pytest -m "not e2e and not integration and not manual and not mongo"` | 93 CI-safe | ~3s ⚡ |
-| **CI Helper Script** | `python run_ci_tests.py` | 93 CI-safe | ~3s ⚡ |
+| **CI Safe (GitHub Actions)** | `poetry run pytest -m "not e2e and not integration and not manual and not mongo"` | 87 CI-safe | ~3s ⚡ |
+| **CI Helper Script** | `python run_ci_tests.py` | 87 CI-safe | ~3s ⚡ |
 | **Com MongoDB** | `poetry run pytest -m "not manual and not e2e"` | ~111 (unit+mongo) | ~25s |
 | **E2E Manual** | `poetry run pytest tests/e2e/ -v` | E2E completos | ~60s+ |
 | **Tudo** | `poetry run pytest --override-ini addopts="-v"` | Todos completos | ~90s+ |
@@ -230,6 +230,6 @@ python -m pytest --cov=src --cov-report=term-missing
 ## 🚀 **GitHub Actions CI**
 - **Trigger:** Push/PR para main/develop
 - **Python:** 3.11 e 3.12
-- **Testes:** 93 CI-safe (sem Claude/Gemini/MongoDB/config.yaml)
+- **Testes:** 87 CI-safe (sem Claude/Gemini/MongoDB/config.yaml)
 - **Tempo:** ~1 minuto total (setup + testes)
 - **Dependências:** Zero externas ✅

@@ -10,11 +10,12 @@ from src.container import container
 
 class TestMaestroExecutorIntegration:
     """Teste de integração final da arquitetura Maestro-Executor."""
-    
+
     def setup_method(self):
         """Configuração inicial do teste."""
         self.conductor_service = container.get_conductor_service()
-    
+
+    @pytest.mark.e2e
     def test_discover_maestro_agent(self):
         """Testa se o Maestro Agent é descoberto corretamente."""
         agents = self.conductor_service.discover_agents()
@@ -40,6 +41,7 @@ class TestMaestroExecutorIntegration:
         for expected_cap in expected_capabilities:
             assert expected_cap in maestro_agent.capabilities, f"Capability {expected_cap} não encontrada no Maestro Agent"
     
+    @pytest.mark.e2e
     def test_discover_executor_agent(self):
         """Testa se o Executor Agent é descoberto corretamente."""
         agents = self.conductor_service.discover_agents()
@@ -65,6 +67,7 @@ class TestMaestroExecutorIntegration:
         for expected_cap in expected_capabilities:
             assert expected_cap in executor_agent.capabilities, f"Capability {expected_cap} não encontrada no Executor Agent"
     
+    @pytest.mark.e2e
     def test_maestro_executor_communication(self):
         """Testa a comunicação entre Maestro e Executor através do ConductorService."""
         agents = self.conductor_service.discover_agents()
@@ -87,6 +90,7 @@ class TestMaestroExecutorIntegration:
         # Validar que o Executor tem capability de reporting
         assert "reporting" in executor_agent.capabilities, "Executor Agent não possui capability de reporting"
     
+    @pytest.mark.e2e
     def test_architecture_completeness(self):
         """Testa se a arquitetura de três camadas está completa."""
         agents = self.conductor_service.discover_agents()
