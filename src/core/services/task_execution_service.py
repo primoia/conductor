@@ -121,9 +121,11 @@ class TaskExecutionService:
         else:
             ai_provider = getattr(agent_definition, 'ai_provider', 'claude')
             # Determinar working directory e timeout
-            # Se project_path foi fornecido no contexto, usar ele
-            # Senão, usar agent_home_path (comportamento atual)
-            working_directory = agent_home_path
+            # Para MongoDB, usar diretório atual em vez do path conceitual
+            if agent_home_path.startswith("mongodb://"):
+                working_directory = os.getcwd()  # Use current directory for MongoDB agents
+            else:
+                working_directory = agent_home_path  # Use agent directory for filesystem agents
             timeout = 120  # Default timeout
             
             if hasattr(self, '_current_task') and self._current_task:
@@ -207,12 +209,13 @@ class TaskExecutionService:
 
         # Append history entry
         if result.history_entry:
+            # Map AgentExecutor dict fields to HistoryEntry fields
             history_entry = HistoryEntry(
                 _id=result.history_entry.get('_id', ''),
                 agent_id=result.history_entry.get('agent_id', agent_id),
                 task_id=result.history_entry.get('task_id', ''),
                 status=result.history_entry.get('status', ''),
-                summary=result.history_entry.get('summary', ''),
+                summary=result.history_entry.get('ai_response', '')[:200] + '...' if result.history_entry.get('ai_response') else '',  # Use AI response as summary
                 git_commit_hash=result.history_entry.get('git_commit_hash', '')
             )
             self._storage.append_to_history(agent_id, history_entry, task.user_input)
