@@ -10,6 +10,7 @@ Welcome to the technical documentation for Conductor. This is the central hub fo
 -   **[✨ Features](features/):** Detailed documentation on Conductor's main capabilities.
 -   **[🏁 Guides & Tutorials](guides/):** Step-by-step instructions for common tasks.
     -   **[Use Cases](guides/use-cases.md):** An excellent starting point to understand what Conductor can do.
+    -   **[Storage Migration](guides/storage-migration.md):** Complete guide for migrating between filesystem and MongoDB backends.
 -   **[📜 Project History](history/):** The chronological history of the project's development, including sagas and architectural decision records (ADRs).
 
 ---

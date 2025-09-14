@@ -4,6 +4,7 @@ from src.ports.state_repository import IStateRepository
 from src.core.exceptions import ConfigurationError
 from src.infrastructure.storage.filesystem_repository import FileSystemStateRepository
 from src.infrastructure.storage.mongo_repository import MongoStateRepository
+from src.config import settings
 
 
 class StorageService:
@@ -20,8 +21,8 @@ class StorageService:
             return FileSystemStateRepository(base_path=storage_config.path)
         elif storage_config.type == "mongodb":
             return MongoStateRepository(
-                database_name="conductor_state", 
-                collection_name="agent_states"
+                connection_string=settings.mongo_uri,
+                db_name=settings.mongo_database
             )
         else:
             raise ConfigurationError(f"Tipo de armazenamento desconhecido: {storage_config.type}")

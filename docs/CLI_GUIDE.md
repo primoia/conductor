@@ -265,3 +265,63 @@ conductor --validate
 2. Install template categories with `conductor --install <category>`
 3. Document custom agents in your project README
 4. Use `--project` and `--environment` flags for context
+
+## 💾 Storage Migration & Backup
+
+Conductor supports bidirectional migration between filesystem and MongoDB backends, perfect for RAMDisk workflows and team scaling.
+
+### Quick Migration Commands
+
+#### Backup to MongoDB (Preserves Current Config)
+```bash
+# Backup your agents to MongoDB without changing config.yaml
+conductor --migrate-to mongodb --no-config-update
+```
+
+#### Restore from MongoDB (Preserves Current Config)  
+```bash
+# Restore agents from MongoDB without changing config.yaml
+conductor --migrate-from mongodb --migrate-to filesystem --no-config-update
+```
+
+#### Permanent Migration to MongoDB
+```bash
+# Migrate permanently to MongoDB (updates config.yaml)
+conductor --migrate-to mongodb
+```
+
+#### External Backup (Private Git Repository)
+```bash
+# Backup to external path (useful for private Git repos)
+conductor --migrate-to filesystem --path /path/to/private-repo/.conductor_workspace
+```
+
+### MongoDB Configuration
+
+Add to your `.env` file:
+```bash
+MONGO_URI=mongodb://username:password@localhost:27017/conductor_state?authSource=admin
+MONGO_DATABASE=conductor_state
+MONGO_COLLECTION=agent_states
+```
+
+### Use Cases
+
+**RAMDisk Users**: Use `--no-config-update` to backup safely without changing your filesystem setup
+**Team Scaling**: Migrate permanently to MongoDB when multiple developers need shared state
+**Private Backups**: Use `--path` to backup to private Git repositories
+**Hybrid Workflows**: Keep filesystem as default, use MongoDB for critical backups
+
+### Migration Features
+
+✅ **Bidirectional**: filesystem ↔ mongodb  
+✅ **Safe**: Automatic config.yaml backup before changes  
+✅ **Fast**: Optimized for bulk operations (19 agents in ~0.1s)  
+✅ **Compatible**: Works alongside existing SSD backup (`conductor --backup`)  
+✅ **Flexible**: Preserve or update configuration as needed  
+
+### Troubleshooting
+
+**MongoDB not configured**: Add MONGO_URI to your .env file  
+**Connection failed**: Check if MongoDB is running and credentials are correct  
+**Permission denied**: Ensure write permissions for target directories

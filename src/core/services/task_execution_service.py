@@ -4,7 +4,7 @@ import sys
 from src.core.services.agent_storage_service import AgentStorageService
 from src.core.services.tool_management_service import ToolManagementService
 from src.core.services.configuration_service import ConfigurationService
-from src.core.domain import AgentDefinition, TaskDTO, TaskResultDTO
+from src.core.domain import AgentDefinition, TaskDTO, TaskResultDTO, HistoryEntry
 from src.core.agent_executor import AgentExecutor, PlaceholderLLMClient
 from src.infrastructure.llm.cli_client import create_llm_client
 from src.core.prompt_engine import PromptEngine
@@ -51,7 +51,7 @@ class TaskExecutionService:
                 # Check if we should save to history (default: True for backward compatibility)
                 save_to_history = task.context.get("save_to_history", True)
                 if save_to_history:
-                    self._persist_task_result(task.agent_id, result)
+                    self._persist_task_result(task.agent_id, task, result)
             
             return result
 
@@ -63,10 +63,20 @@ class TaskExecutionService:
         """Carrega dados da sessão do agente."""
         try:
             session = self._storage.load_session(agent_id)
-            return {
+            session_data = {
                 'current_task_id': session.current_task_id,
                 'state': session.state
             }
+
+            # Achatar campos importantes do state para a raiz para compatibilidade
+            if isinstance(session.state, dict):
+                persistence_fields = ['last_task_id', 'last_interaction', 'conversation_count']
+                for field in persistence_fields:
+                    if field in session.state:
+                        session_data[field] = session.state[field]
+
+            return session_data
+
         except (FileNotFoundError, AttributeError):
             # Sessão não existe ou é um dict (baixo nível), retornar padrão
             return {'current_task_id': None, 'state': {}}
@@ -160,7 +170,7 @@ class TaskExecutionService:
             current_session=session_data
         )
 
-    def _persist_task_result(self, agent_id: str, result: TaskResultDTO) -> None:
+    def _persist_task_result(self, agent_id: str, task: TaskDTO, result: TaskResultDTO) -> None:
         """Persiste o resultado da tarefa no repositório."""
         from src.core.domain import AgentSession, AgentKnowledge, KnowledgeItem
 
@@ -197,4 +207,12 @@ class TaskExecutionService:
 
         # Append history entry
         if result.history_entry:
-            self._storage.append_to_history(agent_id, result.history_entry)
+            history_entry = HistoryEntry(
+                _id=result.history_entry.get('_id', ''),
+                agent_id=result.history_entry.get('agent_id', agent_id),
+                task_id=result.history_entry.get('task_id', ''),
+                status=result.history_entry.get('status', ''),
+                summary=result.history_entry.get('summary', ''),
+                git_commit_hash=result.history_entry.get('git_commit_hash', '')
+            )
+            self._storage.append_to_history(agent_id, history_entry, task.user_input)

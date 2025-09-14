@@ -50,8 +50,8 @@ class DIContainer:
         """Get state repository instance based on provider."""
         if provider == "mongo":
             return MongoStateRepository(
-                database_name=self.settings.mongo_database,
-                collection_name=self.settings.mongo_collection,
+                connection_string=self.settings.mongo_uri,
+                db_name=self.settings.mongo_database,
             )
         else:
             return FileSystemStateRepository()
