@@ -3,34 +3,41 @@
 ## 🚀 Execução Rápida (Padrão)
 
 ```bash
-# Executar todos os testes unitários (PADRÃO - 32 testes em 0.25s)
-python -m pytest
+# Executar todos os testes unitários CI-safe (PADRÃO - 103 testes em ~21s)
+poetry run pytest
 
-# Comando equivalente (configuração automática em pytest.ini)
-python -m pytest -m "not manual and not e2e and not mongo"
+# Configuração explícita (pytest.ini automático)
+poetry run pytest -m "not manual and not e2e and not integration and not mongo"
+
+# Script helper para CI-safe tests
+python run_ci_tests.py
 
 # Executar com cobertura
-python -m pytest --cov=src --cov-report=html
+poetry run pytest --cov=src --cov-report=html
 ```
 
 ## 🏷️ Categorias de Testes
 
-### ✅ Testes Automáticos (CI/CD) - 32 testes
+### ✅ Testes CI-Safe (GitHub Actions) - 103 testes
 ```bash
-# Testes que rodam automaticamente (PADRÃO)
-python -m pytest
+# Testes que rodam automaticamente no CI (PADRÃO)
+poetry run pytest
 
 # Configuração explícita (já aplicada em pytest.ini)
-python -m pytest -m "not manual and not e2e and not mongo"
+poetry run pytest -m "not manual and not e2e and not integration and not mongo"
 ```
 
 **Incluem:**
+- `tests/core/services/test_task_execution_service.py` - TaskExecutionService (8 testes) ✅
+- `tests/core/services/test_agent_storage_service.py` - AgentStorageService (6 testes) ✅
 - `tests/core/test_prompt_engine.py` - PromptEngine (14 testes) ✅
-- `tests/test_container.py` - Container/DI (6 testes) ✅
-- `tests/test_core.py` - Agent Logic (7 testes) ✅  
-- `tests/test_state_management.py` - File State Management (5 testes) ✅
+- `tests/core/services/test_configuration_service.py` - ConfigurationService (4 testes) ✅
+- `tests/core/services/test_tool_management_service.py` - ToolManagementService (8 testes) ✅
+- `tests/test_container.py` - Dependency Injection (10 testes) ✅
+- `tests/test_argument_parser.py` - CLI Parsing (6 testes) ✅
+- E mais 47+ testes de serviços core
 
-**Performance:** 0.25 segundos ⚡
+**Performance:** ~21 segundos ⚡ **Dependências:** Zero (apenas mocks)
 
 ### 🔧 Testes Manuais (Sob Demanda)
 
@@ -108,18 +115,32 @@ python -m pytest -m "manual or e2e"    # Todos os manuais (1 teste)
 
 ## 📊 Configuração de CI/CD
 
-### GitHub Actions / GitLab CI
+### GitHub Actions - `.github/workflows/test.yml` ✅
 ```yaml
-# .github/workflows/tests.yml
-- name: Run Unit Tests (Fast)
-  run: python -m pytest  # Usa configuração padrão do pytest.ini
-  
-- name: Run Unit + MongoDB Tests  
-  run: python -m pytest -m "not manual and not e2e"
-  
-- name: Run E2E Tests (Manual Trigger Only)
-  if: github.event_name == 'workflow_dispatch' 
-  run: python -m pytest tests/e2e/ -v --timeout=300
+name: Tests
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+    - name: Install dependencies
+      run: poetry install --no-interaction
+    - name: Run CI-safe tests
+      run: |
+        poetry run pytest \
+          -v --tb=short \
+          -m "not e2e and not integration and not manual and not mongo" \
+          --maxfail=10 tests/
 ```
 
 ### Configuração Local
@@ -188,17 +209,26 @@ python -m pytest --cov=src --cov-report=term-missing
 
 ## 🎯 Recomendações
 
-1. **Desenvolvimento:** `python -m pytest` (32 testes, 0.25s) ⚡
-2. **Pre-commit:** `python -m pytest` + lint
-3. **Release:** `python -m pytest tests/e2e/ -v` (validação completa)
-4. **CI/CD:** Padrão automático (pytest.ini cuida da configuração)
-5. **Debug:** Use `-v -s --tb=long` para logs detalhados
+1. **Desenvolvimento:** `poetry run pytest` (103 testes CI-safe, ~21s) ⚡
+2. **CI/CD Local:** `python run_ci_tests.py` (helper script)
+3. **Pre-commit:** `poetry run pytest` + lint
+4. **Release:** `poetry run pytest tests/e2e/ -v` (validação completa)
+5. **GitHub Actions:** Automático (pytest.ini + workflow configurados)
+6. **Debug:** Use `-v -s --tb=long` para logs detalhados
 
 ## 📊 Resumo dos Comandos
 
 | Situação | Comando | Testes | Tempo |
 |----------|---------|--------|-------|
-| **Desenvolvimento (padrão)** | `python -m pytest` | 32 unitários | 0.25s ⚡ |
-| **Com MongoDB** | `python -m pytest -m "not manual and not e2e"` | 40 (unit+mongo) | ~1s |
-| **E2E Manual** | `python -m pytest tests/e2e/ -v` | 1 end-to-end | ~30s+ |
-| **Tudo** | `python -m pytest --override-ini addopts="-v"` | 41 completos | ~30s+ |
+| **Desenvolvimento/CI (padrão)** | `poetry run pytest` | 103 CI-safe | ~21s ⚡ |
+| **CI Helper Script** | `python run_ci_tests.py` | 103 CI-safe | ~21s ⚡ |
+| **Com MongoDB** | `poetry run pytest -m "not manual and not e2e"` | ~111 (unit+mongo) | ~25s |
+| **E2E Manual** | `poetry run pytest tests/e2e/ -v` | E2E completos | ~60s+ |
+| **Tudo** | `poetry run pytest --override-ini addopts="-v"` | Todos completos | ~90s+ |
+
+## 🚀 **GitHub Actions CI**
+- **Trigger:** Push/PR para main/develop
+- **Python:** 3.11 e 3.12
+- **Testes:** 103 CI-safe (sem Claude/Gemini/MongoDB)
+- **Tempo:** ~2 minutos total (setup + testes)
+- **Dependências:** Zero externas ✅
