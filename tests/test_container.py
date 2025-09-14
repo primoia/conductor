@@ -46,54 +46,60 @@ class TestDIContainer:
         assert config["default_providers"]["chat"] == "gemini"
         assert config["fallback_provider"] == "claude"
 
+    @pytest.mark.integration
     def test_get_configuration_service_singleton(self):
         """Test that ConfigurationService is singleton."""
         service1 = self.container.get_configuration_service()
         service2 = self.container.get_configuration_service()
-        
+
         assert isinstance(service1, ConfigurationService)
         assert service1 is service2  # Same instance
 
+    @pytest.mark.integration
     def test_get_storage_service_singleton(self):
         """Test that StorageService is singleton."""
         service1 = self.container.get_storage_service()
         service2 = self.container.get_storage_service()
-        
+
         assert isinstance(service1, StorageService)
         assert service1 is service2  # Same instance
 
+    @pytest.mark.integration
     def test_get_agent_discovery_service_singleton(self):
         """Test that AgentDiscoveryService is singleton."""
         service1 = self.container.get_agent_discovery_service()
         service2 = self.container.get_agent_discovery_service()
-        
+
         assert isinstance(service1, AgentDiscoveryService)
         assert service1 is service2  # Same instance
 
+    @pytest.mark.integration
     def test_get_session_management_service_singleton(self):
         """Test that SessionManagementService is singleton."""
         service1 = self.container.get_session_management_service()
         service2 = self.container.get_session_management_service()
-        
+
         assert isinstance(service1, SessionManagementService)
         assert service1 is service2  # Same instance
 
+    @pytest.mark.integration
     def test_get_conductor_service_singleton(self):
         """Test that ConductorService is singleton."""
         service1 = self.container.get_conductor_service()
         service2 = self.container.get_conductor_service()
-        
+
         assert isinstance(service1, ConductorService)
         assert service1 is service2  # Same instance
 
+    @pytest.mark.integration
     def test_service_dependency_injection(self):
         """Test that services receive correct dependencies."""
         storage_service = self.container.get_storage_service()
         agent_service = self.container.get_agent_discovery_service()
-        
+
         # AgentDiscoveryService should have StorageService as dependency
         assert hasattr(agent_service, '_storage')
-        
+
         # Both should be properly configured
         assert isinstance(storage_service, StorageService)
         assert isinstance(agent_service, AgentDiscoveryService)
