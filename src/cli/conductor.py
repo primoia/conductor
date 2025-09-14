@@ -16,8 +16,8 @@ from src.core.observability import configure_logging
 
 class ConductorCLI:
     """
-    Unified CLI interface that combines functionality from admin.py and agent.py
-    while maintaining compatibility and adding new features.
+    Unified CLI interface for all conductor operations
+    with comprehensive agent management and task execution capabilities.
     """
 
     def __init__(
