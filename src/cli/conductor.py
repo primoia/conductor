@@ -181,6 +181,11 @@ def main():
         install_templates_command_new(args)
     elif args.backup:
         backup_agents_command(args)
+        # Se também foi solicitada migração, executar após backup
+        if args.migrate_to:
+            print("\n" + "=" * 50)
+            print("🔄 Iniciando migração após backup...")
+            migrate_agents_command(args)
     elif args.restore:
         restore_agents_command(args)
     elif args.migrate_to:
