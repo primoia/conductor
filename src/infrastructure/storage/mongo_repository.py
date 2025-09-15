@@ -1,5 +1,6 @@
 # src/infrastructure/storage/mongo_repository.py
 import json
+import uuid
 from typing import Dict, Any, List
 from pymongo import MongoClient
 from datetime import datetime
@@ -141,9 +142,22 @@ class MongoStateRepository(IStateRepository):
             doc["agent_id"] = agent_id
             doc["createdAt"] = datetime.utcnow()
 
+            # Sempre força um _id único para evitar conflitos
+            # Remove qualquer _id existente (vazio ou não) e gera um novo
+            if "_id" in doc:
+                del doc["_id"]
+
+            # Gera um _id único usando UUID
+            doc["_id"] = str(uuid.uuid4())
+
             self.history_collection.insert_one(doc)
             return True
-        except Exception:
+        except Exception as e:
+            import json
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"MongoDB insert failed for agent {agent_id}: {e}")
+            logger.error(f"Document data: {json.dumps(doc, indent=2, default=str)}")
             return False
 
     def load_history(self, agent_id: str) -> List[Dict]:
@@ -161,6 +175,14 @@ class MongoStateRepository(IStateRepository):
             return history_entries
         except Exception:
             return []
+
+    def clear_history(self, agent_id: str) -> bool:
+        """Limpa o histórico completo de um agente."""
+        try:
+            result = self.history_collection.delete_many({"agent_id": agent_id})
+            return True  # Retorna True mesmo se nenhum documento foi encontrado
+        except Exception:
+            return False
 
     def list_agents(self) -> List[str]:
         """Lista todos os agentes disponíveis."""

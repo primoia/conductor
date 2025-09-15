@@ -1,6 +1,7 @@
 # src/core/services/task_execution_service.py
 import os
 import sys
+import uuid
 from src.core.services.agent_storage_service import AgentStorageService
 from src.core.services.tool_management_service import ToolManagementService
 from src.core.services.configuration_service import ConfigurationService
@@ -211,10 +212,10 @@ class TaskExecutionService:
         if result.history_entry:
             # Map AgentExecutor dict fields to HistoryEntry fields
             history_entry = HistoryEntry(
-                _id=result.history_entry.get('_id', ''),
+                _id=str(uuid.uuid4()),  # Always generate unique ID
                 agent_id=result.history_entry.get('agent_id', agent_id),
-                task_id=result.history_entry.get('task_id', ''),
-                status=result.history_entry.get('status', ''),
+                task_id=result.history_entry.get('task_id', str(uuid.uuid4())),  # Fallback UUID if missing
+                status=result.history_entry.get('status', 'completed'),
                 summary=result.history_entry.get('ai_response', '')[:200] + '...' if result.history_entry.get('ai_response') else '',  # Use AI response as summary
                 git_commit_hash=result.history_entry.get('git_commit_hash', '')
             )
