@@ -105,6 +105,14 @@ class IStateRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def clear_history(self, agent_id: str) -> bool:
+        """
+        Limpa o histórico completo de um agente.
+        Retorna True em caso de sucesso, False caso contrário.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def list_agents(self) -> List[str]:
         """
         Lista os IDs de todos os agentes disponíveis no backend de armazenamento.

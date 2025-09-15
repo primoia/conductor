@@ -309,7 +309,7 @@ class REPLManager:
             for i, msg in enumerate(history, 1):
                 print(f"\n--- Mensagem {i} ---")
                 print(f"👤 User: {msg.get('user_input', 'N/A')}") # Usar user_input
-                response = msg.get('ai_response', 'N/A') # Usar ai_response
+                response = msg.get('summary', msg.get('ai_response', 'N/A')) # Usar summary (campo real) ou ai_response como fallback
                 print(
                     f"🤖 Assistant: {response[:200]}{'...' if len(response) > 200 else ''}"
                 )

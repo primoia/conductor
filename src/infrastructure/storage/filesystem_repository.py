@@ -164,6 +164,18 @@ class FileSystemStateRepository(IStateRepository):
         except Exception:
             return []
 
+    def clear_history(self, agent_id: str) -> bool:
+        """Limpa o histórico completo de um agente."""
+        try:
+            agent_dir = self._get_agent_dir(agent_id)
+            history_file = os.path.join(agent_dir, "history.log")
+            # Trunca o arquivo escrevendo conteúdo vazio
+            with open(history_file, 'w', encoding='utf-8') as f:
+                pass  # Apenas abre e fecha para truncar
+            return True
+        except Exception:
+            return False
+
     def get_agent_home_path(self, agent_id: str) -> str:
         """Retorna o caminho absoluto do diretório home do agente."""
         return os.path.abspath(self._get_agent_dir(agent_id))

@@ -94,16 +94,9 @@ class AgentDiscoveryService:
     def clear_conversation_history(self, agent_id: str) -> bool:
         """Limpa o histórico de conversas de um agente."""
         try:
-            import os
-            
-            # Clear the history log file by truncating it
-            agent_home_path = self._storage.get_agent_home_path(agent_id)
-            history_file = os.path.join(agent_home_path, "history.log")
-            
-            # Truncate the file by opening in write mode
-            with open(history_file, 'w', encoding='utf-8') as f:
-                pass  # Just open and close to truncate
-            
+            # Use repository method to clear history (works for both filesystem and MongoDB)
+            success = self._storage.clear_history(agent_id)
+
             # Optionally clear session conversation data if present
             try:
                 session_data = self._storage.load_session(agent_id)
@@ -116,8 +109,8 @@ class AgentDiscoveryService:
             except Exception:
                 # Don't fail completely if session clearing fails
                 pass
-            
-            return True
+
+            return success
         except Exception:
             return False
 

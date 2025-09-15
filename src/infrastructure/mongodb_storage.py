@@ -180,8 +180,14 @@ class MongoDbStorage(IAgentStorage):
 
         history_entries = []
         for data in history_data:
+            # Ensure _id is never empty
+            entry_id = data.get('_id', '')
+            if not entry_id:
+                import uuid
+                entry_id = str(uuid.uuid4())
+
             history_entries.append(HistoryEntry(
-                _id=data.get('_id', ''),
+                _id=entry_id,
                 agent_id=data['agent_id'],
                 task_id=data['task_id'],
                 status=data['status'],

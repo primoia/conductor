@@ -223,26 +223,22 @@ class TestAgentDiscoveryService:
         """Test successful clearing of conversation history."""
         # Setup mock repository
         mock_repository = Mock()
-        mock_repository.get_agent_home_path.return_value = "/test/path/agents/test_agent"
+        mock_repository.clear_history.return_value = True
         mock_repository.load_session.return_value = {"conversation_history": ["old_data"]}
         mock_repository.save_session.return_value = True
-        
+
         # Setup mock storage service
         mock_storage_service = Mock()
         mock_storage_service.get_repository.return_value = mock_repository
-        
+
         service = AgentDiscoveryService(mock_storage_service)
-        
-        # Mock file operations
-        with patch("builtins.open", mock_open()) as mock_file:
-            with patch("os.path.join", return_value="/test/path/agents/test_agent/history.log"):
-                # Call method
-                result = service.clear_conversation_history("test_agent")
-        
+
+        # Call method
+        result = service.clear_conversation_history("test_agent")
+
         # Verify
         assert result is True
-        mock_repository.get_agent_home_path.assert_called_once_with("test_agent")
-        mock_file.assert_called_once_with("/test/path/agents/test_agent/history.log", 'w', encoding='utf-8')
+        mock_repository.clear_history.assert_called_once_with("test_agent")
         mock_repository.load_session.assert_called_once_with("test_agent")
         mock_repository.save_session.assert_called_once_with("test_agent", {})
 
@@ -250,17 +246,17 @@ class TestAgentDiscoveryService:
         """Test that clear_conversation_history handles exceptions gracefully."""
         # Setup mock repository that raises exception
         mock_repository = Mock()
-        mock_repository.get_agent_home_path.side_effect = Exception("File system error")
-        
+        mock_repository.clear_history.side_effect = Exception("Storage error")
+
         # Setup mock storage service
         mock_storage_service = Mock()
         mock_storage_service.get_repository.return_value = mock_repository
-        
+
         service = AgentDiscoveryService(mock_storage_service)
-        
+
         # Call method
         result = service.clear_conversation_history("test_agent")
-        
+
         # Verify exception was handled
         assert result is False
 
