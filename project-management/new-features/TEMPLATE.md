@@ -1,199 +1,199 @@
-# 📋 Tarefa: [Nome da Funcionalidade]
+# 📋 Task: [Feature Name]
 
-**Projeto**: conductor  
-**Tecnologia**: Python  
-**Prioridade**: [Baixa/Média/Alta/Crítica]  
-**Estimativa**: [X dias/semanas]  
+**Project**: conductor  
+**Technology**: Python  
+**Priority**: [Low/Medium/High/Critical]  
+**Estimate**: [X days/weeks]  
 
-## 🎯 Objetivo
+## 🎯 Objective
 
-[Descrição clara e concisa do objetivo da funcionalidade]
+[Clear and concise description of the feature's objective]
 
-## 📊 Benefícios Esperados
+## 📊 Expected Benefits
 
-- ✅ [Benefício 1]
-- ✅ [Benefício 2]
-- ✅ [Benefício 3]
+- ✅ [Benefit 1]
+- ✅ [Benefit 2]
+- ✅ [Benefit 3]
 
-## 🏗️ Arquitetura Atual
-
-```
-[Diagrama ou descrição da arquitetura atual]
-```
-
-## 🎯 Arquitetura Alvo
+## 🏗️ Current Architecture
 
 ```
-[Diagrama ou descrição da arquitetura desejada após implementação]
+[Diagram or description of the current architecture]
 ```
 
-## 📋 Tarefas de Implementação
-
-### Fase 1: [Nome da Fase] ([X dias])
-
-#### 1.1 [Subtarefa 1]
-- [ ] [Tarefa específica]
-- [ ] [Tarefa específica]
-
-#### 1.2 [Subtarefa 2]
-- [ ] [Tarefa específica]
-- [ ] [Tarefa específica]
-
-### Fase 2: [Nome da Fase] ([X dias])
-
-#### 2.1 [Subtarefa 1]
-- [ ] [Tarefa específica]
-- [ ] [Tarefa específica]
-
-## 🔧 Implementação Técnica
-
-### Estrutura de Arquivos
+## 🎯 Target Architecture
 
 ```
-[Estrutura de arquivos que serão criados/modificados]
+[Diagram or description of the desired architecture after implementation]
 ```
 
-### Exemplo de Implementação
+## 📋 Implementation Tasks
+
+### Phase 1: [Phase Name] ([X days])
+
+#### 1.1 [Subtask 1]
+- [ ] [Specific task]
+- [ ] [Specific task]
+
+#### 1.2 [Subtask 2]
+- [ ] [Specific task]
+- [ ] [Specific task]
+
+### Phase 2: [Phase Name] ([X days])
+
+#### 2.1 [Subtask 1]
+- [ ] [Specific task]
+- [ ] [Specific task]
+
+## 🔧 Technical Implementation
+
+### File Structure
+
+```
+[File structure to be created/modified]
+```
+
+### Implementation Example
 
 ```python
-# Exemplo de código Python
-class ExemploComponent:
+# Python code example
+class ExampleComponent:
     def __init__(self):
-        # Implementação
+        # Implementation
         pass
 ```
 
-## 🧪 Testes
+## 🧪 Tests
 
-### Testes Unitários
-- [ ] [Cenário de teste 1]
-- [ ] [Cenário de teste 2]
+### Unit Tests
+- [ ] [Test case 1]
+- [ ] [Test case 2]
 
-### Testes de Integração
-- [ ] [Cenário de teste 1]
-- [ ] [Cenário de teste 2]
+### Integration Tests
+- [ ] [Test case 1]
+- [ ] [Test case 2]
 
-### Testes de Cenários
-- [ ] [Cenário de teste 1]
-- [ ] [Cenário de teste 2]
+### Scenario Tests
+- [ ] [Test case 1]
+- [ ] [Test case 2]
 
-## 📊 Métricas de Sucesso
+## 📊 Success Metrics
 
-### Funcionais
-- [ ] [Métrica 1]
-- [ ] [Métrica 2]
+### Functional
+- [ ] [Metric 1]
+- [ ] [Metric 2]
 
 ### Performance
-- [ ] [Métrica 1]
-- [ ] [Métrica 2]
+- [ ] [Metric 1]
+- [ ] [Metric 2]
 
-### Observabilidade
-- [ ] [Métrica 1]
-- [ ] [Métrica 2]
+### Observability
+- [ ] [Metric 1]
+- [ ] [Metric 2]
 
-## 🔐 Segurança
+## 🔐 Security
 
-### Configuração
-- [ ] [Consideração de segurança 1]
-- [ ] [Consideração de segurança 2]
+### Configuration
+- [ ] [Security consideration 1]
+- [ ] [Security consideration 2]
 
-### Dados Sensíveis
-- [ ] [Consideração de segurança 1]
-- [ ] [Consideração de segurança 2]
+### Sensitive Data
+- [ ] [Security consideration 1]
+- [ ] [Security consideration 2]
 
 ## 🚀 Deploy
 
-### Desenvolvimento
-- [ ] [Tarefa de deploy 1]
-- [ ] [Tarefa de deploy 2]
+### Development
+- [ ] [Deploy task 1]
+- [ ] [Deploy task 2]
 
-### Produção
-- [ ] [Tarefa de deploy 1]
-- [ ] [Tarefa de deploy 2]
+### Production
+- [ ] [Deploy task 1]
+- [ ] [Deploy task 2]
 
-## 📚 Documentação
+## 📚 Documentation
 
-### Para Desenvolvedores
-- [ ] [Documentação 1]
-- [ ] [Documentação 2]
+### For Developers
+- [ ] [Documentation 1]
+- [ ] [Documentation 2]
 
-### Para Operações
-- [ ] [Documentação 1]
-- [ ] [Documentação 2]
+### For Operations
+- [ ] [Documentation 1]
+- [ ] [Documentation 2]
 
-## 🎯 Critérios de Aceitação
+## 🎯 Acceptance Criteria
 
-### Funcionais
-- [ ] [Critério 1]
-- [ ] [Critério 2]
+### Functional
+- [ ] [Criterion 1]
+- [ ] [Criterion 2]
 
-### Técnicos
-- [ ] [Critério 1]
-- [ ] [Critério 2]
+### Technical
+- [ ] [Criterion 1]
+- [ ] [Criterion 2]
 
-### Operacionais
-- [ ] [Critério 1]
-- [ ] [Critério 2]
+### Operational
+- [ ] [Criterion 1]
+- [ ] [Criterion 2]
 
-## 📅 Cronograma
+## 📅 Schedule
 
-| Fase | Duração | Entregáveis |
+| Phase | Duration | Deliverables |
 |------|---------|-------------|
-| Fase 1 | X dias | [Entregável 1] |
-| Fase 2 | X dias | [Entregável 2] |
-| **Total** | **X dias** | **[Resumo dos entregáveis]** |
+| Phase 1 | X days | [Deliverable 1] |
+| Phase 2 | X days | [Deliverable 2] |
+| **Total** | **X days** | **[Summary of deliverables]** |
 
-## 🔗 Referências
+## 🔗 References
 
-- [Link para documentação relevante 1]
-- [Link para documentação relevante 2]
-- [Link para documentação relevante 3]
-
----
-
-**Status**: 📋 **Planejado**  
-**Responsável**: [A definir]  
-**Data de Início**: [A definir]  
-**Data de Conclusão**: [A definir]
+- [Link to relevant documentation 1]
+- [Link to relevant documentation 2]
+- [Link to relevant documentation 3]
 
 ---
 
-## 📝 Notas de Uso do Template
+**Status**: 📋 **Planned**  
+**Assignee**: [To be defined]  
+**Start Date**: [To be defined]  
+**End Date**: [To be defined]
 
-### Como Usar
-1. **Copiar este template** para um novo arquivo
-2. **Renomear** seguindo a convenção: `002-[nome-da-funcionalidade].md`
-3. **Preencher** todas as seções marcadas com `[texto]`
-4. **Remover** seções não aplicáveis
-5. **Adicionar** seções específicas se necessário
+---
 
-### Seções Obrigatórias
-- ✅ Metadados (projeto, tecnologia, prioridade, estimativa)
-- ✅ Objetivo
-- ✅ Benefícios esperados
-- ✅ Tarefas de implementação
-- ✅ Critérios de aceitação
-- ✅ Cronograma
+## 📝 Template Usage Notes
 
-### Seções Opcionais
-- 🔧 Implementação técnica (se aplicável)
-- 🧪 Testes (se aplicável)
-- 🔐 Segurança (se aplicável)
-- 🚀 Deploy (se aplicável)
-- 📚 Documentação (se aplicável)
+### How to Use
+1. **Copy this template** to a new file
+2. **Rename** it following the convention: `002-[feature-name].md`
+3. **Fill in** all sections marked with `[text]`
+4. **Remove** non-applicable sections
+5. **Add** specific sections if necessary
 
-### Status Possíveis
-- 📋 **Planejado** - Documentado, aguardando implementação
-- 🔄 **Em Progresso** - Sendo implementado
-- ✅ **Concluído** - Implementado e testado
-- 🚫 **Cancelado** - Não será implementado
+### Required Sections
+- ✅ Metadata (project, technology, priority, estimate)
+- ✅ Objective
+- ✅ Expected benefits
+- ✅ Implementation tasks
+- ✅ Acceptance criteria
+- ✅ Schedule
 
-### Contexto Específico do Conductor
+### Optional Sections
+- 🔧 Technical implementation (if applicable)
+- 🧪 Tests (if applicable)
+- 🔐 Security (if applicable)
+- 🚀 Deploy (if applicable)
+- 📚 Documentation (if applicable)
 
-O `conductor` é um sistema de orquestração Python, então considere:
+### Possible Statuses
+- 📋 **Planned** - Documented, awaiting implementation
+- 🔄 **In Progress** - Being implemented
+- ✅ **Completed** - Implemented and tested
+- 🚫 **Canceled** - Will not be implemented
 
-- **Orquestração**: Como a funcionalidade se integra aos workflows existentes
-- **Automação**: Como pode ser automatizada a execução
-- **Agentes**: Se envolve criação ou modificação de agentes especializados
-- **Eventos**: Como se comunica com outros componentes via eventos
-- **Persistência**: Como o estado é mantido entre execuções
+### Conductor Specific Context
+
+`conductor` is a Python orchestration system, so consider:
+
+- **Orchestration**: How the feature integrates with existing workflows.
+- **Automation**: How its execution can be automated.
+- **Agents**: If it involves creating or modifying specialized agents.
+- **Events**: How it communicates with other components via events.
+- **Persistence**: How state is maintained between executions.

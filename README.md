@@ -14,11 +14,11 @@
 Conductor is a multi-agent framework designed to provide a robust platform for AI-assisted development and automation. It allows you to create, manage, and orchestrate specialized AI agents that can reason, plan, and execute complex coding tasks by interacting with your codebase.
 
 
-### Diagramas relacionados
-- Visão detalhada do CLI: [cli-overview.md](docs/architecture/sequence-diagrams/cli-overview.md)
-- Modos de execução: [execution-modes.md](docs/architecture/sequence-diagrams/execution-modes.md)
-- Fluxo do REPL: [repl-flow.md](docs/architecture/sequence-diagrams/repl-flow.md)
-- Impacto dos parâmetros: [params-impact.md](docs/architecture/sequence-diagrams/params-impact.md)
+### Related Diagrams
+- Detailed CLI view: [cli-overview.md](docs/architecture/sequence-diagrams/cli-overview.md)
+- Execution modes: [execution-modes.md](docs/architecture/sequence-diagrams/execution-modes.md)
+- REPL flow: [repl-flow.md](docs/architecture/sequence-diagrams/repl-flow.md)
+- Parameter impact: [params-impact.md](docs/architecture/sequence-diagrams/params-impact.md)
 
 ```mermaid
 flowchart LR
@@ -57,7 +57,7 @@ flowchart LR
 5.  Update the tests.
 
 **With Conductor:** You simply instruct the agent:
-> *"Add a 'last_login' date field to the User entity, including the database migration, DTO, and API endpoint."*
+> *'''Add a 'last_login' date field to the User entity, including the database migration, DTO, and API endpoint.'''*
 
 Conductor then orchestrates the specialist agents needed to execute all steps automatically.
 
@@ -97,11 +97,11 @@ tool_plugins:
 conductor --list
 
 # Execute a simple task (stateless, fast)
-conductor --agent SystemGuide_Meta_Agent --input "Explain how Conductor works"
+conductor --agent SystemGuide_Meta_Agent --input '''Explain how Conductor works'''
 
 # Contextual conversation (with history)
-conductor --agent AgentCreator_Agent --chat --input "Create a new agent"
-conductor --agent AgentCreator_Agent --chat --input "Add security features"
+conductor --agent AgentCreator_Agent --chat --input '''Create a new agent'''
+conductor --agent AgentCreator_Agent --chat --input '''Add security features'''
 
 # Interactive session (REPL)
 conductor --agent AgentCreator_Agent --chat --interactive
@@ -145,36 +145,36 @@ Shows all available agents with their capabilities and tags.
 #### **Stateless Execution (Fast, No History)**
 ```bash
 # Basic syntax - perfect for automation and quick tasks
-conductor --agent <agent_id> --input "<your_message>"
+conductor --agent <agent_id> --input '''<your_message>'''
 
 # With custom timeout
-conductor --agent <agent_id> --input "<your_message>" --timeout 300
+conductor --agent <agent_id> --input '''<your_message>''' --timeout 300
 
 # JSON output (machine-friendly)
-conductor --agent <agent_id> --input "<your_message>" --output json
+conductor --agent <agent_id> --input '''<your_message>''' --output json
 
 # Practical examples
-conductor --agent SystemGuide_Meta_Agent --input "Explain the system architecture"
-conductor --agent CommitMessage_Agent --input "Generate commit message for current changes"
-conductor --agent CodeReviewer_Agent --input "Review this function: def hello(): pass"
+conductor --agent SystemGuide_Meta_Agent --input '''Explain the system architecture'''
+conductor --agent CommitMessage_Agent --input '''Generate commit message for current changes'''
+conductor --agent CodeReviewer_Agent --input '''Review this function: def hello(): pass'''
 ```
 
 #### **Contextual Chat (With History)**
 ```bash
 # Chat with conversation history - perfect for iterative work
-conductor --agent <agent_id> --chat --input "Your message"
+conductor --agent <agent_id> --chat --input '''Your message'''
 
 # Continue conversation (preserves context)
-conductor --agent <agent_id> --chat --input "Continue explaining"
+conductor --agent <agent_id> --chat --input '''Continue explaining'''
 
 # Clear history and start fresh
-conductor --agent <agent_id> --chat --clear --input "New conversation"
+conductor --agent <agent_id> --chat --clear --input '''New conversation'''
 ```
 
 #### **Interactive Sessions (REPL)**
 ```bash
 # Interactive session after initial message
-conductor --agent <agent_id> --chat --input "Start analysis" --interactive
+conductor --agent <agent_id> --chat --input '''Start analysis''' --interactive
 
 # Direct REPL (no initial message)
 conductor --agent <agent_id> --chat --interactive
@@ -213,7 +213,7 @@ conductor repl --agent AgentCreator_Agent --mode dev
 
 #### **3. Use the Created Agent**
 ```bash
-conductor execute --agent NewAgent --input "Execute your task"
+conductor execute --agent NewAgent --input '''Execute your task'''
 ```
 
 #### **4. Check Agent Information**
@@ -226,13 +226,13 @@ conductor info --agent NewAgent
 #### **Create and Use a Code Review Agent**
 ```bash
 # 1. Create the agent interactively
-conductor --agent AgentCreator_Agent --chat --input "Create a CodeReviewer_Agent for Python code quality analysis" --interactive
+conductor --agent AgentCreator_Agent --chat --input '''Create a CodeReviewer_Agent for Python code quality analysis''' --interactive
 [AgentCreator_Agent]> Add PEP8 checking capabilities
 [AgentCreator_Agent]> Include security analysis features
 [AgentCreator_Agent]> exit
 
 # 2. Use the created agent (stateless - fast)
-conductor --agent CodeReviewer_Agent --input "Review this code: def example(): pass"
+conductor --agent CodeReviewer_Agent --input '''Review this code: def example(): pass'''
 
 # 3. Get agent information
 conductor --info CodeReviewer_Agent
@@ -241,31 +241,31 @@ conductor --info CodeReviewer_Agent
 #### **Iterative Development Workflow**
 ```bash
 # Start contextual conversation
-conductor --agent AgentCreator_Agent --chat --input "I need to create a specialized agent"
+conductor --agent AgentCreator_Agent --chat --input '''I need to create a specialized agent'''
 
 # Continue the conversation (remembers context)
-conductor --agent AgentCreator_Agent --chat --input "It should analyze API performance"
+conductor --agent AgentCreator_Agent --chat --input '''It should analyze API performance'''
 
 # Add more requirements (still remembers everything)
-conductor --agent AgentCreator_Agent --chat --input "Include monitoring capabilities"
+conductor --agent AgentCreator_Agent --chat --input '''Include monitoring capabilities'''
 ```
 
 #### **Quick Automation Tasks**
 ```bash
 # Generate commit messages (stateless - perfect for scripts)
-conductor --agent CommitMessage_Agent --input "Generate commit message for: added input validation and fixed authentication bug"
+conductor --agent CommitMessage_Agent --input '''Generate commit message for: added input validation and fixed authentication bug'''
 
 # Code analysis in CI/CD
-conductor --agent SecurityAuditor_Agent --input "Audit the authentication module" --timeout 300
+conductor --agent SecurityAuditor_Agent --input '''Audit the authentication module''' --timeout 300
 
 # Documentation generation
-conductor --agent DocWriter_Agent --input "Generate API documentation for the user service"
+conductor --agent DocWriter_Agent --input '''Generate API documentation for the user service'''
 ```
 
 #### **Interactive Development Session**
 ```bash
 # Start interactive session with initial context
-conductor --agent AgentCreator_Agent --chat --input "Let's create a comprehensive testing agent" --interactive
+conductor --agent AgentCreator_Agent --chat --input '''Let's create a comprehensive testing agent''' --interactive
 
 # Now you're in REPL mode with full context
 [AgentCreator_Agent]> What testing frameworks should we support?
@@ -293,7 +293,7 @@ chmod +x conductor
 conductor --list
 
 # System automatically suggests similar agents
-conductor --agent TestAgent --input "test"
+conductor --agent TestAgent --input '''test'''
 # Output: ❌ Agent 'TestAgent' not found
 #         💡 Similar agents: TestingSpecialist_Agent, SystemGuide_Meta_Agent
 ```
@@ -301,10 +301,10 @@ conductor --agent TestAgent --input "test"
 #### **Timeout on long operations**
 ```bash
 # If agent takes too long (default timeout: 120s)
-conductor --agent MyAgent --input "complex task" --timeout 300
+conductor --agent MyAgent --input '''complex task''' --timeout 300
 
 # For very complex tasks
-conductor --agent MyAgent --chat --input "complete analysis" --timeout 600
+conductor --agent MyAgent --chat --input '''complete analysis''' --timeout 600
 ```
 
 #### **Validate everything is working**
@@ -323,7 +323,7 @@ conductor --validate
 #### Scenario 2: Project Analysis
 ```bash
 # 1. Execute analysis agent on a specific project
-conductor execute --agent ProjectAnalyst_Agent --environment production --project ecommerce --input "Analyze the current system architecture"
+conductor execute --agent ProjectAnalyst_Agent --environment production --project ecommerce --input '''Analyze the current system architecture'''
 
 # 2. Get detailed information about the agent used
 conductor info --agent ProjectAnalyst_Agent
@@ -332,7 +332,7 @@ conductor info --agent ProjectAnalyst_Agent
 #### Scenario 3: Working with Documentation
 ```bash
 # Execute agent to analyze documentation
-conductor execute --agent DocumentAnalyst_Agent --input "Analyze all README files in the project and generate a summary"
+conductor execute --agent DocumentAnalyst_Agent --input '''Analyze all README files in the project and generate a summary'''
 ```
 
 ### 🔄 Agent Management
@@ -375,10 +375,10 @@ mkdir -p .conductor_workspace/agents/MyNewAgent_Agent
 
 # 2. Create definition file
 cat > .conductor_workspace/agents/MyNewAgent_Agent/definition.yaml << 'EOF'
-name: "My New Agent"
-version: "1.0.0"
-author: "Your Name"
-description: "Description of what the agent does"
+name: '''My New Agent'''
+version: '''1.0.0'''
+author: '''Your Name'''
+description: '''Description of what the agent does'''
 capabilities:
   - capability1
   - capability2
@@ -412,7 +412,7 @@ conductor info --agent MyNewAgent_Agent
 #### Problem: Agent not found
 ```bash
 # ❌ Error: Agent 'MyAgent' not found
-conductor execute --agent MyAgent --input "test"
+conductor execute --agent MyAgent --input '''test'''
 
 # ✅ Solution: List available agents
 conductor --list
@@ -427,23 +427,23 @@ conductor info --agent MyAgent
 conductor --validate
 
 # If there are problems, check:
-# 1. Se o arquivo config.yaml existe
-# 2. Se o diretório .conductor_workspace tem permissões corretas
-# 3. Se os agentes têm arquivos definition.yaml válidos
+# 1. If the config.yaml file exists
+# 2. If the .conductor_workspace directory has correct permissions
+# 3. If the agents have valid definition.yaml files
 ```
 
-#### Problema: Permissões de arquivo
+#### Problem: File Permissions
 ```bash
-# ✅ Garanta que o executável conductor tem permissões
+# ✅ Ensure the conductor executable has permissions
 chmod +x conductor
 
-# ✅ Verifique permissões do workspace
+# ✅ Check workspace permissions
 ls -la .conductor_workspace/
 ```
 
-#### Problema: Dependências Python
+#### Problem: Python Dependencies
 ```bash
-# ✅ Instale dependências
+# ✅ Install dependencies
 poetry install
 
 # ✅ Activate virtual environment
@@ -456,7 +456,7 @@ poetry run python src/cli/conductor.py --list
 #### Problem: Agent doesn't respond or fails
 ```bash
 # ✅ Check detailed logs (if available)
-conductor execute --agent ProblematicAgent --input "test" --timeout 300
+conductor execute --agent ProblematicAgent --input '''test''' --timeout 300
 
 # ✅ Check agent structure
 conductor info --agent ProblematicAgent
@@ -471,19 +471,19 @@ cat .conductor_workspace/agents/ProblematicAgent/definition.yaml
 ```bash
 # Configure variables for different environments
 export CONDUCTOR_ENV=development
-conductor execute --agent MyAgent --input "Analyze the $CONDUCTOR_ENV environment"
+conductor execute --agent MyAgent --input '''Analyze the $CONDUCTOR_ENV environment'''
 ```
 
 #### 2. **Piping and Automation**
 ```bash
 # Chain commands
-conductor --list | grep "Analyst" | head -5
+conductor --list | grep '''Analyst''' | head -5
 
 # Use in bash scripts
 #!/bin/bash
-for agent in $(conductor --list | grep "Agent" | awk '{print $2}'); do
-    echo "Checking $agent..."
-    conductor info --agent "$agent"
+for agent in $(conductor --list | grep '''Agent''' | awk '{print $2}'); do
+    echo '''Checking $agent...'''
+    conductor info --agent '''$agent'''
 done
 ```
 
@@ -491,7 +491,7 @@ done
 ```bash
 # Use variables for dynamic projects
 PROJECT=$(basename $(pwd))
-conductor execute --agent ProjectAnalyst_Agent --project "$PROJECT" --input "Analyze this project"
+conductor execute --agent ProjectAnalyst_Agent --project '''$PROJECT''' --input '''Analyze this project'''
 ```
 
 ### 📊 Quick Reference Commands
@@ -499,21 +499,21 @@ conductor execute --agent ProjectAnalyst_Agent --project "$PROJECT" --input "Ana
 | Command | Description | Example |
 |---------|-------------|---------|
 | `--list` | List all agents | `conductor --list` |
-| `--agent --input` | Stateless execution | `conductor --agent MyAgent --input "text"` |
-| `--agent --chat --input` | Contextual chat | `conductor --agent MyAgent --chat --input "text"` |
+| `--agent --input` | Stateless execution | `conductor --agent MyAgent --input '''text'''` |
+| `--agent --chat --input` | Contextual chat | `conductor --agent MyAgent --chat --input '''text'''` |
 | `--agent --chat --interactive` | Interactive REPL | `conductor --agent MyAgent --chat --interactive` |
 | `--info` | Show agent details | `conductor --info MyAgent` |
 | `--validate` | Validate configuration | `conductor --validate` |
 | `--install` | Install templates | `conductor --install web_development` |
 | `--backup` | Backup agents | `conductor --backup` |
-| `--output json` | JSON output | `conductor --agent MyAgent --input "text" --output json` |
+| `--output json` | JSON output | `conductor --agent MyAgent --input '''text''' --output json` |
 
 ### 🎯 **When to Use Each Mode**
 
 | Mode | Use Case | Example |
 |------|----------|---------|
-| **Stateless** (`--input`) | Quick tasks, automation, CI/CD | `conductor --agent CodeReviewer --input "review code"` |
-| **Contextual** (`--chat --input`) | Iterative work, related questions | `conductor --agent AgentCreator --chat --input "continue building"` |
+| **Stateless** (`--input`) | Quick tasks, automation, CI/CD | `conductor --agent CodeReviewer --input '''review code'''` |
+| **Contextual** (`--chat --input`) | Iterative work, related questions | `conductor --agent AgentCreator --chat --input '''continue building'''` |
 | **Interactive** (`--chat --interactive`) | Development, experimentation | `conductor --agent AgentCreator --chat --interactive` |
 
 ## 📚 Documentation

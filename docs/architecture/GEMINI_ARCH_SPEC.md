@@ -1,6 +1,6 @@
 # Architectural Specification: Conductor Agent Framework
 
-> **📌 NOTA DE ARQUITETURA:** Esta documentação descreve especificações originais do framework. Para uma visão unificada e atualizada de toda a arquitetura do sistema pós-SAGA-017, consulte: [UNIFIED_ARCHITECTURE.md](./UNIFIED_ARCHITECTURE.md)
+> **📌 ARCHITECTURE NOTE:** This documentation describes the original specifications of the framework. For a unified and updated view of the entire system architecture post-SAGA-017, please refer to: [UNIFIED_ARCHITECTURE.md](./UNIFIED_ARCHITECTURE.md)
 
 **Version:** 2.0
 

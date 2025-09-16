@@ -1,6 +1,6 @@
 # Agent Architecture: The Hybrid "Stabilized Local Cache" Model
 
-> **📌 NOTA DE ARQUITETURA:** Esta documentação descreve o modelo híbrido de agentes. Para uma visão unificada e atualizada de toda a arquitetura do sistema pós-SAGA-017, consulte: [UNIFIED_ARCHITECTURE.md](./UNIFIED_ARCHITECTURE.md)
+> **📌 ARCHITECTURE NOTE:** This documentation describes the hybrid agent model. For a unified and updated view of the entire system architecture post-SAGA-017, please refer to: [UNIFIED_ARCHITECTURE.md](./UNIFIED_ARCHITECTURE.md)
 
 **Status:** Proposed and Accepted
 **Date:** August 24, 2025

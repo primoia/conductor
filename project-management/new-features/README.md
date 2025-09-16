@@ -1,45 +1,45 @@
-# 💡 New Features - Ideias Não Implementadas
+# 💡 New Features - Unimplemented Ideas
 
-Esta pasta contém documentação de funcionalidades e melhorias ainda não implementadas no Conductor & Maestro Framework.
+This folder contains documentation for features and improvements not yet implemented in the Conductor & Maestro Framework.
 
-## 📁 **Estrutura**
+## 📁 **Structure**
 
 ```
 new-features/
-├── README.md (este arquivo)
+├── README.md (this file)
 ├── agent-versioning-system.md
 ├── chat-memory-persistence.md
 └── agent-validation-framework.md
 ```
 
-## 🎯 **Categorias de Features**
+## 🎯 **Feature Categories**
 
-### **🔧 Sistema Core**
-- Sistema de versionamento de agentes
-- Persistência de memória de chat
-- Framework de validação automática
+### **🔧 Core System**
+- Agent versioning system
+- Chat memory persistence
+- Automatic validation framework
 
-### **📊 Monitoramento**
-- Métricas de performance de agentes
-- Analytics de conversações
-- Health checks automáticos
+### **📊 Monitoring**
+- Agent performance metrics
+- Conversation analytics
+- Automatic health checks
 
-### **🛡️ Segurança**
-- Validação de agentes maliciosos
-- Sandbox para execução de comandos
-- Audit trail de ações
+### **🛡️ Security**
+- Malicious agent validation
+- Sandbox for command execution
+- Action audit trail
 
 ### **📚 Developer Experience**
-- Hot reload de agentes
-- Debug mode aprimorado
-- Templates de agentes
+- Agent hot reload
+- Enhanced debug mode
+- Agent templates
 
-## 📋 **Status das Features**
+## 📋 **Feature Status**
 
-- 🎯 **Planejada**: Idea documentada, aguardando implementação
-- 🚧 **Em desenvolvimento**: Implementação ativa
-- ✅ **Implementada**: Movida para produção
-- ❌ **Cancelada**: Idea descartada
+- 🎯 **Planned**: Idea documented, awaiting implementation
+- 🚧 **In development**: Active implementation
+- ✅ **Implemented**: Moved to production
+- ❌ **Canceled**: Idea discarded
 
 ---
-*Documentação criada em: 2025-08-16*
+*Documentation created on: 2025-08-16*

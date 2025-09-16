@@ -2,60 +2,60 @@
 
 ## Agent: {AGENT_NAME}
 
-## Função
-{Descrição concisa da responsabilidade principal do agente}
+## Function
+{Concise description of the agent's main responsibility}
 
-## Responsabilidades
-- {Lista específica do que o agente deve fazer}
-- {Uma responsabilidade por linha}
-- {Seja específico e mensurável}
+## Responsibilities
+- {Specific list of what the agent should do}
+- {One responsibility per line}
+- {Be specific and measurable}
 
-## Regras
-1. {Regras de comportamento e execução}
-2. {Condições para ativação}
-3. {Protocolo de comunicação}
-4. {Frequência de execução}
+## Rules
+1. {Behavior and execution rules}
+2. {Activation conditions}
+3. {Communication protocol}
+4. {Execution frequency}
 
-## Restrições
-- {O que o agente NÃO deve fazer}
-- {Limitações de escopo}
-- {Boundries com outros agentes}
-- {Recursos máximos permitidos}
+## Restrictions
+- {What the agent should NOT do}
+- {Scope limitations}
+- {Boundaries with other agents}
+- {Maximum allowed resources}
 
-## Inputs Esperados
-- Comando: "{exemplo de comando que ativa o agente}"
-- Dados: {tipo de dados esperados}
-- Contexto: {contexto necessário}
+## Expected Inputs
+- Command: "{example command that activates the agent}"
+- Data: {expected data type}
+- Context: {necessary context}
 
 ## Outputs
 - Status: {SUCCESS/FAILURE/PENDING}
-- Dados: {formato dos dados retornados}
-- Métricas: {métricas relevantes}
-- Logs: {nível de logging}
+- Data: {format of the returned data}
+- Metrics: {relevant metrics}
+- Logs: {logging level}
 
-## Estado Persistente
-- {campo1}: {descrição do que é armazenado}
-- {campo2}: {descrição do que é armazenado}
-- {campoN}: {descrição do que é armazenado}
+## Persistent State
+- {field1}: {description of what is stored}
+- {field2}: {description of what is stored}
+- {fieldN}: {description of what is stored}
 
-## Dependências
-- Agentes predecessores: {lista ou "none"}
-- Agentes sucessores: {lista ou "none"}
-- Recursos externos: {APIs, databases, etc}
+## Dependencies
+- Predecessor agents: {list or "none"}
+- Successor agents: {list or "none"}
+- External resources: {APIs, databases, etc}
 
-## Critérios de Sucesso
-- [ ] {Critério mensurável 1}
-- [ ] {Critério mensurável 2}
-- [ ] {Critério mensurável N}
+## Success Criteria
+- [ ] {Measurable criterion 1}
+- [ ] {Measurable criterion 2}
+- [ ] {Measurable criterion N}
 
-## Handling de Erros
-- **Timeout**: {comportamento se demorar muito}
-- **Falha de recurso**: {comportamento se dependência falhar}
-- **Input inválido**: {comportamento com dados ruins}
-- **Estado inconsistente**: {comportamento com estado corrompido}
+## Error Handling
+- **Timeout**: {behavior if it takes too long}
+- **Resource failure**: {behavior if a dependency fails}
+- **Invalid input**: {behavior with bad data}
+- **Inconsistent state**: {behavior with corrupted state}
 
-## Métricas e Monitoramento
-- **Performance**: {tempo esperado de execução}
-- **Success rate**: {taxa de sucesso esperada}
-- **Resource usage**: {CPU, memoria, storage esperados}
-- **Health check**: {como verificar se agente está saudável}
+## Metrics and Monitoring
+- **Performance**: {expected execution time}
+- **Success rate**: {expected success rate}
+- **Resource usage**: {expected CPU, memory, storage}
+- **Health check**: {how to check if the agent is healthy}

@@ -1,8 +1,8 @@
-# 🎮 Fluxo do REPL (REPLManager)
+# 🎮 REPL Flow (REPLManager)
 
-> Baseado em `src/cli/shared/repl_manager.py` e integração com `ConductorCLI`.
+> Based on `src/cli/shared/repl_manager.py` and integration with `ConductorCLI`.
 
-## Sequência de Interação no REPL
+## REPL Interaction Sequence
 
 ```mermaid
 sequenceDiagram
@@ -11,34 +11,34 @@ sequenceDiagram
     participant CLI as ConductorCLI
 
     User->>REPL: start_session()
-    REPL-->>User: ajuda + limites (rate limit, circuit breaker)
+    REPL-->>User: help + limits (rate limit, circuit breaker)
 
-    loop até sair
-        User->>REPL: entrada (comandos ou mensagem múltiplas linhas)
-        alt comando interno
+    loop until exit
+        User->>REPL: input (commands or multi-line message)
+        alt internal command
             REPL->>REPL: state/history/clear/save/tools/scope/status/reset/emergency
-            REPL-->>User: saída do comando
-        else mensagem normal
+            REPL-->>User: command output
+        else normal message
             REPL->>CLI: chat(message)
             alt simulate_mode
                 CLI-->>REPL: "SIMULATION: Would send ..."
-            else execução real
-                CLI->>CLI: monta TaskDTO(context)
+            else real execution
+                CLI->>CLI: builds TaskDTO(context)
                 CLI->>CLI: conductor_service.execute_task(...)
-                CLI-->>REPL: resposta
+                CLI-->>REPL: response
             end
-            REPL-->>User: imprime resposta
-            REPL->>REPL: atualiza rate-limit e contadores
+            REPL-->>User: prints response
+            REPL->>REPL: updates rate-limit and counters
         end
-        REPL->>REPL: verifica circuit breaker/limites
+        REPL->>REPL: checks circuit breaker/limits
     end
 ```
 
-## Comandos Extras por Modo
-- **advanced/dev**: adiciona `debug`, `prompt`.
-- **dev**: adiciona `simulate`, `export-debug`.
+## Extra Commands by Mode
+- **advanced/dev**: adds `debug`, `prompt`.
+- **dev**: adds `simulate`, `export-debug`.
 
-## Proteções
-- **Rate limit**: intervalo mínimo entre interações.
-- **Circuit breaker**: bloqueio após N erros consecutivos com reset temporizado.
-- **Emergency stop**: interrupção imediata da sessão.
+## Protections
+- **Rate limit**: minimum interval between interactions.
+- **Circuit breaker**: blocks after N consecutive errors with a timed reset.
+- **Emergency stop**: immediate session interruption.

@@ -1,23 +1,23 @@
-# Análise de Segurança da Arquitetura (SAGA-017)
+# Architecture Security Analysis (SAGA-017)
 
-> **📌 NOTA DE ARQUITETURA:** Esta documentação analisa aspectos específicos de segurança. Para uma visão unificada e atualizada de toda a arquitetura do sistema pós-SAGA-017, consulte: [UNIFIED_ARCHITECTURE.md](./UNIFIED_ARCHITECTURE.md)
+> **📌 ARCHITECTURE NOTE:** This documentation analyzes specific security aspects. For a unified and updated view of the entire system architecture post-SAGA-017, please refer to: [UNIFIED_ARCHITECTURE.md](./UNIFIED_ARCHITECTURE.md)
 
-## Vetor de Ameaça: Carregamento de Tool Plugins
+## Threat Vector: Tool Plugin Loading
 
-A funcionalidade de `tool_plugins` introduzida na SAGA-016 permite carregar código Python de diretórios especificados no `config.yaml`. Isso representa o principal vetor de ameaça da nova arquitetura.
+The `tool_plugins` functionality introduced in SAGA-016 allows loading Python code from directories specified in `config.yaml`. This represents the main threat vector of the new architecture.
 
-### Riscos Identificados
+### Identified Risks
 
-1.  **Path Traversal:** Um usuário mal-intencionado poderia configurar um caminho como `../../../../etc/` para tentar carregar ou inspecionar arquivos do sistema.
-2.  **Execução de Código Malicioso:** Um usuário pode, intencionalmente ou não, apontar para um diretório de plugin que contém código malicioso, que seria executado na inicialização do `ConductorService`.
+1.  **Path Traversal:** A malicious user could configure a path like `../../../../etc/` to try to load or inspect system files.
+2.  **Malicious Code Execution:** A user can, intentionally or not, point to a plugin directory that contains malicious code, which would be executed at the initialization of the `ConductorService`.
 
-### Mitigações Implementadas (Estágio 24)
+### Implemented Mitigations (Stage 24)
 
-1.  **Validação de Caminho:** O `ConductorService` agora verifica se o caminho absoluto do diretório do plugin é um subdiretório do diretório do projeto. Isso mitiga efetivamente os ataques de Path Traversal, garantindo que apenas o código dentro do escopo do projeto possa ser carregado dinamicamente.
-2.  **Logging Explícito:** Um `WARNING` é explicitamente logado sempre que um plugin é carregado. Isso aumenta a visibilidade e ajuda na auditoria.
+1.  **Path Validation:** The `ConductorService` now checks if the absolute path of the plugin directory is a subdirectory of the project directory. This effectively mitigates Path Traversal attacks, ensuring that only code within the project's scope can be loaded dynamically.
+2.  **Explicit Logging:** A `WARNING` is explicitly logged whenever a plugin is loaded. This increases visibility and helps in auditing.
 
-### Riscos Residuais e Recomendações
+### Residual Risks and Recommendations
 
--   O risco de execução de código malicioso persiste. A responsabilidade final recai sobre o operador que configura o `config.yaml`.
--   **Recomendação:** A documentação deve instruir claramente os usuários a **nunca** carregar plugins de fontes não confiáveis.
--   **Futuro:** Em um ambiente de produção mais restrito, considerar a implementação de uma "allow-list" de plugins permitidos ou a assinatura de código para os plugins.
+-   The risk of malicious code execution persists. The final responsibility lies with the operator who configures the `config.yaml`.
+-   **Recommendation:** The documentation should clearly instruct users to **never** load plugins from untrusted sources.
+-   **Future:** In a more restricted production environment, consider implementing an "allow-list" of permitted plugins or code signing for plugins.

@@ -1,24 +1,24 @@
-# Plano 002: Refatorar State Repository para Alinhamento com a SAGA-16
+# Plan 002: Refactor State Repository for Alignment with SAGA-16
 
-## 1. Contexto e Problema
+## 1. Context and Problem
 
-A implementação anterior do `FileSystemStateRepository` foi baseada em uma especificação incompleta que considerava apenas `session` e `memory`. O documento de referência oficial da SAGA-16 (`AGENT_ARTIFACTS_REFERENCE.md`) especifica uma arquitetura de múltiplos artefatos (`session.json`, `knowledge.json`, `playbook.yaml`, `history.log`, etc.).
+The previous implementation of `FileSystemStateRepository` was based on an incomplete specification that only considered `session` and `memory`. The official SAGA-16 reference document (`AGENT_ARTIFACTS_REFERENCE.md`) specifies a multi-artifact architecture (`session.json`, `knowledge.json`, `playbook.yaml`, `history.log`, etc.).
 
-Esta implementação está, portanto, desalinhada com a arquitetura mestre.
+This implementation is therefore misaligned with the master architecture.
 
-## 2. Objetivo
+## 2. Objective
 
-Refatorar a camada de persistência (`IStateRepository` e `FileSystemStateRepository`) para que ela gerencie cada artefato do agente de forma granular, conforme especificado na SAGA-16.
+Refactor the persistence layer (`IStateRepository` and `FileSystemStateRepository`) so that it manages each agent artifact in a granular way, as specified in SAGA-16.
 
-## 3. Plano de Execução
+## 3. Execution Plan
 
-### Tarefa 1: Refatorar a Interface `IStateRepository`
+### Task 1: Refactor the `IStateRepository` Interface
 
-**Local:** `src/ports/state_repository.py`
+**Location:** `src/ports/state_repository.py`
 
 **Checklist:**
-- [ ] Remover os métodos `save_state` e `load_state`.
-- [ ] Adicionar novos métodos para o gerenciamento granular de cada artefato principal:
+- [ ] Remove the `save_state` and `load_state` methods.
+- [ ] Add new methods for granular management of each main artifact:
   - `load_definition(agent_id: str) -> Dict`
   - `load_persona(agent_id: str) -> str`
   - `save_session(agent_id: str, session_data: Dict) -> bool`
@@ -30,27 +30,27 @@ Refatorar a camada de persistência (`IStateRepository` e `FileSystemStateReposi
   - `append_to_history(agent_id: str, history_entry: Dict) -> bool`
   - `load_history(agent_id: str) -> List[Dict]`
 
-### Tarefa 2: Implementar `FileSystemStateRepository`
+### Task 2: Implement `FileSystemStateRepository`
 
-**Local:** `src/infrastructure/storage/filesystem_repository.py`
-
-**Checklist:**
-- [ ] Implementar todos os novos métodos da interface `IStateRepository`.
-- [ ] Cada método deve ler ou escrever o arquivo correspondente no diretório `<base_path>/agents/<agent_id>/` (ex: `save_session` escreve em `session.json`, `load_playbook` lê de `playbook.yaml`).
-- [ ] O método `append_to_history` deve adicionar uma nova linha ao arquivo `history.log` no formato JSON Lines.
-- [ ] Os métodos de `load` devem retornar valores vazios apropriados (ex: `[]` para `load_history`, `{}` para `load_session`) se o arquivo não existir, sem gerar erro.
-- [ ] O método `list_agents` deve ser mantido e implementado para listar os subdiretórios em `<base_path>/agents/`.
-
-### Tarefa 3: Atualizar o `ConductorService`
-
-**Local:** `src/core/conductor_service.py` (e onde mais for necessário)
+**Location:** `src/infrastructure/storage/filesystem_repository.py`
 
 **Checklist:**
-- [ ] Atualizar o serviço para usar os novos métodos granulares do repositório de estado em vez dos antigos `save_state` e `load_state`.
+- [ ] Implement all new methods of the `IStateRepository` interface.
+- [ ] Each method must read or write the corresponding file in the `<base_path>/agents/<agent_id>/` directory (e.g., `save_session` writes to `session.json`, `load_playbook` reads from `playbook.yaml`).
+- [ ] The `append_to_history` method must add a new line to the `history.log` file in JSON Lines format.
+- [ ] The `load` methods must return appropriate empty values (e.g., `[]` for `load_history`, `{}` for `load_session`) if the file does not exist, without raising an error.
+- [ ] The `list_agents` method must be maintained and implemented to list the subdirectories in `<base_path>/agents/`.
 
-## 4. Critérios de Aceitação
+### Task 3: Update the `ConductorService`
 
-1.  A interface `IStateRepository` reflete a nova arquitetura granular.
-2.  A classe `FileSystemStateRepository` implementa corretamente a leitura e escrita de todos os artefatos (`session.json`, `knowledge.json`, `playbook.yaml`, `history.log`).
-3.  O `ConductorService` utiliza a nova interface para gerenciar o estado do agente.
-4.  Os testes existentes são adaptados e todos continuam passando após a refatoração.
+**Location:** `src/core/conductor_service.py` (and wherever else is necessary)
+
+**Checklist:**
+- [ ] Update the service to use the new granular methods of the state repository instead of the old `save_state` and `load_state`.
+
+## 4. Acceptance Criteria
+
+1.  The `IStateRepository` interface reflects the new granular architecture.
+2.  The `FileSystemStateRepository` class correctly implements the reading and writing of all artifacts (`session.json`, `knowledge.json`, `playbook.yaml`, `history.log`).
+3.  The `ConductorService` uses the new interface to manage the agent's state.
+4.  Existing tests are adapted and all continue to pass after the refactoring.

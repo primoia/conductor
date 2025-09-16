@@ -1,71 +1,71 @@
-# 🧠 Primo: Procedimento Operacional Padrão para Delegação de Tarefas Complexas
+# 🧠 Primo: Standard Operating Procedure for Delegating Complex Tasks
 
-Este documento descreve o fluxo de trabalho padrão que Primo (a instância Gemini) segue ao delegar tarefas complexas que exigem múltiplas etapas ou a orquestração de outros agentes de IA, como o Claude.
+This document describes the standard workflow that Primo (the Gemini instance) follows when delegating complex tasks that require multiple steps or the orchestration of other AI agents, such as Claude.
 
-## Objetivo
+## Objective
 
-Garantir uma execução eficiente, verificável e documentada de tarefas complexas, mantendo a qualidade do código e a integridade do repositório.
+To ensure an efficient, verifiable, and documented execution of complex tasks, while maintaining code quality and repository integrity.
 
-## Fluxo de Trabalho Detalhado
+## Detailed Workflow
 
-### Passo 1: Criação do Plano de Execução (MD)
+### Step 1: Creation of the Execution Plan (MD)
 
-*   **Ação de Primo:** Criar um arquivo Markdown (`.md`) detalhando o plano de execução da tarefa complexa. Este plano incluirá:
-    *   Objetivo da tarefa.
-    *   Passos detalhados para a execução.
-    *   Instruções específicas para o agente executor (ex: comandos a serem usados, arquivos a serem modificados).
-    *   Critérios de verificação para cada passo.
-*   **Localização:** O arquivo `.md` será salvo em um local apropriado dentro do projeto ou em uma pasta de documentação temporária, se a tarefa for de curta duração.
-*   **Ferramenta Utilizada:** `write_file`
+*   **Primo's Action:** Create a Markdown file (`.md`) detailing the execution plan for the complex task. This plan will include:
+    *   The task's objective.
+    *   Detailed steps for execution.
+    *   Specific instructions for the executor agent (e.g., commands to be used, files to be modified).
+    *   Verification criteria for each step.
+*   **Location:** The `.md` file will be saved in an appropriate location within the project or in a temporary documentation folder if the task is short-lived.
+*   **Tool Used:** `write_file`
 
-### Passo 2: Delegação e Execução pelo Agente (Claude)
+### Step 2: Delegation and Execution by the Agent (Claude)
 
-*   **Ação de Primo:** Invocar o agente executor (ex: Claude) via `run_shell_command`, instruindo-o a ler e executar o plano detalhado no arquivo `.md`.
-*   **Contexto de Execução:** A invocação do agente incluirá um comando `cd` para garantir que o agente opere no diretório raiz do projeto alvo, fornecendo-lhe o contexto e a autonomia necessários.
-*   **Controle de Permissões:** O agente será invocado com as permissões (`--allowedTools`) e flags de segurança (`--dangerously-skip-permissions`) apropriadas para a tarefa.
-*   **Ferramenta Utilizada:** `run_shell_command`
+*   **Primo's Action:** Invoke the executor agent (e.g., Claude) via `run_shell_command`, instructing it to read and execute the detailed plan in the `.md` file.
+*   **Execution Context:** The agent's invocation will include a `cd` command to ensure that the agent operates in the target project's root directory, providing it with the necessary context and autonomy.
+*   **Permission Control:** The agent will be invoked with the appropriate permissions (`--allowedTools`) and security flags (`--dangerously-skip-permissions`) for the task.
+*   **Tool Used:** `run_shell_command`
 
-### Passo 3: Code Review e Verificação
+### Step 3: Code Review and Verification
 
-*   **Ação de Primo:** Após a conclusão da execução pelo agente, Primo realizará um code review rigoroso. Isso inclui:
-    *   Verificar se todos os passos do plano foram executados corretamente.
-    *   Analisar o código modificado ou criado para garantir qualidade, conformidade com padrões e ausência de erros.
-    *   Executar testes ou comandos de verificação conforme necessário.
-*   **Ferramentas Utilizadas:** `read_file`, `read_many_files`, `search_file_content`, `run_shell_command` (para testes/verificações).
+*   **Primo's Action:** After the agent completes the execution, Primo will perform a rigorous code review. This includes:
+    *   Verifying that all steps of the plan were executed correctly.
+    *   Analyzing the modified or created code to ensure quality, compliance with standards, and the absence of errors.
+    *   Running tests or verification commands as needed.
+*   **Tools Used:** `read_file`, `read_many_files`, `search_file_content`, `run_shell_command` (for tests/verifications).
 
-### Passo 3.5: Execução Automatizada de Testes (por Claude)
+### Step 3.5: Automated Test Execution (by Claude)
 
-*   **Ação de Primo:** Após o code review inicial, Primo delegará a um agente executor (Claude) a tarefa de executar os testes automatizados do projeto.
-*   **Contexto de Execução:** O agente será invocado no diretório do projeto alvo, com as permissões necessárias para executar comandos de teste.
-*   **Verificação:** Primo analisará a saída dos testes para garantir que todos passaram. Se houver falhas, o ciclo de iteração (Passo 5) será acionado.
-*   **Ferramentas Utilizadas:** `run_shell_command` (para invocar o agente e executar os testes).
+*   **Primo's Action:** After the initial code review, Primo will delegate the task of running the project's automated tests to an executor agent (Claude).
+*   **Execution Context:** The agent will be invoked in the target project's directory, with the necessary permissions to run test commands.
+*   **Verification:** Primo will analyze the test output to ensure that all tests have passed. If there are failures, the iteration cycle (Step 5) will be triggered.
+*   **Tools Used:** `run_shell_command` (to invoke the agent and run the tests).
 
-### Passo 4: Commit e Push (se tudo estiver correto)
+### Step 4: Commit and Push (if everything is correct)
 
-*   **Ação de Primo:** Se o code review for satisfatório e todas as verificações passarem:
-    *   As mudanças serão adicionadas ao staging (`git add`).
-    *   Um commit será criado com uma mensagem clara e descritiva em inglês.
-    *   As mudanças serão enviadas para o repositório remoto (`git push origin`).
-*   **Ferramentas Utilizadas:** `run_shell_command` (`git add`, `git commit`, `git push`).
+*   **Primo's Action:** If the code review is satisfactory and all checks pass:
+    *   The changes will be added to staging (`git add`).
+    *   A commit will be created with a clear and descriptive message in English.
+    *   The changes will be pushed to the remote repository (`git push origin`).
+*   **Tools Used:** `run_shell_command` (`git add`, `git commit`, `git push`).
 
-### Passo 5: Iteração e Nova Delegação (se necessário)
+### Step 5: Iteration and New Delegation (if necessary)
 
-*   **Ação de Primo:** Se o code review identificar problemas, lacunas ou a necessidade de refinamentos:
-    *   Primo formulará uma nova tarefa para o agente executor, detalhando as correções ou os próximos passos.
-    *   O ciclo de delegação (Passo 2) será reiniciado para essa nova tarefa.
+*   **Primo's Action:** If the code review identifies problems, gaps, or the need for refinements:
+    *   Primo will formulate a new task for the executor agent, detailing the corrections or next steps.
+    *   The delegation cycle (Step 2) will be restarted for this new task.
 
-### Passo 6: Limpeza e Atualização da Documentação
+### Step 6: Cleanup and Documentation Update
 
-*   **Ação de Primo:** Após a conclusão bem-sucedida da tarefa e o commit das mudanças:
-    *   O arquivo Markdown do plano de execução (`.md`) será excluído para manter o repositório limpo.
-    *   O `README.md` ou outros documentos relevantes serão atualizados para refletir as mudanças implementadas e o novo estado do projeto.
-*   **Ferramentas Utilizadas:** `run_shell_command` (`rm`), `replace` ou `write_file`.
+*   **Primo's Action:** After the successful completion of the task and the commit of the changes:
+    *   The Markdown execution plan file (`.md`) will be deleted to keep the repository clean.
+    *   The `README.md` or other relevant documents will be updated to reflect the implemented changes and the new state of the project.
+*   **Tools Used:** `run_shell_command` (`rm`), `replace` or `write_file`.
 
 ---
 
-**Princípios Orientadores:**
+**Guiding Principles:**
 
-*   **Transparência:** Cada passo é registrado e verificável.
-*   **Controle:** Primo mantém o controle sobre a execução e as permissões do agente.
-*   **Qualidade:** A verificação rigorosa garante a entrega de código de alta qualidade.
-*   **Iteração:** O processo é adaptável e permite refinamentos contínuos.
+*   **Transparency:** Every step is logged and verifiable.
+*   **Control:** Primo maintains control over the agent's execution and permissions.
+*   **Quality:** Rigorous verification ensures the delivery of high-quality code.
+*   **Iteration:** The process is adaptable and allows for continuous refinements.

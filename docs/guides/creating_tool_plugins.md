@@ -1,42 +1,42 @@
-# Guia: Criando Plugins de Ferramentas
+# Guide: Creating Tool Plugins
 
-A arquitetura do Conductor é projetada para ser extensível. Você pode adicionar suas próprias ferramentas customizadas (plugins) sem modificar o código-fonte principal.
+Conductor's architecture is designed to be extensible. You can add your own custom tools (plugins) without modifying the main source code.
 
-## 1. O Conceito
+## 1. The Concept
 
-O Conductor possui dois tipos de ferramentas:
--   **Core Tools:** Ferramentas essenciais que vêm com o sistema.
--   **Tool Plugins:** Ferramentas que você cria e registra em um diretório customizado.
+Conductor has two types of tools:
+-   **Core Tools:** Essential tools that come with the system.
+-   **Tool Plugins:** Tools that you create and register in a custom directory.
 
-## 2. Criando seu Plugin
+## 2. Creating Your Plugin
 
-### Passo 1: Crie um Diretório para o Plugin
-Crie um novo diretório em qualquer lugar dentro do seu projeto. Por exemplo:
+### Step 1: Create a Plugin Directory
+Create a new directory anywhere within your project. For example:
 `custom_tools/`
 
-### Passo 2: Crie o Módulo da Ferramenta
-Dentro do seu novo diretório, crie um arquivo Python. O nome do arquivo será o nome do módulo.
+### Step 2: Create the Tool Module
+Inside your new directory, create a Python file. The file name will be the module name.
 `custom_tools/my_api_tools.py`
 
-### Passo 3: Escreva e Exporte suas Ferramentas
-Dentro do seu arquivo, escreva suas ferramentas como funções Python. Em seguida, adicione os nomes das funções a uma lista especial chamada `PLUGIN_TOOLS`.
+### Step 3: Write and Export Your Tools
+Inside your file, write your tools as Python functions. Then, add the function names to a special list called `PLUGIN_TOOLS`.
 
 ```python
 # custom_tools/my_api_tools.py
 import requests
 
 def get_weather(city: str) -> str:
-    """Busca o clima atual para uma cidade."""
-    # (Implementação da chamada de API)
-    return f"O clima em {city} é ensolarado."
+    """Fetches the current weather for a city."""
+    # (API call implementation)
+    return f"The weather in {city} is sunny."
 
-# A convenção é exportar as ferramentas em uma lista
+# The convention is to export the tools in a list
 PLUGIN_TOOLS = [get_weather]
 ```
 
-## 3. Registrando seu Plugin
+## 3. Registering Your Plugin
 
-O passo final é dizer ao Conductor onde encontrar seu novo plugin. Abra o `config.yaml` e adicione o caminho para o seu diretório de plugin na lista `tool_plugins`.
+The final step is to tell Conductor where to find your new plugin. Open `config.yaml` and add the path to your plugin directory to the `tool_plugins` list.
 
 ```yaml
 # config.yaml
@@ -49,11 +49,11 @@ tool_plugins:
   - other_plugins/another_set_of_tools/
 ```
 
-Na próxima vez que o Conductor iniciar, ele irá escanear o diretório `custom_tools/`, importar o módulo `my_api_tools`, e a ferramenta `get_weather` estará disponível para qualquer agente que tenha a permissão para usá-la em seu `agent.yaml`.
+The next time Conductor starts, it will scan the `custom_tools/` directory, import the `my_api_tools` module, and the `get_weather` tool will be available to any agent that has permission to use it in its `agent.yaml`.
 
-## 4. Considerações de Segurança
+## 4. Security Considerations
 
-**AVISO IMPORTANTE:** A funcionalidade de plugins carrega e executa código Python dinamicamente.
+**IMPORTANT NOTICE:** The plugin functionality dynamically loads and executes Python code.
 
--   **Confiança:** **NUNCA** adicione um caminho de plugin de uma fonte que você não confia completamente. Fazer isso pode levar à execução de código malicioso.
--   **Escopo:** Como medida de segurança, o Conductor só carregará plugins de diretórios que estejam dentro da pasta do projeto.
+-   **Trust:** **NEVER** add a plugin path from a source you do not fully trust. Doing so can lead to the execution of malicious code.
+-   **Scope:** As a security measure, Conductor will only load plugins from directories that are inside the project folder.
