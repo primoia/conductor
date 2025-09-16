@@ -1,59 +1,59 @@
-# A Arquitetura Unificada do Conductor (Pós-SAGA-017)
+# The Unified Architecture of Conductor (Post-SAGA-017)
 
-## 1. Visão Geral
+## 1. Overview
 
-A arquitetura do Conductor evoluiu para um modelo desacoplado e orientado a serviços. O objetivo é separar claramente as responsabilidades, permitindo extensibilidade, testabilidade e escalabilidade. A filosofia central é a Inversão de Dependência, onde os componentes de alto nível não dependem dos detalhes dos componentes de baixo nível.
+The architecture of Conductor has evolved into a decoupled, service-oriented model. The goal is to clearly separate responsibilities, allowing for extensibility, testability, and scalability. The core philosophy is Dependency Inversion, where high-level components do not depend on the details of low-level components.
 
-## 2. Componentes Principais
+## 2. Main Components
 
-A arquitetura é dividida em três camadas lógicas principais:
+The architecture is divided into three main logical layers:
 
--   **Camada de Entrada (Interface):** Pontos de entrada do usuário.
--   **Camada de Serviço (Core):** O cérebro da aplicação.
--   **Camada de Infraestrutura:** Implementações concretas de dependências externas.
+-   **Input Layer (Interface):** User entry points.
+-   **Service Layer (Core):** The application's brain.
+-   **Infrastructure Layer:** Concrete implementations of external dependencies.
 
-### Diagrama de Componentes
+### Component Diagram
 
 ```mermaid
 graph TD
-    subgraph "Camada de Entrada"
+    subgraph "Input Layer"
         CLI_Admin["admin.py"]
         CLI_Agent["agent.py"]
     end
 
-    subgraph "Camada de Serviço (Core)"
+    subgraph "Service Layer (Core)"
         Service["ConductorService"]
         Executor["AgentExecutor"]
         Ports["Interfaces (Ports)"]
     end
 
-    subgraph "Camada de Infraestrutura"
-        Storage["Repositórios (FS, Mongo)"]
-        Tools["Ferramentas (Core, Plugins)"]
-        LLM["Cliente LLM"]
+    subgraph "Infrastructure Layer"
+        Storage["Repositories (FS, Mongo)"]
+        Tools["Tools (Core, Plugins)"]
+        LLM["LLM Client"]
     end
 
     CLI_Admin --> Service
     CLI_Agent --> Service
-    Service -- Usa --> Executor
-    Service -- Depende de --> Ports
-    Service -- Usa --> Storage
+    Service -- Uses --> Executor
+    Service -- Depends on --> Ports
+    Service -- Uses --> Storage
     Service -- Usa --> Tools
-    Executor -- Usa --> LLM
-    Storage -- Implementa --> Ports
+    Executor -- Uses --> LLM
+    Storage -- Implements --> Ports
 ```
 
-## 3. Fluxo de Execução de uma Tarefa
+## 3. Task Execution Flow
 
-1.  Um **CLI** (`admin.py` ou `agent.py`) recebe um comando do usuário.
-2.  Ele traduz os argumentos em um `TaskDTO` e chama `execute_task` no **ConductorService**.
-3.  O **ConductorService** consulta o **Repositório** para obter a definição do agente.
-4.  Ele carrega as **Ferramentas** permitidas.
-5.  Ele instancia um **AgentExecutor**, injetando o cliente **LLM**, as ferramentas e outras dependências.
-6.  O **AgentExecutor** executa a tarefa, interagindo com o **LLM**.
-7.  O resultado é retornado como um `TaskResultDTO` através das camadas.
+1.  A **CLI** (`admin.py` or `agent.py`) receives a command from the user.
+2.  It translates the arguments into a `TaskDTO` and calls `execute_task` on the **ConductorService**.
+3.  The **ConductorService** queries the **Repository** to get the agent's definition.
+4.  It loads the allowed **Tools**.
+5.  It instantiates an **AgentExecutor**, injecting the **LLM** client, tools, and other dependencies.
+6.  The **AgentExecutor** executes the task, interacting with the **LLM**.
+7.  The result is returned as a `TaskResultDTO` through the layers.
 
-### Diagrama de Fluxo de Execução
+### Execution Flow Diagram
 
 ```mermaid
 sequenceDiagram
@@ -77,62 +77,62 @@ sequenceDiagram
     Service-->>CLI: result
 ```
 
-## 4. Detalhamento dos Componentes
+## 4. Component Details
 
 ### 4.1 ConductorService
 
-O `ConductorService` é o ponto central de coordenação da aplicação. Suas responsabilidades incluem:
+The `ConductorService` is the central coordination point of the application. Its responsibilities include:
 
-- Orquestração de tarefas
-- Gerenciamento de configurações
-- Instanciação de executores
-- Integração com repositórios e ferramentas
+- Task orchestration
+- Configuration management
+- Executor instantiation
+- Integration with repositories and tools
 
 ### 4.2 AgentExecutor
 
-O `AgentExecutor` é responsável pela execução efetiva das tarefas usando LLMs. Características principais:
+The `AgentExecutor` is responsible for the effective execution of tasks using LLMs. Main features:
 
-- Interface agnóstica a provedores de LLM
-- Gerenciamento de contexto de execução
-- Integração com ferramentas disponíveis
-- Tratamento de erros e timeouts
+- LLM provider-agnostic interface
+- Execution context management
+- Integration with available tools
+- Error and timeout handling
 
 ### 4.3 Ports (Interfaces)
 
-As interfaces em `ports/` definem contratos abstratos para:
+The interfaces in `ports/` define abstract contracts for:
 
-- Repositórios de dados
-- Clientes LLM
-- Sistemas de armazenamento
-- Ferramentas externas
+- Data repositories
+- LLM clients
+- Storage systems
+- External tools
 
-### 4.4 Configuração via config.yaml
+### 4.4 Configuration via config.yaml
 
-O sistema de configuração centralizada permite:
+The centralized configuration system allows for:
 
-- Definição de agentes e suas capacidades
-- Configuração de provedores de LLM
-- Especificação de ferramentas permitidas
-- Parametrização de comportamentos do sistema
+- Definition of agents and their capabilities
+- Configuration of LLM providers
+- Specification of allowed tools
+- Parameterization of system behaviors
 
-## 5. Princípios Arquitetônicos
+## 5. Architectural Principles
 
-### 5.1 Inversão de Dependência
+### 5.1 Dependency Inversion
 
-Componentes de alto nível não dependem de implementações concretas, mas de abstrações definidas em `ports/`.
+High-level components do not depend on concrete implementations, but on abstractions defined in `ports/`.
 
-### 5.2 Separação de Responsabilidades
+### 5.2 Separation of Responsibilities
 
-Cada componente tem uma responsabilidade bem definida e limitada.
+Each component has a well-defined and limited responsibility.
 
-### 5.3 Testabilidade
+### 5.3 Testability
 
-A arquitetura permite testes unitários e de integração através de mocks e stubs das interfaces.
+The architecture allows for unit and integration tests through mocks and stubs of the interfaces.
 
-### 5.4 Extensibilidade
+### 5.4 Extensibility
 
-Novos provedores de LLM, ferramentas e repositórios podem ser adicionados sem modificar o core da aplicação.
+New LLM providers, tools, and repositories can be added without modifying the application's core.
 
-## 6. Migração e Compatibilidade
+## 6. Migration and Compatibility
 
-Esta arquitetura representa a evolução pós-SAGA-017, mantendo compatibilidade com interfaces existentes. A configuração é agora centralizada no `config.yaml` na raiz do projeto.
+This architecture represents the evolution post-SAGA-017, maintaining compatibility with existing interfaces. The configuration is now centralized in `config.yaml` at the project root.
