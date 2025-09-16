@@ -1,8 +1,8 @@
-# 🧭 Conductor CLI - Visão Geral (Overview)
+# 🧭 Conductor CLI - Overview
 
-> Mapeia o fluxo principal do `conductor` a partir do `src/cli/conductor.py` e do escopo descrito no `README.md`.
+> Maps the main flow of `conductor` from `src/cli/conductor.py` and the scope described in `README.md`.
 
-## 🔀 Fluxo de Entrada e Roteamento de Comandos
+## 🔀 Input Flow and Command Routing
 
 ```mermaid
 flowchart TD
@@ -18,7 +18,7 @@ flowchart TD
     D -->|--restore| J[restore_agents_command]
     D -->|--agent ...| K[handle_agent_interaction]
 
-    subgraph Operações de Sistema
+    subgraph System Operations
       G --> G1[ConfigurationService]
       G --> G2[StorageService]
       G --> G3[ConductorService.discover_agents]
@@ -27,10 +27,10 @@ flowchart TD
       J --> J1[scripts/restore_agents.sh]
     end
 
-    subgraph Execução de Agente
+    subgraph Agent Execution
       K --> K1{chat?}
-      K1 -->|não| K2[Execução Stateless]
-      K1 -->|sim| K3[Execução Contextual/REPL]
+      K1 -->|no| K2[Stateless Execution]
+      K1 -->|yes| K3[Contextual/REPL Execution]
 
       K2 --> K2a[TaskDTO context: timeout, env, project]
       K2a --> K2b[ConductorService.execute_task]
@@ -41,11 +41,11 @@ flowchart TD
     end
 ```
 
-## 🧩 Componentes Principais
-- **ConductorCLI**: Orquestra a experiência de linha de comando e constrói `TaskDTO`.
-- **ConductorService**: Fachada que delega para serviços especializados.
-- **Configuration/Storage/AgentDiscovery/ToolManagement/TaskExecution**: Serviços internos usados pelo `ConductorService`.
+## 🧩 Main Components
+- **ConductorCLI**: Orchestrates the command-line experience and builds `TaskDTO`.
+- **ConductorService**: A facade that delegates to specialized services.
+- **Configuration/Storage/AgentDiscovery/ToolManagement/TaskExecution**: Internal services used by `ConductorService`.
 
-## 📌 Notas
-- Quando `--chat` é usado, o fluxo habilita histórico (include/save) e pode entrar em REPL (`--interactive`).
-- `--simulate` no REPL/Chat pode short-circuit no `ConductorCLI.chat()` ou ser propagado no `context` da tarefa.
+## 📌 Notes
+- When `--chat` is used, the flow enables history (include/save) and can enter REPL (`--interactive`).
+- `--simulate` in REPL/Chat can short-circuit in `ConductorCLI.chat()` or be propagated in the task's `context`.

@@ -1,57 +1,57 @@
-# Plano 004: Validar a Camada de Persistência com Teste End-to-End
+# Plan 004: Validate the Persistence Layer with an End-to-End Test
 
-## 1. Contexto e Problema
+## 1. Context and Problem
 
-A implementação do Plano 003 introduziu a lógica de persistência no `ConductorService`. Embora os testes unitários existentes passem, não há um teste de integração dedicado que valide o fluxo completo de ponta a ponta: desde a execução de uma tarefa até a verificação de que os arquivos físicos (`session.json`, `knowledge.json`, `history.log`) foram corretamente escritos no disco.
+The implementation of Plan 003 introduced the persistence logic in `ConductorService`. Although existing unit tests pass, there is no dedicated integration test that validates the complete end-to-end flow: from the execution of a task to the verification that the physical files (`session.json`, `knowledge.json`, `history.log`) were correctly written to disk.
 
-## 2. Objetivo
+## 2. Objective
 
-Criar um novo teste end-to-end (`e2e`) que simule a execução de um agente e verifique se os artefatos de estado são corretamente persistidos no filesystem, dentro do `.conductor_workspace`, garantindo que a solução é funcional e robusta na prática.
+Create a new end-to-end (`e2e`) test that simulates the execution of an agent and verifies that the state artifacts are correctly persisted in the filesystem, within `.conductor_workspace`, ensuring that the solution is functional and robust in practice.
 
-## 3. Plano de Execução
+## 3. Execution Plan
 
-### Tarefa 1: Criar o Arquivo de Teste
-
-**Checklist:**
-- [ ] Criar um novo arquivo de teste em `tests/e2e/test_persistence_flow.py`.
-
-### Tarefa 2: Estruturar o Teste
-
-**Local:** `tests/e2e/test_persistence_flow.py`
+### Task 1: Create the Test File
 
 **Checklist:**
-- [ ] Importar os módulos necessários (`pytest`, `os`, `json`, `shutil`, `ConductorService`, `TaskDTO`).
-- [ ] Definir uma função de teste, por exemplo, `test_full_persistence_flow_for_agent_task`.
-- [ ] Usar um `fixture` do `pytest` ou um bloco `try/finally` para garantir que o ambiente de teste (diretórios de agentes temporários) seja limpo ao final da execução, mesmo em caso de falha.
+- [ ] Create a new test file at `tests/e2e/test_persistence_flow.py`.
 
-### Tarefa 3: Implementar a Lógica do Teste (Arrange & Act)
+### Task 2: Structure the Test
 
-**Local:** Dentro da função de teste.
+**Location:** `tests/e2e/test_persistence_flow.py`
 
 **Checklist:**
-- [ ] **Arrange (Preparação):**
-  - [ ] Definir um `agent_id` de teste (ex: `test_persistence_agent`).
-  - [ ] Criar manualmente o diretório do agente de teste em `.conductor_workspace/agents/test_persistence_agent/`.
-  - [ ] Criar um arquivo `agent.yaml` e `persona.md` mínimos dentro deste diretório para que o agente possa ser descoberto e carregado.
-  - [ ] Instanciar o `ConductorService`.
-  - [ ] Criar um `TaskDTO` para o agente de teste com um input simples.
-- [ ] **Act (Ação):**
-  - [ ] Executar a tarefa usando `conductor_service.execute_task(task)`.
+- [ ] Import the necessary modules (`pytest`, `os`, `json`, `shutil`, `ConductorService`, `TaskDTO`).
+- [ ] Define a test function, for example, `test_full_persistence_flow_for_agent_task`.
+- [ ] Use a `pytest` fixture or a `try/finally` block to ensure that the test environment (temporary agent directories) is cleaned up at the end of the execution, even in case of failure.
 
-### Tarefa 4: Implementar as Verificações (Assert)
+### Task 3: Implement the Test Logic (Arrange & Act)
 
-**Local:** Dentro da função de teste, após a ação.
+**Location:** Inside the test function.
 
 **Checklist:**
-- [ ] Verificar se a execução da tarefa foi bem-sucedida (`result.status == "success"`).
-- [ ] **Assert de Persistência:**
-  - [ ] Verificar se o arquivo `.conductor_workspace/agents/test_persistence_agent/session.json` existe.
-  - [ ] Carregar o conteúdo do `session.json` e verificar se ele contém os dados esperados (ex: `last_task_id`).
-  - [ ] Verificar se o arquivo `.conductor_workspace/agents/test_persistence_agent/knowledge.json` existe e contém os dados esperados.
-  - [ ] Verificar se o arquivo `.conductor_workspace/agents/test_persistence_agent/history.log` existe e contém uma entrada de log válida.
+- [ ] **Arrange:**
+  - [ ] Define a test `agent_id` (e.g., `test_persistence_agent`).
+  - [ ] Manually create the test agent's directory in `.conductor_workspace/agents/test_persistence_agent/`.
+  - [ ] Create minimal `agent.yaml` and `persona.md` files within this directory so that the agent can be discovered and loaded.
+  - [ ] Instantiate the `ConductorService`.
+  - [ ] Create a `TaskDTO` for the test agent with a simple input.
+- [ ] **Act:**
+  - [ ] Execute the task using `conductor_service.execute_task(task)`.
 
-## 4. Critérios de Aceitação
+### Task 4: Implement the Assertions
 
-1.  O novo arquivo de teste `tests/e2e/test_persistence_flow.py` foi criado.
-2.  Ao executar `pytest tests/e2e/test_persistence_flow.py`, o teste passa com sucesso.
-3.  O teste valida de forma inequívoca a criação e o conteúdo dos arquivos `session.json`, `knowledge.json` e `history.log` como resultado da execução de uma tarefa.
+**Location:** Inside the test function, after the action.
+
+**Checklist:**
+- [ ] Verify that the task execution was successful (`result.status == "success"`).
+- [ ] **Persistence Assertions:**
+  - [ ] Check if the file `.conductor_workspace/agents/test_persistence_agent/session.json` exists.
+  - [ ] Load the content of `session.json` and verify that it contains the expected data (e.g., `last_task_id`).
+  - [ ] Check if the file `.conductor_workspace/agents/test_persistence_agent/knowledge.json` exists and contains the expected data.
+  - [ ] Check if the file `.conductor_workspace/agents/test_persistence_agent/history.log` exists and contains a valid log entry.
+
+## 4. Acceptance Criteria
+
+1.  The new test file `tests/e2e/test_persistence_flow.py` has been created.
+2.  When running `pytest tests/e2e/test_persistence_flow.py`, the test passes successfully.
+3.  The test unequivocally validates the creation and content of the `session.json`, `knowledge.json`, and `history.log` files as a result of executing a task.

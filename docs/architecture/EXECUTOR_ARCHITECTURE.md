@@ -1,6 +1,6 @@
 # Executor Architecture - Separation of Responsibilities
 
-> **📌 NOTA DE ARQUITETURA:** Esta documentação descreve aspectos específicos da arquitetura dos executores. Para uma visão unificada e atualizada de toda a arquitetura do sistema pós-SAGA-017, consulte: [UNIFIED_ARCHITECTURE.md](./UNIFIED_ARCHITECTURE.md)
+> **📌 ARCHITECTURE NOTE:** This documentation describes specific aspects of the executor architecture. For a unified and updated view of the entire system architecture post-SAGA-017, please refer to: [UNIFIED_ARCHITECTURE.md](./UNIFIED_ARCHITECTURE.md)
 
 ## Overview
 

@@ -1,31 +1,31 @@
-# 🧠 Sistema de Persistência de Memória de Chat
+# 🧠 Chat Memory Persistence System
 
-**Status**: 🎯 Planejada  
-**Prioridade**: Crítica  
-**Estimativa**: 1-2 dias  
-**Relacionado**: [Bug Report](../bug-reports/memory-chat-issue/CHAT_MEMORY_AMNESIA_BUG.md)
+**Status**: 🎯 Planned  
+**Priority**: Critical  
+**Estimate**: 1-2 days  
+**Related**: [Bug Report](../bug-reports/memory-chat-issue/CHAT_MEMORY_AMNESIA_BUG.md)
 
-## 📋 **Problema**
-Chat memory não persiste entre sessões REPL. Agentes "esquecem" conversas anteriores, quebrando a experiência conversacional.
+## 📋 **Problem**
+Chat memory does not persist between REPL sessions. Agents "forget" previous conversations, breaking the conversational experience.
 
-## 🎯 **Proposta**
+## 🎯 **Proposal**
 
-### **Arquitetura**
+### **Architecture**
 ```python
-# Fluxo proposto
-Genesis Agent → Carrega state.json → conversation_history preenchido
-User message → Envia contexto + nova mensagem → Claude CLI
-Claude response → Salva no conversation_history → Atualiza state.json
+# Proposed flow
+Genesis Agent → Loads state.json → conversation_history is populated
+User message → Sends context + new message → Claude CLI
+Claude response → Saves to conversation_history → Updates state.json
 ```
 
-### **Estrutura de Memória**
+### **Memory Structure**
 ```json
 {
   "conversation_history": [
     {
       "timestamp": "2025-08-16T09:35:12Z",
       "role": "user", 
-      "content": "ola",
+      "content": "hello",
       "session_id": "session_123"
     },
     {
@@ -39,36 +39,36 @@ Claude response → Salva no conversation_history → Atualiza state.json
 ```
 
 ### **Context Window Management**
-- Limite máximo de mensagens (ex: 50)
-- Sliding window para conversas longas
-- Compressão de contexto antigo
-- Preservação de mensagens importantes
+- Maximum message limit (e.g., 50)
+- Sliding window for long conversations
+- Compression of old context
+- Preservation of important messages
 
-## 🔧 **Implementação**
+## 🔧 **Implementation**
 
-### **Fase 1: State Loading**
-1. Modificar `embody_agent()` para carregar `state.json`
-2. Popular `conversation_history` na inicialização
-3. Validar estrutura do estado
+### **Phase 1: State Loading**
+1. Modify `embody_agent()` to load `state.json`
+2. Populate `conversation_history` on initialization
+3. Validate state structure
 
-### **Fase 2: Context Injection**
-1. Modificar `_invoke_subprocess()` para incluir contexto
-2. Formatar histórico para Claude CLI
-3. Implementar window management
+### **Phase 2: Context Injection**
+1. Modify `_invoke_subprocess()` to include context
+2. Format history for Claude CLI
+3. Implement window management
 
-### **Fase 3: State Persistence**
-1. Salvar após cada interação
-2. Implementar backup/recovery
-3. Otimizar performance de I/O
+### **Phase 3: State Persistence**
+1. Save after each interaction
+2. Implement backup/recovery
+3. Optimize I/O performance
 
-## 📊 **Benefícios**
-- ✅ Experiência conversacional contínua
-- ✅ Agentes com contexto completo
-- ✅ Sessões de debugging eficazes
-- ✅ Análise iterativa de problemas
+## 📊 **Benefits**
+- ✅ Continuous conversational experience
+- ✅ Agents with full context
+- ✅ Effective debugging sessions
+- ✅ Iterative problem analysis
 
-## ⚠️ **Considerações**
-- **Performance**: I/O após cada mensagem
-- **Storage**: Crescimento do state.json
-- **Privacy**: Dados sensíveis em histórico
-- **Concurrency**: Multiple sessions simultâneas
+## ⚠️ **Considerations**
+- **Performance**: I/O after each message
+- **Storage**: Growth of state.json
+- **Privacy**: Sensitive data in history
+- **Concurrency**: Multiple simultaneous sessions

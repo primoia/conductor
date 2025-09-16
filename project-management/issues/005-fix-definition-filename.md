@@ -1,28 +1,28 @@
-# Plano 005: Corrigir Nome do Arquivo de Definição no Repositório
+# Plan 005: Correct Definition File Name in Repository
 
-## 1. Contexto e Problema
+## 1. Context and Problem
 
-Testes e2e revelaram um erro "Failed to embody meta-agent". A causa raiz é uma inconsistência entre a especificação da SAGA-16 e a implementação do `FileSystemStateRepository`.
+E2E tests revealed a "Failed to embody meta-agent" error. The root cause is an inconsistency between the SAGA-16 specification and the `FileSystemStateRepository` implementation.
 
--   **Especificação (SAGA-16):** O arquivo de definição do agente deve se chamar `definition.yaml`.
--   **Implementação Atual:** O método `load_definition` em `FileSystemStateRepository` está procurando por `agent.yaml`.
+-   **Specification (SAGA-16):** The agent definition file should be named `definition.yaml`.
+-   **Current Implementation:** The `load_definition` method in `FileSystemStateRepository` is looking for `agent.yaml`.
 
-Esta discrepância impede que qualquer agente seja carregado.
+This discrepancy prevents any agent from being loaded.
 
-## 2. Objetivo
+## 2. Objective
 
-Corrigir o nome do arquivo no código para alinhá-lo com a especificação da SAGA-16, consertando o bug de "embody".
+Correct the file name in the code to align it with the SAGA-16 specification, fixing the "embody" bug.
 
-## 3. Plano de Execução
+## 3. Execution Plan
 
-**Local:** `src/infrastructure/storage/filesystem_repository.py`
+**Location:** `src/infrastructure/storage/filesystem_repository.py`
 
 **Checklist:**
-- [ ] Localizar o método `load_definition`.
-- [ ] Alterar a linha `definition_file = os.path.join(agent_dir, "agent.yaml")` para `definition_file = os.path.join(agent_dir, "definition.yaml")`.
-- [ ] Atualizar o docstring do método para refletir a mudança de `(agent.yaml)` para `(definition.yaml)`.
+- [ ] Locate the `load_definition` method.
+- [ ] Change the line `definition_file = os.path.join(agent_dir, "agent.yaml")` to `definition_file = os.path.join(agent_dir, "definition.yaml")`.
+- [ ] Update the method's docstring to reflect the change from `(agent.yaml)` to `(definition.yaml)`.
 
-## 4. Critérios de Aceitação
+## 4. Acceptance Criteria
 
-1.  O `FileSystemStateRepository` agora procura por `definition.yaml` para carregar a definição do agente.
-2.  Após a correção, o comando `python -m src.cli.admin --meta --agent AgentCreator_Agent --repl` deve conseguir incorporar o agente com sucesso.
+1.  The `FileSystemStateRepository` now looks for `definition.yaml` to load the agent's definition.
+2.  After the fix, the command `python -m src.cli.admin --meta --agent AgentCreator_Agent --repl` should be able to successfully embody the agent.

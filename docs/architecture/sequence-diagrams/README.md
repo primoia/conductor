@@ -1,11 +1,11 @@
-# 📚 Diagramas de Sequência — Conductor
+# 📚 Sequence Diagrams — Conductor
 
-Índice dos diagramas relacionados ao `conductor` e à CLI unificada.
+Index of diagrams related to `conductor` and the unified CLI.
 
-- [🧭 Visão Geral do CLI](./cli-overview.md)
-- [⚙️ Modos de Execução](./execution-modes.md)
-- [🎮 Fluxo do REPL](./repl-flow.md)
-- [🧩 Impacto dos Parâmetros](./params-impact.md)
-- [🗂️ Gestão de Histórico](./history-management.md)
+- [🧭 CLI Overview](./cli-overview.md)
+- [⚙️ Execution Modes](./execution-modes.md)
+- [🎮 REPL Flow](./repl-flow.md)
+- [🧩 Parameter Impact](./params-impact.md)
+- [🗂️ History Management](./history-management.md)
 
-Cada diagrama foi derivado de `src/cli/conductor.py`, `src/cli/shared/repl_manager.py`, `src/core/conductor_service.py` e do escopo do `README.md` do projeto.
+Each diagram was derived from `src/cli/conductor.py`, `src/cli/shared/repl_manager.py`, `src/core/conductor_service.py`, and the scope of the project's `README.md`.

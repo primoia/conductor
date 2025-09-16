@@ -1,52 +1,52 @@
-# 🏷️ Sistema de Versionamento de Agentes
+# 🏷️ Agent Versioning System
 
-**Status**: 🎯 Planejada  
-**Prioridade**: Alta  
-**Estimativa**: 2-3 dias  
+**Status**: 🎯 Planned  
+**Priority**: High  
+**Estimate**: 2-3 days  
 
-## 📋 **Problema**
-Atualmente todos os agentes usam `version: "1.0"` sem validação ou compatibilidade. Não há controle sobre agentes desatualizados ou incompatíveis.
+## 📋 **Problem**
+Currently, all agents use `version: "1.0"` without validation or compatibility checks. There is no control over outdated or incompatible agents.
 
-## 🎯 **Proposta**
+## 🎯 **Proposal**
 
 ### **Versioning Schema**
 ```yaml
 # agent.yaml
 version: "1.2.0"  # semantic versioning
-min_framework_version: "2.1.0"  # mínima compatível
-deprecated: false  # flag de deprecação
-breaking_changes: []  # lista de mudanças breaking
+min_framework_version: "2.1.0"  # minimum compatible version
+deprecated: false  # deprecation flag
+breaking_changes: []  # list of breaking changes
 ```
 
-### **Validação Automática**
-- Genesis Agent verifica versão mínima ao carregar agente
-- Warning para agentes deprecated
-- Error para agentes incompatíveis
+### **Automatic Validation**
+- Genesis Agent checks the minimum version when loading an agent.
+- Warning for deprecated agents.
+- Error for incompatible agents.
 
 ### **Backward Compatibility**
-- Migração automática de versões antigas
-- Fallback para comportamento legacy quando possível
-- Grace period para deprecação
+- Automatic migration of old versions.
+- Fallback to legacy behavior when possible.
+- Grace period for deprecation.
 
-## 🔧 **Implementação**
+## 🔧 **Implementation**
 
-### **Fase 1: Validação**
-1. Adicionar verificação em `embody_agent()`
-2. Criar função `validate_agent_version()`
-3. Implementar warnings/errors apropriados
+### **Phase 1: Validation**
+1. Add check in `embody_agent()`
+2. Create `validate_agent_version()` function
+3. Implement appropriate warnings/errors
 
-### **Fase 2: Migration**
-1. Criar sistema de migração automática
-2. Implementar fallbacks para versões antigas
-3. Documentar breaking changes
+### **Phase 2: Migration**
+1. Create an automatic migration system
+2. Implement fallbacks for old versions
+3. Document breaking changes
 
-### **Fase 3: Framework**
-1. Definir versioning policy
-2. Criar CI/CD para validação
-3. Documentar best practices
+### **Phase 3: Framework**
+1. Define versioning policy
+2. Create CI/CD for validation
+3. Document best practices
 
-## 📊 **Benefícios**
-- ✅ Controle de qualidade de agentes
-- ✅ Evolução controlada do framework
-- ✅ Compatibilidade garantida
-- ✅ Developer experience melhorada
+## 📊 **Benefits**
+- ✅ Agent quality control
+- ✅ Controlled framework evolution
+- ✅ Guaranteed compatibility
+- ✅ Improved developer experience

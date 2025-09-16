@@ -1,97 +1,97 @@
-# Arquitetura de Evolução de Agentes e Execução em Larga Escala
+# Agent Evolution and Large-Scale Execution Architecture
 
-**Status:** Em Design
+**Status:** In Design
 
-## 1. Visão Geral
+## 1. Overview
 
-Este documento descreve uma arquitetura de sistema de agentes com foco duplo, projetada para ser simultaneamente robusta, previsível e adaptativa. Ela combina uma orquestração **Macro (Top-Down)** para a execução controlada de planos com um mecanismo de evolução **Micro (Bottom-Up)** para a melhoria contínua e auto-organização dos agentes.
+This document describes a dual-focus agent system architecture, designed to be simultaneously robust, predictable, and adaptive. It combines a **Macro (Top-Down)** orchestration for the controlled execution of plans with a **Micro (Bottom-Up)** evolution mechanism for the continuous improvement and self-organization of agents.
 
-O objetivo é criar um sistema que não apenas executa tarefas de forma confiável, mas que aprende e otimiza seu próprio desempenho ao longo do tempo, inspirado por conceitos de Teoria dos Jogos, biologia de enxames e teoria econômica.
+The goal is to create a system that not only executes tasks reliably but also learns and optimizes its own performance over time, inspired by concepts from Game Theory, swarm biology, and economic theory.
 
-## 2. Orquestração Macro: O Modelo Top-Down
+## 2. Macro Orchestration: The Top-Down Model
 
-A espinha dorsal do sistema é um fluxo de trabalho hierárquico e previsível, garantindo que os objetivos de alto nível sejam alcançados de forma controlada.
+The backbone of the system is a hierarchical and predictable workflow, ensuring that high-level objectives are achieved in a controlled manner.
 
-### 2.1. A Hierarquia de Agentes
+### 2.1. The Agent Hierarchy
 
-O sistema opera em três níveis de abstração:
+The system operates on three levels of abstraction:
 
-1.  **Nível 1: O Planejador Estratégico (Arquiteto):** Em diálogo com um humano, este agente explora um problema, refina o escopo e produz um **Plano Mestre** de alto nível.
-2.  **Nível 2: O Maestro (Gerente de Projeto Tático):** Este agente recebe o Plano Mestre e o fragmenta em um **Playbook** de passos de execução atômicos e sequenciais. Ele gerencia o fluxo, valida a qualidade de cada passo e orquestra os agentes do nível inferior.
-3.  **Nível 3: O Pool de Executores Especializados:** Um conjunto de agentes que realizam tarefas específicas. Eles compartilham uma base de "Executor" comum, mas são altamente especializados através de `personas` distintas (ex: `Executor(persona=TDD_Writer)`, `Executor(persona=Kotlin_Coder)`).
+1.  **Level 1: The Strategic Planner (Architect):** In dialogue with a human, this agent explores a problem, refines the scope, and produces a high-level **Master Plan**.
+2.  **Level 2: The Maestro (Tactical Project Manager):** This agent receives the Master Plan and breaks it down into a **Playbook** of atomic and sequential execution steps. It manages the flow, validates the quality of each step, and orchestrates the lower-level agents.
+3.  **Level 3: The Pool of Specialized Executors:** A set of agents that perform specific tasks. They share a common "Executor" base but are highly specialized through distinct `personas` (e.g., `Executor(persona=TDD_Writer)`, `Executor(persona=Kotlin_Coder)`).
 
-### 2.2. Execução Paralela em Fases
+### 2.2. Parallel Execution in Phases
 
-Para otimizar a velocidade, o Maestro emprega um padrão de "Dispersão Paralela com Gate de Sincronização" para cada passo do playbook.
+To optimize speed, the Maestro employs a "Parallel Scatter with Synchronization Gate" pattern for each step of the playbook.
 
 ```mermaid
 graph TD
-    A[Maestro: Inicia Passo X] --> B{Fase 1: Dispersão Paralela};
-    B --> C1[Executor: Cria Casca TDD];
-    B --> C2[Executor: Cria Casca Service];
-    B --> C3[Executor: Cria Casca Repository];
+    A[Maestro: Initiates Step X] --> B{Phase 1: Parallel Scatter};
+    B --> C1[Executor: Creates TDD Shell];
+    B --> C2[Executor: Creates Service Shell];
+    B --> C3[Executor: Creates Repository Shell];
     
-    subgraph Ponto de Sincronização
-        C1 --> D{Espera Conclusão};
+    subgraph Synchronization Point
+        C1 --> D{Wait for Completion};
         C2 --> D;
         C3 --> D;
     end
 
-    D --> E{Fase 2: Gate de Qualidade};
-    E -- Código OK --> F[Maestro: Avança para Próximo Passo];
-    E -- Requer Ajustes --> G{Fase 3: Ciclo de Refinamento};
+    D --> E{Phase 2: Quality Gate};
+    E -- Code OK --> F[Maestro: Advances to Next Step];
+    E -- Requires Adjustments --> G{Phase 3: Refinement Cycle};
     G --> B;
 ```
 
-1.  **Dispersão Paralela:** O Maestro identifica tarefas independentes dentro de um passo (ex: criar esqueletos de arquivos) e as atribui a múltiplos executores simultaneamente.
-2.  **Ponto de Sincronização:** O Maestro aguarda que todos os executores da fase atual completem suas tarefas.
-3.  **Gate de Qualidade:** O Maestro realiza um code review no trabalho consolidado, decidindo se avança para o próximo passo ou se inicia um novo ciclo de refinamento para corrigir problemas.
+1.  **Parallel Scatter:** The Maestro identifies independent tasks within a step (e.g., creating file skeletons) and assigns them to multiple executors simultaneously.
+2.  **Synchronization Point:** The Maestro waits for all executors in the current phase to complete their tasks.
+3.  **Quality Gate:** The Maestro performs a code review on the consolidated work, deciding whether to advance to the next step or to start a new refinement cycle to correct issues.
 
-## 3. Evolução e Coordenação Micro: Os Modelos Bottom-Up
+## 3. Micro Evolution and Coordination: The Bottom-Up Models
 
-Enquanto o Maestro gerencia o "o quê", os modelos a seguir governam o "como" e a evolução da eficiência dos agentes executores.
+While the Maestro manages the "what," the following models govern the "how" and the evolution of the executor agents' efficiency.
 
-### 3.1. Modelo A: Mercado de Sinais de Confiança
+### 3.1. Model A: Trust Signal Market
 
-Um modelo de coordenação baseado em princípios econômicos.
+A coordination model based on economic principles.
 
-*   **Moeda Interna:** Cada agente possui um saldo de **"Confiança"**.
-*   **Investimento:** Para agir, um agente "paga" um custo em Confiança, proporcional ao risco/impacto da tarefa.
-*   **Payoff:** Se a ação for bem-sucedida (validada por testes, etc.), o agente recebe o investimento de volta mais um "lucro". Se falhar, perde o investimento.
-*   **Comportamento Emergente:** Agentes com histórico de sucesso acumulam Confiança e podem arcar com tarefas mais arriscadas e de maior impacto. Agentes que falham são naturalmente marginalizados para tarefas de baixo custo até que recuperem sua reputação. A prioridade é definida pela competência comprovada, não por um gerente central.
+*   **Internal Currency:** Each agent has a balance of **"Trust"**.
+*   **Investment:** To act, an agent "pays" a cost in Trust, proportional to the risk/impact of the task.
+*   **Payoff:** If the action is successful (validated by tests, etc.), the agent receives the investment back plus a "profit." If it fails, it loses the investment.
+*   **Emergent Behavior:** Agents with a history of success accumulate Trust and can take on riskier, higher-impact tasks. Agents that fail are naturally marginalized to low-cost tasks until they recover their reputation. Priority is defined by proven competence, not by a central manager.
 
-### 3.2. Modelo B: Orquestração por Feromônios Digitais
+### 3.2. Model B: Digital Pheromone Orchestration
 
-Um modelo de coordenação inspirado na inteligência de enxames.
+A coordination model inspired by swarm intelligence.
 
-*   **Ambiente Compartilhado:** Os agentes interagem com um "quadro de avisos" global, depositando e lendo "feromônios" (sinais/metadados).
-*   **Deixando Sinais:** Um agente que corrige um bug deixa um sinal `BUG_FIXED`. Um agente de teste que falha deixa um sinal `TEST_FAILED`.
-*   **Reagindo a Sinais:** As regras de ativação de um agente dependem dos sinais presentes. Um "Agente de Commit" só age se vir um sinal `TEST_PASSED` e nenhum `TEST_FAILED`.
-*   **Comportamento Emergente:** Workflows eficientes emergem como "trilhas de feromônios" reforçadas. Sinais de falha agem como repelentes naturais, bloqueando o progresso até que sejam resolvidos. A coordenação é totalmente indireta e descentralizada.
+*   **Shared Environment:** Agents interact with a global "bulletin board," depositing and reading "pheromones" (signals/metadata).
+*   **Leaving Signals:** An agent that fixes a bug leaves a `BUG_FIXED` signal. A test agent that fails leaves a `TEST_FAILED` signal.
+*   **Reacting to Signals:** An agent's activation rules depend on the signals present. A "Commit Agent" only acts if it sees a `TEST_PASSED` signal and no `TEST_FAILED` signal.
+*   **Emergent Behavior:** Efficient workflows emerge as reinforced "pheromone trails." Failure signals act as natural repellents, blocking progress until they are resolved. Coordination is entirely indirect and decentralized.
 
-## 4. Padrões de Implementação para Escalabilidade
+## 4. Implementation Patterns for Scalability
 
-Para tornar os modelos acima práticos e eficientes, os seguintes padrões de implementação são cruciais.
+To make the above models practical and efficient, the following implementation patterns are crucial.
 
-### 4.1. O Agente de Duas Camadas (Padrão Gatilho e Raciocínio)
+### 4.1. The Two-Layer Agent (Trigger and Reasoning Pattern)
 
-Resolve o problema de custo e eficiência de invocar LLMs desnecessariamente. Cada agente é dividido em:
+Solves the cost and efficiency problem of unnecessarily invoking LLMs. Each agent is divided into:
 
-*   **Camada 1 (Gatilho):** Um script leve, rápido e sem IA que verifica as condições de ativação a cada ciclo (ex: "O saldo de Confiança é suficiente?" ou "Os feromônios corretos estão presentes?").
-*   **Camada 2 (Raciocinador):** O agente completo com LLM, que só é ativado se o Gatilho retornar "SIM". Isso garante que o poder de fogo caro da IA seja usado apenas quando há trabalho relevante a ser feito.
+*   **Layer 1 (Trigger):** A lightweight, fast, non-AI script that checks activation conditions each cycle (e.g., "Is the Trust balance sufficient?" or "Are the correct pheromones present?").
+*   **Layer 2 (Reasoner):** The full agent with an LLM, which is only activated if the Trigger returns "YES." This ensures that expensive AI firepower is used only when there is relevant work to be done.
 
-### 4.2. Workspaces Efêmeros por Contêiner
+### 4.2. Ephemeral Workspaces per Container
 
-Garante o isolamento total para a execução de planos paralelos. 
+Ensures total isolation for the execution of parallel plans.
 
-*   **Fluxo:** Para cada plano, um novo contêiner Docker é iniciado. A primeira etapa é um `git clone` do projeto, criando um workspace totalmente isolado. O trabalho é executado dentro do contêiner e, ao final, um `git push` sincroniza o resultado. O contêiner é então destruído.
-*   **Benefício:** Elimina qualquer possibilidade de interferência entre planos concorrentes.
+*   **Flow:** For each plan, a new Docker container is started. The first step is a `git clone` of the project, creating a fully isolated workspace. The work is executed inside the container, and at the end, a `git push` synchronizes the result. The container is then destroyed.
+*   **Benefit:** Eliminates any possibility of interference between concurrent plans.
 
-### 4.3. Abstração de Persistência (Pluggable State Repository)
+### 4.3. Persistence Abstraction (Pluggable State Repository)
 
-Atende à dupla necessidade de simplicidade para desenvolvimento e robustez para escala.
+Meets the dual need for simplicity in development and robustness for scale.
 
-*   **O Contrato:** O sistema opera contra uma interface `IStateRepository`.
-*   **As Implementações:**
-    1.  **`FileSystemStateRepository`:** A implementação padrão. Salva o estado em arquivos `.json` locais. Ideal para desenvolvimento e testes, pois não requer dependências externas.
-    2.  **`MongoStateRepository`:** Uma implementação alternativa que salva o estado em um banco de dados externo. Essencial para o modelo de contêineres efêmeros, garantindo que o estado do plano sobreviva à destruição do contêiner e permitindo a retomada de fluxos interrompidos.
+*   **The Contract:** The system operates against an `IStateRepository` interface.
+*   **The Implementations:**
+    1.  **`FileSystemStateRepository`:** The default implementation. Saves state in local `.json` files. Ideal for development and testing, as it requires no external dependencies.
+    2.  **`MongoStateRepository`:** An alternative implementation that saves the state in an external database. Essential for the ephemeral container model, ensuring that the plan's state survives the container's destruction and allowing the resumption of interrupted flows.

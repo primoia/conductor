@@ -1,0 +1,141 @@
+# GUIA DE COMANDOS CONDUCTOR - COMBINAÇÕES PRINCIPAIS
+
+## 1. COMANDOS DE INFORMAÇÃO E LISTAGEM
+
+# Listar todos os agentes disponíveis
+conductor --list
+
+# Informações detalhadas de um agente específico
+conductor --info <nome_agente>
+
+# Validar configuração do sistema
+conductor --validate
+
+# Ver templates disponíveis para instalação
+conductor --install list
+
+## 2. EXECUÇÃO STATELESS (Rápida, sem histórico)
+
+# Executar tarefa simples
+conductor --agent <nome_agente> --input "sua tarefa aqui"
+
+# Executar com input de arquivo
+conductor --agent <nome_agente> --input-file caminho/para/arquivo.txt
+
+# Executar com output para arquivo
+conductor --agent <nome_agente> --input "tarefa" --output-file resultado.txt
+
+# Executar com input e output de arquivos
+conductor --agent <nome_agente> --input-file input.txt --output-file output.txt
+
+## 3. EXECUÇÃO CONTEXTUAL (Com histórico/memória)
+
+# Iniciar sessão com histórico
+conductor --agent <nome_agente> --chat --input "primeira tarefa"
+
+# Continuar sessão existente
+conductor --agent <nome_agente> --chat --input "tarefa seguinte"
+
+# Sessão contextual com arquivos
+conductor --agent <nome_agente> --chat --input-file input.txt --output-file output.txt
+
+## 4. EXECUÇÃO INTERATIVA (REPL - Terminal conversacional)
+
+# Modo interativo básico
+conductor --agent <nome_agente> --chat --interactive
+
+# Modo interativo com sessão nomeada
+conductor --agent <nome_agente> --chat --interactive --session nome_sessao
+
+## 5. COMBINAÇÕES AVANÇADAS
+
+# Executar com debug habilitado
+conductor --agent <nome_agente> --input "tarefa" --debug
+
+# Executar com timeout customizado
+conductor --agent <nome_agente> --input "tarefa" --timeout 300
+
+# Executar com configuração específica
+conductor --agent <nome_agente> --input "tarefa" --config custom_config.json
+
+# Backup antes de executar
+conductor --backup && conductor --agent <nome_agente> --input "tarefa importante"
+
+## 6. GERENCIAMENTO DE AGENTES
+
+# Fazer backup dos agentes
+conductor --backup
+
+# Restaurar backup
+conductor --restore backup_20231214.zip
+
+# Instalar novo agente
+conductor --install <template_name>
+
+# Validar agente específico
+conductor --validate --agent <nome_agente>
+
+## 7. EXEMPLOS PRÁTICOS DE USO
+
+# Análise rápida de código
+conductor --agent code_reviewer --input "Analise o arquivo main.py"
+
+# Sessão de debugging interativa
+conductor --agent debugger --chat --interactive
+
+# Geração de documentação com output
+conductor --agent doc_generator --input-file codigo.py --output-file documentacao.md
+
+# Revisão de código com histórico
+conductor --agent code_reviewer --chat --input "Revise as últimas mudanças no projeto"
+
+# Análise de logs com timeout aumentado
+conductor --agent log_analyzer --input-file error.log --timeout 600 --output-file analise.txt
+
+## 8. FLUXOS DE TRABALHO COMUNS
+
+# Fluxo de desenvolvimento:
+conductor --agent code_generator --chat --input "Crie uma função de autenticação"
+conductor --agent code_reviewer --chat --input "Revise o código gerado acima"
+conductor --agent tester --chat --input "Crie testes para a função"
+
+# Fluxo de análise:
+conductor --agent data_analyzer --input-file dados.csv --output-file relatorio.md
+conductor --agent report_formatter --input-file relatorio.md --output-file relatorio_final.pdf
+
+# Fluxo de troubleshooting:
+conductor --agent system_checker --input "Verifique status do sistema"
+conductor --agent log_analyzer --input-file system.log
+conductor --agent problem_solver --chat --interactive
+
+## 9. DICAS DE PERFORMANCE
+
+# Para tarefas simples: use modo stateless (mais rápido)
+conductor --agent <agente> --input "tarefa simples"
+
+# Para sequências relacionadas: use modo chat
+conductor --agent <agente> --chat --input "primeira parte da tarefa complexa"
+
+# Para exploração: use modo interativo
+conductor --agent <agente> --chat --interactive
+
+## 10. TROUBLESHOOTING
+
+# Verificar se agente existe
+conductor --list | grep <nome_agente>
+
+# Validar agente específico
+conductor --info <nome_agente>
+
+# Debug de execução
+conductor --agent <nome_agente> --input "teste" --debug
+
+# Backup antes de mudanças importantes
+conductor --backup
+
+---
+LEMBRE-SE:
+- Use --chat para tarefas que precisam de contexto
+- Use --interactive para exploração e desenvolvimento
+- Use modo stateless para tarefas rápidas e independentes
+- Sempre valide com --info antes de usar um agente novo
