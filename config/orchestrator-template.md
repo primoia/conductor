@@ -1,96 +1,96 @@
 # Orchestrator Sequence Template
 
-## Objetivo
-{Descrição do que esta sequência de orquestração deve alcançar}
+## Objective
+{Description of what this orchestration sequence should achieve}
 
-## Cenário
-{Contexto e background do problema sendo resolvido}
+## Scenario
+{Context and background of the problem being solved}
 
-## Agentes Envolvidos
-- **{agent-name-1}**: {função resumida}
-- **{agent-name-2}**: {função resumida}
-- **{agent-name-n}**: {função resumida}
+## Agents Involved
+- **{agent-name-1}**: {summary function}
+- **{agent-name-2}**: {summary function}
+- **{agent-name-n}**: {summary function}
 
-## Fluxo de Execução
+## Execution Flow
 
-### Fase 1: {Nome da Fase}
-**Objetivo**: {O que esta fase deve alcançar}
+### Phase 1: {Phase Name}
+**Objective**: {What this phase should achieve}
 
-#### Passo 1.1: {Nome do Passo}
+#### Step 1.1: {Step Name}
 - **Trigger**: {agent-name}
-- **Comando**: `{comando específico}`
-- **Input esperado**: {tipo de input}
-- **Output esperado**: {tipo de output}
-- **Dependências**: {none ou lista}
-- **Critério de sucesso**: {como saber se funcionou}
+- **Command**: `{specific command}`
+- **Expected Input**: {input type}
+- **Expected Output**: {output type}
+- **Dependencies**: {none or list}
+- **Success Criteria**: {how to know if it worked}
 
-#### Passo 1.2: {Nome do Passo}
+#### Step 1.2: {Step Name}
 - **Trigger**: {agent-name}
-- **Comando**: `{comando específico}`
-- **Input esperado**: {tipo de input}
-- **Output esperado**: {tipo de output}
-- **Dependências**: {none ou lista}
-- **Critério de sucesso**: {como saber se funcionou}
+- **Command**: `{specific command}`
+- **Expected Input**: {input type}
+- **Expected Output**: {output type}
+- **Dependencies**: {none or list}
+- **Success Criteria**: {how to know if it worked}
 
-### Fase 2: {Nome da Fase}
-**Objetivo**: {O que esta fase deve alcançar}
+### Phase 2: {Phase Name}
+**Objective**: {What this phase should achieve}
 
-#### Passo 2.1: {Nome do Passo}
+#### Step 2.1: {Step Name}
 - **Trigger**: {agent-name}
-- **Comando**: `{comando específico}`
-- **Input esperado**: {tipo de input}
-- **Output esperado**: {tipo de output}
-- **Dependências**: {resultado da Fase 1}
-- **Critério de sucesso**: {como saber se funcionou}
+- **Command**: `{specific command}`
+- **Expected Input**: {input type}
+- **Expected Output**: {output type}
+- **Dependencies**: {result of Phase 1}
+- **Success Criteria**: {how to know if it worked}
 
-## Validações
+## Validations
 
-### Teste de Coordenação
-- [ ] {Validação específica 1}
-- [ ] {Validação específica 2}
-- [ ] {Validação específica N}
+### Coordination Test
+- [ ] {Specific validation 1}
+- [ ] {Specific validation 2}
+- [ ] {Specific validation N}
 
-### Teste de Persistência
-- [ ] Estados mantidos após interrupção
-- [ ] Agentes recuperam contexto corretamente
-- [ ] Possível continuar execução do ponto de parada
+### Persistence Test
+- [ ] States maintained after interruption
+- [ ] Agents recover context correctly
+- [ ] Possible to continue execution from the stopping point
 
-### Teste de Falhas
-- [ ] Sistema resiliente a falha de agent individual
-- [ ] Rollback funciona quando necessário
-- [ ] Error handling adequado
+### Failure Test
+- [ ] Resilient system to individual agent failure
+- [ ] Rollback works when necessary
+- [ ] Adequate error handling
 
-## Critérios de Sucesso Global
-- [ ] {Objetivo principal alcançado}
-- [ ] {Métrica de qualidade}
-- [ ] {Métrica de performance}
-- [ ] {Critério de usabilidade}
+## Global Success Criteria
+- [ ] {Main objective achieved}
+- [ ] {Quality metric}
+- [ ] {Performance metric}
+- [ ] {Usability criterion}
 
-## Contingências
+## Contingencies
 
-### Se Agente X Falhar
-- **Ação**: {o que fazer}
-- **Rollback**: {como reverter se necessário}
-- **Retry**: {condições para tentar novamente}
+### If Agent X Fails
+- **Action**: {what to do}
+- **Rollback**: {how to revert if necessary}
+- **Retry**: {conditions for trying again}
 
-### Se Tempo Limite Excedido  
-- **Timeout**: {tempo máximo aceitável}
-- **Ação**: {o que fazer quando exceder}
-- **Escalation**: {quando envolver humano}
+### If Timeout Exceeded
+- **Timeout**: {maximum acceptable time}
+- **Action**: {what to do when exceeded}
+- **Escalation**: {when to involve a human}
 
-### Se Dados Inconsistentes
-- **Detecção**: {como identificar inconsistência}
-- **Correção**: {processo de correção}
-- **Prevenção**: {como evitar no futuro}
+### If Data is Inconsistent
+- **Detection**: {how to identify inconsistency}
+- **Correction**: {correction process}
+- **Prevention**: {how to avoid in the future}
 
-## Métricas de Execução
-- **Tempo total esperado**: {X minutos}
-- **Success rate esperada**: {X%}
-- **Recursos necessários**: {CPU, memoria, etc}
-- **Pontos de checkpoint**: {onde salvar progresso}
+## Execution Metrics
+- **Total expected time**: {X minutes}
+- **Expected success rate**: {X%}
+- **Required resources**: {CPU, memory, etc}
+- **Checkpoint points**: {where to save progress}
 
 ## Post-Execution
-- **Cleanup**: {o que limpar depois}
-- **Reporting**: {que relatórios gerar}
-- **Lessons learned**: {como capturar aprendizados}
-- **Next steps**: {próximas ações se bem-sucedido}
+- **Cleanup**: {what to clean up afterwards}
+- **Reporting**: {what reports to generate}
+- **Lessons learned**: {how to capture learnings}
+- **Next steps**: {next actions if successful}

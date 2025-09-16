@@ -1,38 +1,38 @@
-# Guia: Migrando Agentes Legados
+# Guide: Migrating Legacy Agents
 
-Com a introdução da nova arquitetura unificada na SAGA-017, a forma como os agentes são definidos e armazenados mudou. Este guia explica como migrar agentes do formato antigo (baseado em múltiplos arquivos em um diretório) para o novo formato (um único artefato JSON).
+With the introduction of the new unified architecture in SAGA-017, the way agents are defined and stored has changed. This guide explains how to migrate agents from the old format (based on multiple files in a directory) to the new format (a single JSON artifact).
 
-## 1. A Mudança Arquitetônica
+## 1. The Architectural Change
 
--   **Formato Antigo:** Um agente era definido por uma coleção de arquivos dentro de um diretório (ex: `agent.yaml`, `persona.md`, `playbook.yaml`).
--   **Formato Novo:** A definição completa de um agente agora reside em um único artefato `.json`, que é armazenado em um backend de persistência (como o diretório `.conductor_workspace/agents/` para o backend `filesystem`).
+-   **Old Format:** An agent was defined by a collection of files within a directory (e.g., `agent.yaml`, `persona.md`, `playbook.yaml`).
+-   **New Format:** An agent's complete definition now resides in a single `.json` artifact, which is stored in a persistence backend (like the `.conductor_workspace/agents/` directory for the `filesystem` backend).
 
-## 2. A Ferramenta de Migração
+## 2. The Migration Tool
 
-Para facilitar a transição, o Conductor fornece um script para automatizar o processo.
+To ease the transition, Conductor provides a script to automate the process.
 
 -   **Script:** `scripts/migrate_legacy_agents.py`
 
-Este script lê um diretório contendo agentes no formato antigo e gera os novos artefatos `.json` correspondentes.
+This script reads a directory containing agents in the old format and generates the corresponding new `.json` artifacts.
 
-## 3. Como Usar
+## 3. How to Use
 
-### Passo 1: Execute o Script
-Abra seu terminal na raiz do projeto e execute o script, fornecendo o diretório de origem (onde seus agentes antigos estão) e um diretório de destino.
+### Step 1: Run the Script
+Open your terminal at the project root and run the script, providing the source directory (where your old agents are) and a target directory.
 
-**Exemplo:**
+**Example:**
 ```bash
 poetry run python scripts/migrate_legacy_agents.py \
     --source-dir path/to/your/legacy_agents \
     --target-dir .conductor_workspace/agents
 ```
--   `--source-dir`: O diretório que contém as pastas de cada agente a ser migrado.
--   `--target-dir`: O diretório onde os novos arquivos `.json` serão salvos. Para o backend `filesystem`, este deve ser o diretório de agentes dentro do seu workspace.
+-   `--source-dir`: The directory containing the folders for each agent to be migrated.
+-   `--target-dir`: The directory where the new `.json` files will be saved. For the `filesystem` backend, this should be the agents directory within your workspace.
 
-### Passo 2: Verifique os Resultados
-O script irá processar cada subdiretório no diretório de origem e criar um arquivo `.json` correspondente no diretório de destino.
+### Step 2: Check the Results
+The script will process each subdirectory in the source directory and create a corresponding `.json` file in the target directory.
 
-**Estrutura "Antes":**
+**"Before" Structure:**
 ```
 legacy_agents/
 └── MyAwesome_Agent/
@@ -40,11 +40,11 @@ legacy_agents/
     └── persona.md
 ```
 
-**Estrutura "Depois":**
+**"After" Structure:**
 ```
 .conductor_workspace/
 └── agents/
     └── MyAwesome_Agent.json
 ```
 
-O `ConductorService` irá descobrir e carregar automaticamente os agentes a partir deste novo local.
+The `ConductorService` will automatically discover and load agents from this new location.

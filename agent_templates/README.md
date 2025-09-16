@@ -1,20 +1,20 @@
 # Agent Templates
 
-Este diretório contém templates de agentes organizados por categoria. Os templates são versionados no Git e podem ser instalados rapidamente pelos usuários.
+This directory contains agent templates organized by category. The templates are versioned in Git and can be quickly installed by users.
 
-## 📁 Estrutura
+## 📁 Structure
 
 ```
 agent_templates/
-├── core_tools/           # Ferramentas essenciais do Conductor
-├── web_development/      # Desenvolvimento web (React, Angular, etc.)
-├── backend_development/  # Desenvolvimento backend (APIs, databases, etc.)
-├── data_science/         # Ciência de dados e análise
-├── devops/              # DevOps e infraestrutura
-└── mobile_development/   # Desenvolvimento mobile
+├── core_tools/           # Essential Conductor tools
+├── web_development/      # Web development (React, Angular, etc.)
+├── backend_development/  # Backend development (APIs, databases, etc.)
+├── data_science/         # Data science and analysis
+├── devops/              # DevOps and infrastructure
+└── mobile_development/   # Mobile development
 ```
 
-## 🚀 Como Usar
+## 🚀 How to Use
 
 ### List Available Templates
 ```bash
@@ -34,47 +34,47 @@ conductor install --agent AgentCreator_Agent
 conductor install --agent ReactExpert_Agent
 ```
 
-## 📋 Categorias Disponíveis
+## 📋 Available Categories
 
 ### 🛠️ Core Tools
-Ferramentas essenciais para qualquer desenvolvedor:
-- **AgentCreator_Agent**: Cria novos agentes
-- **CommitMessage_Agent**: Gera mensagens de commit padronizadas
-- **CodeReviewer_Agent**: Revisa qualidade de código
-- **DocWriter_Agent**: Escreve documentação técnica
-- **SystemGuide_Meta_Agent**: Explica arquitetura do sistema
+Essential tools for any developer:
+- **AgentCreator_Agent**: Creates new agents
+- **CommitMessage_Agent**: Generates standardized commit messages
+- **CodeReviewer_Agent**: Reviews code quality
+- **DocWriter_Agent**: Writes technical documentation
+- **SystemGuide_Meta_Agent**: Explains system architecture
 
 ### 🌐 Web Development
-Especialistas em desenvolvimento frontend:
-- **ReactExpert_Agent**: Expert em React, hooks, state management
-- **AngularExpert_Agent**: Expert em Angular, TypeScript, RxJS, NgRx
+Frontend development specialists:
+- **ReactExpert_Agent**: Expert in React, hooks, state management
+- **AngularExpert_Agent**: Expert in Angular, TypeScript, RxJS, NgRx
 
 ### 🔧 Backend Development
-Especialistas em desenvolvimento backend:
-- **APIArchitect_Agent**: Design de APIs REST e GraphQL
-- **DatabaseExpert_Agent**: Design e otimização de bancos de dados
-- **SecuritySpecialist_Agent**: Segurança de aplicações
-- **PerformanceOptimizer_Agent**: Otimização de performance
-- **TestingSpecialist_Agent**: Estratégias de teste abrangentes
+Backend development specialists:
+- **APIArchitect_Agent**: Design of REST and GraphQL APIs
+- **DatabaseExpert_Agent**: Database design and optimization
+- **SecuritySpecialist_Agent**: Application security
+- **PerformanceOptimizer_Agent**: Performance optimization
+- **TestingSpecialist_Agent**: Comprehensive testing strategies
 
 ### 📊 Data Science
-Especialistas em análise de dados:
-- **DataAnalyst_Agent**: Análise de dados com Python/R
+Data analysis specialists:
+- **DataAnalyst_Agent**: Data analysis with Python/R
 
 ### 🚀 DevOps
-*Em desenvolvimento*
+*Under development*
 
 ### 📱 Mobile Development
-*Em desenvolvimento*
+*Under development*
 
-## 🔧 Estrutura de um Template
+## 🔧 Template Structure
 
-Cada template de agente contém:
+Each agent template contains:
 
 ```
 AgentName_Agent/
-├── definition.yaml    # Configuração do agente
-└── persona.md        # Conhecimento e comportamento
+├── definition.yaml    # Agent configuration
+└── persona.md        # Knowledge and behavior
 ```
 
 ### definition.yaml
@@ -82,7 +82,7 @@ AgentName_Agent/
 name: "AgentName_Agent"
 version: "1.0.0"
 schema_version: "1.0"
-description: "Descrição do que o agente faz"
+description: "Description of what the agent does"
 author: "Conductor Templates"
 type: "project"
 tags: ["tag1", "tag2", "tag3"]
@@ -91,21 +91,21 @@ allowed_tools: ["tool1", "tool2"]
 ```
 
 ### persona.md
-Arquivo markdown com:
-- Expertise do agente
-- Princípios e guidelines
-- Formato de resposta
-- Exemplos de código
-- Ferramentas e tecnologias
+Markdown file with:
+- Agent expertise
+- Principles and guidelines
+- Response format
+- Code examples
+- Tools and technologies
 
-## 📝 Contribuindo
+## 📝 Contributing
 
-Para adicionar novos templates:
+To add new templates:
 
-1. Crie o diretório na categoria apropriada
-2. Adicione `definition.yaml` e `persona.md`
-3. Teste o template localmente
-4. Faça commit das mudanças
+1. Create the directory in the appropriate category
+2. Add `definition.yaml` and `persona.md`
+3. Test the template locally
+4. Commit the changes
 
 ### Example Contribution
 ```bash
@@ -121,15 +121,15 @@ conductor install --agent VueExpert_Agent
 conductor execute --agent VueExpert_Agent --input "test"
 ```
 
-## 🎯 Benefícios dos Templates
+## 🎯 Template Benefits
 
-- **Onboarding Rápido**: Instale agentes especializados instantaneamente
-- **Qualidade Garantida**: Templates testados e otimizados
-- **Padronização**: Estrutura consistente entre agentes
-- **Versionamento**: Evolução controlada dos templates
-- **Compartilhamento**: Comunidade pode contribuir com novos templates
+- **Fast Onboarding**: Install specialized agents instantly
+- **Guaranteed Quality**: Tested and optimized templates
+- **Standardization**: Consistent structure across agents
+- **Versioning**: Controlled evolution of templates
+- **Sharing**: The community can contribute new templates
 
-## 💡 Dicas
+## 💡 Tips
 
 - Use `--list` to explore available templates
 - Install complete categories for a comprehensive toolkit

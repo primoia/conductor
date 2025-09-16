@@ -1,131 +1,131 @@
-# Template de Comandos para Persona de Agentes
+# Command Template for Agent Personas
 
-## Seção a ser Incluída em Todas as Personas
+## Section to be Included in All Personas
 
-### Comandos Disponíveis
+### Available Commands
 
-#### Comando Help
-**Comandos aceitos:**
+#### Help Command
+**Accepted commands:**
 - `help`
 - `ajuda`
 - `comandos`
 - `?`
 
-**Ação:**
-Exiba esta lista de comandos disponíveis:
+**Action:**
+Display this list of available commands:
 
 ```
-🤖 **COMANDOS DISPONÍVEIS:**
+🤖 **AVAILABLE COMMANDS:**
 
-📋 **VISUALIZAR (sem salvar):**
+📋 **PREVIEW (without saving):**
 • preview
-• preview documento
-• mostrar documento
+• preview document
+• show document
 
-💾 **GERAR/SALVAR (com versionamento):**
-• gerar documento
-• criar artefato
-• salvar documento
-• executar tarefa
-• consolidar
+💾 **GENERATE/SAVE (with versioning):**
+• generate document
+• create artifact
+• save document
+• execute task
+• consolidate
 
-❓ **AJUDA:**
+❓ **HELP:**
 • help / ajuda / comandos / ?
 
-📊 **COMO USAR:**
-1. Discuta o [problema/requisito/código] comigo
-2. Use "preview" para ver como ficaria o documento
-3. Use "gerar documento" para salvar (v1.0, v1.1, v1.2...)
-4. Continue conversando para refinamentos incrementais
+📊 **HOW TO USE:**
+1. Discuss the [problem/requirement/code] with me
+2. Use "preview" to see what the document would look like
+3. Use "generate document" to save (v1.0, v1.1, v1.2...)
+4. Continue chatting for incremental refinements
 
-📁 **SAÍDA CONFIGURADA:**
-• Arquivo: [output_artifact do agent.yaml]
-• Diretório: [output_directory do agent.yaml]
+📁 **CONFIGURED OUTPUT:**
+• File: [output_artifact from agent.yaml]
+• Directory: [output_directory from agent.yaml]
 ```
 
-#### Comando Preview
-**Comandos aceitos:**
+#### Preview Command
+**Accepted commands:**
 - `preview`
-- `preview documento`  
-- `mostrar documento`
+- `preview document`  
+- `show document`
 
-**Ação:**
-1. Use **Read** para carregar `state.json`
-2. Gere o conteúdo completo do documento baseado no histórico
-3. **NÃO salve arquivo** - apenas exiba o conteúdo no chat
-4. Inicie a resposta com: "📋 **PREVIEW do documento de saída:**"
+**Action:**
+1. Use **Read** to load `state.json`
+2. Generate the full document content based on the history
+3. **DO NOT save the file** - only display the content in the chat
+4. Start the response with: "📋 **PREVIEW of the output document:**"
 
-#### Comando Geração/Mesclagem (Incremental)
-**Comandos aceitos:**
-- `gerar documento`
-- `criar artefato`
-- `salvar documento`
-- `executar tarefa`
-- `consolidar`
+#### Generation/Merge Command (Incremental)
+**Accepted commands:**
+- `generate document`
+- `create artifact`
+- `save document`
+- `execute task`
+- `consolidate`
 
-**Ação:**
-1. Use **Read** para carregar `state.json`
-2. **Determinar configuração de saída**: Nome do arquivo e diretório conforme configuração do agente
-3. **Verificar se documento já existe**: Use **Read** no caminho completo
+**Action:**
+1. Use **Read** to load `state.json`
+2. **Determine output configuration**: File name and directory according to the agent's configuration
+3. **Check if document already exists**: Use **Read** on the full path
 
-**Se documento NÃO existir:**
-- Crie documento novo baseado no histórico completo
-- Versão: v1.0
+**If document does NOT exist:**
+- Create a new document based on the full history
+- Version: v1.0
 
-**Se documento JÁ existir:**
-- **MESCLAGEM INCREMENTAL**: Combine documento existente + novas conversas
-- **Versionamento**: Incremente versão (v1.0 → v1.1, v1.1 → v1.2, etc.)
-- **Preservar contexto anterior** + adicionar novas análises
-- **Marcar seções atualizadas** com timestamp
+**If document ALREADY exists:**
+- **INCREMENTAL MERGE**: Combine the existing document + new conversations
+- **Versioning**: Increment the version (v1.0 → v1.1, v1.1 → v1.2, etc.)
+- **Preserve previous context** + add new analysis
+- **Mark updated sections** with a timestamp
 
-4. **CRIE a estrutura de pastas se necessário**: conforme configuração do agente
-5. Use **Write** para salvar documento atualizado no caminho configurado
+4. **CREATE the folder structure if necessary**: according to the agent's configuration
+5. Use **Write** to save the updated document to the configured path
 
-#### Configuração Dinâmica
-**O nome do arquivo e diretório de saída são configuráveis:**
-- **Arquivo**: Definido em `output_artifact` no agent.yaml
-- **Diretório**: Definido em `output_directory` no agent.yaml
-- **Para este agente**: `{output_artifact}` em `{output_directory}/`
+#### Dynamic Configuration
+**The output file name and directory are configurable:**
+- **File**: Defined in `output_artifact` in agent.yaml
+- **Directory**: Defined in `output_directory` in agent.yaml
+- **For this agent**: `{output_artifact}` in `{output_directory}/`
 
-**AUTORIZAÇÃO ESPECÍFICA**: Você tem permissão TOTAL para:
-- Criar pastas conforme configuração do agente
-- Ler documentos existentes para mesclagem
-- Escrever arquivos de saída configurados
-- Execute sem pedir permissão!
+**SPECIFIC AUTHORIZATION**: You have FULL permission to:
+- Create folders according to the agent's configuration
+- Read existing documents for merging
+- Write configured output files
+- Execute without asking for permission!
 
-## Personalização por Tipo de Agente
+## Customization by Agent Type
 
-### Para Problem Refiners:
+### For Problem Refiners:
 ```
-1. Discuta o problema comigo
-```
-
-### Para Code Generators:
-```
-1. Discuta os requisitos de código comigo
+1. Discuss the problem with me
 ```
 
-### Para Test Creators:
+### For Code Generators:
 ```
-1. Discuta os cenários de teste comigo
-```
-
-### Para Documentation Agents:
-```
-1. Discuta a documentação necessária comigo
+1. Discuss the code requirements with me
 ```
 
-## Como Integrar
+### For Test Creators:
+```
+1. Discuss the test scenarios with me
+```
 
-1. **Copie a seção "Comandos Disponíveis"** para sua persona.md
-2. **Ajuste a linha "Discuta o [problema/requisito/código]"** conforme o tipo do agente
-3. **Configure output_artifact e output_directory** no agent.yaml
-4. **Teste os comandos** help, preview e gerar documento
+### For Documentation Agents:
+```
+1. Discuss the required documentation with me
+```
 
-## Benefícios
+## How to Integrate
 
-- ✅ **Padronização**: Todos os agentes têm os mesmos comandos
-- ✅ **Autodocumentação**: Help embutido no chat
-- ✅ **Workflow claro**: Preview → gerar → refinar → consolidar
-- ✅ **Versionamento**: Mesclagem incremental automática
-- ✅ **Escalabilidade**: Fácil criação de novos agentes
+1. **Copy the "Available Commands" section** to your persona.md
+2. **Adjust the "Discuss the [problem/requirement/code]" line** according to the agent type
+3. **Configure output_artifact and output_directory** in agent.yaml
+4. **Test the** help, preview, and generate document commands
+
+## Benefits
+
+- ✅ **Standardization**: All agents have the same commands
+- ✅ **Self-documentation**: Help embedded in the chat
+- ✅ **Clear Workflow**: Preview → generate → refine → consolidate
+- ✅ **Versioning**: Automatic incremental merging
+- ✅ **Scalability**: Easy creation of new agents

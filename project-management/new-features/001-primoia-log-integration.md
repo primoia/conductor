@@ -1,24 +1,24 @@
-# 📋 Tarefa: Integração com Primoia Log-Watcher
+# 📋 Task: Integration with Primoia Log-Watcher
 
-**Projeto**: conductor  
-**Tecnologia**: Python  
-**Prioridade**: Alta  
-**Estimativa**: 2-3 dias  
+**Project**: conductor  
+**Technology**: Python  
+**Priority**: High  
+**Estimate**: 2-3 days  
 
-## 🎯 Objetivo
+## 🎯 Objective
 
-Integrar o serviço `conductor` com o **Primoia Log-Watcher** (hub central de observabilidade do ecossistema Primoia) para centralizar logs e melhorar a observabilidade do sistema de orquestração e automação.
+Integrate the `conductor` service with the **Primoia Log-Watcher** (the central observability hub of the Primoia ecosystem) to centralize logs and improve the observability of the orchestration and automation system.
 
-## 📊 Benefícios Esperados
+## 📊 Expected Benefits
 
-- ✅ **Observabilidade Centralizada** - Logs de orquestração em um só lugar
-- ✅ **Análise Inteligente** - IA para detectar problemas em workflows
-- ✅ **Redução de Ruído** - Agrupamento automático de logs similares
-- ✅ **Diagnóstico Proativo** - Alertas antes que afetem automações
-- ✅ **Métricas Unificadas** - Visão consolidada da saúde dos workflows
-- ✅ **Rastreamento de Execução** - Monitoramento de pipelines e automações
+- ✅ **Centralized Observability** - Orchestration logs in one place
+- ✅ **Intelligent Analysis** - AI to detect problems in workflows
+- ✅ **Noise Reduction** - Automatic grouping of similar logs
+- ✅ **Proactive Diagnostics** - Alerts before they affect automations
+- ✅ **Unified Metrics** - Consolidated view of workflow health
+- ✅ **Execution Tracking** - Monitoring of pipelines and automations
 
-## 🏗️ Arquitetura Atual
+## 🏗️ Current Architecture
 
 ```
 ┌─────────────────────────┐
@@ -29,39 +29,39 @@ Integrar o serviço `conductor` com o **Primoia Log-Watcher** (hub central de ob
 │  - Scripts              │
 │  - Templates            │
 │  - Projects             │
-│  - Logs locais          │
+│  - Local logs           │
 └─────────────────────────┘
 ```
 
-## 🎯 Arquitetura Alvo
+## 🎯 Target Architecture
 
 ```
 ┌─────────────────────────┐    Logs    ┌─────────────────────┐
 │  conductor              │ ──────────► │  Primoia Log-Watcher│
-│  (Python)               │            │  (Hub Central)      │
+│  (Python)               │            │  (Central Hub)      │
 │                         │            │                     │
-│  - Orchestrator         │            │  - Análise IA       │
-│  - Scripts              │            │  - Agrupamento      │
-│  - Templates            │            │  - Alertas          │
+│  - Orchestrator         │            │  - AI Analysis      │
+│  - Scripts              │            │  - Grouping         │
+│  - Templates            │            │  - Alerts           │
 │  - Projects             │            │  - Dashboard        │
 │  - PrimoiaLogClient     │            │  - Workflow Tracking│
 └─────────────────────────┘            └─────────────────────┘
 ```
 
-## 📋 Tarefas de Implementação
+## 📋 Implementation Tasks
 
-### Fase 1: Configuração Base (1 dia)
+### Phase 1: Base Configuration (1 day)
 
-#### 1.1 Configuração de Dependências
-- [ ] Adicionar dependências no `requirements.txt` (se existir) ou criar
+#### 1.1 Dependency Configuration
+- [ ] Add dependencies to `requirements.txt` (if it exists) or create it
   ```txt
   httpx==0.25.2
   python-dotenv==1.0.0
   structlog==23.2.0
   ```
 
-#### 1.2 Configuração de Propriedades
-- [ ] Criar arquivo `config/logging_config.py`
+#### 1.2 Property Configuration
+- [ ] Create file `config/logging_config.py`
   ```python
   import os
   from dataclasses import dataclass
@@ -80,8 +80,8 @@ Integrar o serviço `conductor` com o **Primoia Log-Watcher** (hub central de ob
       service_instance_id: str = os.getenv("HOSTNAME", "conductor-001")
   ```
 
-#### 1.3 Variáveis de Ambiente
-- [ ] Criar arquivo `.env.example`
+#### 1.3 Environment Variables
+- [ ] Create file `.env.example`
   ```env
   PRIMOIA_LOG_URL=http://primoia-log-watcher:8000
   PRIMOIA_LOG_API_KEY=conductor-key-2024
@@ -89,66 +89,66 @@ Integrar o serviço `conductor` com o **Primoia Log-Watcher** (hub central de ob
   HOSTNAME=conductor-001
   ```
 
-### Fase 2: Implementação do Cliente (1 dia)
+### Phase 2: Client Implementation (1 day)
 
-#### 2.1 Criar PrimoiaLogClient
-- [ ] Criar classe `utils/primoia_log_client.py`
-- [ ] Implementar método `send_log(level: str, message: str, context: dict = None)`
-- [ ] Configurar httpx com timeout e retry
-- [ ] Implementar fallback para logs locais em caso de falha
+#### 2.1 Create PrimoiaLogClient
+- [ ] Create class `utils/primoia_log_client.py`
+- [ ] Implement method `send_log(level: str, message: str, context: dict = None)`
+- [ ] Configure httpx with timeout and retry
+- [ ] Implement fallback to local logs in case of failure
 
-#### 2.2 Configuração do Logger
-- [ ] Criar `utils/logger.py` com integração ao PrimoiaLogClient
-- [ ] Configurar structlog para logs estruturados
-- [ ] Implementar middleware de logging para scripts
+#### 2.2 Logger Configuration
+- [ ] Create `utils/logger.py` with PrimoiaLogClient integration
+- [ ] Configure structlog for structured logs
+- [ ] Implement logging middleware for scripts
 
-### Fase 3: Integração nos Módulos Principais (0.5 dia)
+### Phase 3: Integration into Main Modules (0.5 day)
 
-#### 3.1 Logs de Orchestrator
-- [ ] **orchestrator/**: Logs de execução de workflows
-- [ ] **scripts/**: Logs de execução de scripts
-- [ ] **templates/**: Logs de geração de templates
+#### 3.1 Orchestrator Logs
+- [ ] **orchestrator/**: Workflow execution logs
+- [ ] **scripts/**: Script execution logs
+- [ ] **templates/**: Template generation logs
 
-#### 3.2 Logs de Projects
-- [ ] **projects/**: Logs de operações em projetos
-- [ ] **stories/**: Logs de gerenciamento de histórias
-- [ ] **demo/**: Logs de demonstrações
+#### 3.2 Projects Logs
+- [ ] **projects/**: Project operation logs
+- [ ] **stories/**: Story management logs
+- [ ] **demo/**: Demo logs
 
-### Fase 4: Logs de Performance e Monitoramento (0.5 dia)
+### Phase 4: Performance and Monitoring Logs (0.5 day)
 
-#### 4.1 Logs de Performance
-- [ ] Logs de tempo de execução de workflows
-- [ ] Logs de uso de recursos (CPU, memória)
-- [ ] Logs de cache hits/misses
+#### 4.1 Performance Logs
+- [ ] Workflow execution time logs
+- [ ] Resource usage logs (CPU, memory)
+- [ ] Cache hit/miss logs
 
-#### 4.2 Logs de Monitoramento
-- [ ] Logs de health checks
-- [ ] Logs de métricas de sistema
-- [ ] Logs de alertas e notificações
+#### 4.2 Monitoring Logs
+- [ ] Health check logs
+- [ ] System metrics logs
+- [ ] Alert and notification logs
 
-## 🔧 Implementação Técnica
+## 🔧 Technical Implementation
 
-### Estrutura de Arquivos
+### File Structure
 
 ```
 conductor/
 ├── config/
-│   └── logging_config.py          # Configuração de logging
+│   └── logging_config.py          # Logging configuration
 ├── utils/
-│   ├── primoia_log_client.py      # Cliente para Primoia Log-Watcher
-│   └── logger.py                  # Logger integrado
+│   ├── primoia_log_client.py      # Client for Primoia Log-Watcher
+│   └── logger.py                  # Integrated logger
 ├── orchestrator/
-│   └── [arquivos existentes]      # (modificados)
+│   └── [existing files]           # (modified)
 ├── scripts/
-│   └── [arquivos existentes]      # (modificados)
+│   └── [existing files]           # (modified)
 ├── templates/
-│   └── [arquivos existentes]      # (modificados)
+│   └── [existing files]           # (modified)
 ├── projects/
-│   └── [arquivos existentes]      # (modificados)
-└── .env.example                   # Exemplo de variáveis de ambiente
+│   └── [existing files]           # (modified)
+└── .env.example                   # Example environment variables
 ```
 
-### Exemplo de Implementação
+### Implementation Example
 
 #### primoia_log_client.py
 ```python
@@ -176,7 +176,7 @@ class PrimoiaLogClient:
         message: str, 
         context: Optional[Dict[str, Any]] = None
     ) -> None:
-        """Envia log para o Primoia Log-Watcher"""
+        """Sends a log to the Primoia Log-Watcher"""
         if not self.config.enabled:
             return
         
@@ -203,12 +203,12 @@ class PrimoiaLogClient:
             )
             response.raise_for_status()
         except Exception as e:
-            # Fallback para log local
-            print(f"Erro ao enviar log para Primoia: {e}")
+            # Fallback to local log
+            print(f"Error sending log to Primoia: {e}")
             print(f"Log data: {json.dumps(log_data, indent=2)}")
     
     async def send_batch_logs(self, logs: List[Dict[str, Any]]) -> None:
-        """Envia múltiplos logs em lote"""
+        """Sends multiple logs in a batch"""
         if not self.config.enabled:
             return
         
@@ -219,10 +219,10 @@ class PrimoiaLogClient:
             )
             response.raise_for_status()
         except Exception as e:
-            print(f"Erro ao enviar logs em lote para Primoia: {e}")
+            print(f"Error sending batch logs to Primoia: {e}")
     
     async def close(self):
-        """Fecha o cliente HTTP"""
+        """Closes the HTTP client"""
         await self.client.aclose()
 ```
 
@@ -239,7 +239,7 @@ class PrimoiaLogger:
         self.config = config
         self.primoia_client = PrimoiaLogClient(config)
         
-        # Configurar structlog
+        # Configure structlog
         structlog.configure(
             processors=[
                 structlog.stdlib.filter_by_level,
@@ -259,7 +259,7 @@ class PrimoiaLogger:
         )
     
     def _primoia_processor(self, logger, method_name, event_dict):
-        """Processador para enviar logs para Primoia"""
+        """Processor to send logs to Primoia"""
         asyncio.create_task(
             self.primoia_client.send_log(
                 level=method_name.upper(),
@@ -270,23 +270,23 @@ class PrimoiaLogger:
         return event_dict
     
     def get_logger(self, name: str = None):
-        """Retorna logger configurado"""
+        """Returns a configured logger"""
         return structlog.get_logger(name)
     
     async def close(self):
-        """Fecha o logger e cliente"""
+        """Closes the logger and client"""
         await self.primoia_client.close()
 
-# Instância global
+# Global instance
 config = PrimoiaLogConfig()
 logger_instance = PrimoiaLogger(config)
 
 def get_logger(name: str = None):
-    """Função helper para obter logger"""
+    """Helper function to get a logger"""
     return logger_instance.get_logger(name)
 ```
 
-#### Exemplo de uso em scripts
+#### Example usage in scripts
 ```python
 # scripts/example_script.py
 from utils.logger import get_logger
@@ -294,23 +294,23 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 async def main():
-    logger.info("Iniciando execução do script", 
+    logger.info("Starting script execution", 
                 script_name="example_script",
                 version="1.0.0")
     
     try:
-        # Executar lógica do script
-        logger.info("Executando lógica principal")
+        # Execute script logic
+        logger.info("Executing main logic")
         
-        # Simular operação
+        # Simulate operation
         await asyncio.sleep(1)
         
-        logger.info("Script executado com sucesso",
+        logger.info("Script executed successfully",
                    execution_time=1.0,
                    status="completed")
     
     except Exception as e:
-        logger.error("Erro na execução do script",
+        logger.error("Error in script execution",
                     error=str(e),
                     error_type=type(e).__name__,
                     status="failed")
@@ -320,118 +320,118 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 🧪 Testes
+## 🧪 Tests
 
-### Testes Unitários
-- [ ] Testes do `PrimoiaLogClient`
-- [ ] Testes do `PrimoiaLogger`
-- [ ] Testes de configuração
+### Unit Tests
+- [ ] Tests for `PrimoiaLogClient`
+- [ ] Tests for `PrimoiaLogger`
+- [ ] Configuration tests
 
-### Testes de Integração
-- [ ] Teste de envio de logs para Primoia Log-Watcher
-- [ ] Teste de fallback em caso de falha
-- [ ] Teste de performance (não deve impactar execução)
+### Integration Tests
+- [ ] Test sending logs to Primoia Log-Watcher
+- [ ] Test fallback in case of failure
+- [ ] Performance test (should not impact execution)
 
-### Testes de Cenários
-- [ ] Logs de execução de workflows
-- [ ] Logs de erros e exceções
-- [ ] Logs de operações de orquestração
-- [ ] Logs de performance
+### Scenario Tests
+- [ ] Workflow execution logs
+- [ ] Error and exception logs
+- [ ] Orchestration operation logs
+- [ ] Performance logs
 
-## 📊 Métricas de Sucesso
+## 📊 Success Metrics
 
-### Funcionais
-- [ ] 100% das execuções de workflows logadas
-- [ ] 100% das operações de orquestração logadas
-- [ ] 0% de perda de logs em caso de falha do Primoia Log-Watcher
+### Functional
+- [ ] 100% of workflow executions logged
+- [ ] 100% of orchestration operations logged
+- [ ] 0% log loss in case of Primoia Log-Watcher failure
 
 ### Performance
-- [ ] Impacto < 50ms no tempo de execução dos workflows
-- [ ] Uso de memória adicional < 100MB
-- [ ] Fallback funcional em caso de indisponibilidade
+- [ ] Impact < 50ms on workflow execution time
+- [ ] Additional memory usage < 100MB
+- [ ] Functional fallback in case of unavailability
 
-### Observabilidade
-- [ ] Logs estruturados e padronizados
-- [ ] Contexto rico para análise de workflows
-- [ ] Integração com métricas do Primoia Log-Watcher
+### Observability
+- [ ] Structured and standardized logs
+- [ ] Rich context for workflow analysis
+- [ ] Integration with Primoia Log-Watcher metrics
 
-## 🔐 Segurança
+## 🔐 Security
 
-### Configuração
-- [ ] API key em variáveis de ambiente
-- [ ] Não expor informações sensíveis nos logs
-- [ ] Validação de entrada para evitar injection
+### Configuration
+- [ ] API key in environment variables
+- [ ] Do not expose sensitive information in logs
+- [ ] Input validation to prevent injection
 
-### Dados Sensíveis
-- [ ] Não logar senhas ou tokens
-- [ ] Mascarar dados pessoais (email, telefone)
-- [ ] Logar apenas IDs de projetos, não dados completos
+### Sensitive Data
+- [ ] Do not log passwords or tokens
+- [ ] Mask personal data (email, phone)
+- [ ] Log only project IDs, not complete data
 
 ## 🚀 Deploy
 
-### Desenvolvimento
-- [ ] Configurar Primoia Log-Watcher local
-- [ ] Testar integração completa
-- [ ] Validar logs no dashboard
+### Development
+- [ ] Configure Primoia Log-Watcher locally
+- [ ] Test full integration
+- [ ] Validate logs in the dashboard
 
-### Produção
-- [ ] Configurar URL do Primoia Log-Watcher em produção
-- [ ] Configurar API key de produção
-- [ ] Monitorar métricas de envio de logs
+### Production
+- [ ] Configure Primoia Log-Watcher URL in production
+- [ ] Configure production API key
+- [ ] Monitor log sending metrics
 
-## 📚 Documentação
+## 📚 Documentation
 
-### Para Desenvolvedores
-- [ ] Documentar como usar o `PrimoiaLogger`
-- [ ] Documentar configurações disponíveis
-- [ ] Documentar troubleshooting
+### For Developers
+- [ ] Document how to use the `PrimoiaLogger`
+- [ ] Document available configurations
+- [ ] Document troubleshooting
 
-### Para Operações
-- [ ] Documentar monitoramento de logs
-- [ ] Documentar configuração de alertas
-- [ ] Documentar procedimentos de emergência
+### For Operations
+- [ ] Document log monitoring
+- [ ] Document alert configuration
+- [ ] Document emergency procedures
 
-## 🎯 Critérios de Aceitação
+## 🎯 Acceptance Criteria
 
-### Funcionais
-- [ ] Todos os workflows logam execução e resultado
-- [ ] Operações de orquestração críticas são logadas
-- [ ] Logs incluem contexto suficiente para análise
-- [ ] Fallback funciona em caso de falha
+### Functional
+- [ ] All workflows log execution and results
+- [ ] Critical orchestration operations are logged
+- [ ] Logs include sufficient context for analysis
+- [ ] Fallback works in case of failure
 
-### Técnicos
-- [ ] Código segue padrões do projeto Python
-- [ ] Testes cobrem cenários principais
-- [ ] Performance não é impactada significativamente
-- [ ] Configuração é flexível e segura
+### Technical
+- [ ] Code follows Python project standards
+- [ ] Tests cover main scenarios
+- [ ] Performance is not significantly impacted
+- [ ] Configuration is flexible and secure
 
-### Operacionais
-- [ ] Logs aparecem no Primoia Log-Watcher
-- [ ] Métricas são coletadas corretamente
-- [ ] Alertas funcionam conforme esperado
-- [ ] Documentação está completa
+### Operational
+- [ ] Logs appear in Primoia Log-Watcher
+- [ ] Metrics are collected correctly
+- [ ] Alerts work as expected
+- [ ] Documentation is complete
 
-## 📅 Cronograma
+## 📅 Schedule
 
-| Fase | Duração | Entregáveis |
+| Phase | Duration | Deliverables |
 |------|---------|-------------|
-| Fase 1 | 1 dia | Configuração base, dependências |
-| Fase 2 | 1 dia | PrimoiaLogClient implementado |
-| Fase 3 | 0.5 dia | Integração nos módulos principais |
-| Fase 4 | 0.5 dia | Logs de performance e monitoramento |
-| **Total** | **3 dias** | **Integração completa** |
+| Phase 1 | 1 day | Base configuration, dependencies |
+| Phase 2 | 1 day | PrimoiaLogClient implemented |
+| Phase 3 | 0.5 day | Integration into main modules |
+| Phase 4 | 0.5 day | Performance and monitoring logs |
+| **Total** | **3 days** | **Full integration** |
 
-## 🔗 Referências
+## 🔗 References
 
-- [Guia de Integração Primoia Log-Watcher](../../primoia-log-watcher/INTEGRATION_GUIDE.md)
-- [Exemplos de Integração](../../primoia-log-watcher/examples/integration-examples.md)
-- [Documentação da API Primoia Log-Watcher](http://localhost:8000/docs)
-- [Documentação do httpx](https://www.python-httpx.org/)
-- [Documentação do structlog](https://www.structlog.org/)
+- [Primoia Log-Watcher Integration Guide](../../primoia-log-watcher/INTEGRATION_GUIDE.md)
+- [Integration Examples](../../primoia-log-watcher/examples/integration-examples.md)
+- [Primoia Log-Watcher API Documentation](http://localhost:8000/docs)
+- [httpx Documentation](https://www.python-httpx.org/)
+- [structlog Documentation](https://www.structlog.org/)
 
 ---
 
-**Status**: 📋 **Planejado**  
-**Responsável**: [A definir]  
-**Data de Início**: [A definir]  
-**Data de Conclusão**: [A definir]
+**Status**: 📋 **Planned**  
+**Assignee**: [To be defined]  
+**Start Date**: [To be defined]  
+**End Date**: [To be defined]

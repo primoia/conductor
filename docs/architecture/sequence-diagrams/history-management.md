@@ -15,7 +15,7 @@ sequenceDiagram
     participant StorageService
     participant Repository
 
-    Note over ConductorCLI,Repository: FLUXO DE SALVAMENTO AUTOMÁTICO
+    Note over ConductorCLI,Repository: AUTOMATIC SAVE FLOW
 
     ConductorCLI->>ConductorService: execute_task(task)
     ConductorService->>TaskExecutionService: execute_task(task)
@@ -52,7 +52,7 @@ sequenceDiagram
     participant ConductorCLI
     participant AgentDiscoveryService
 
-    Note over ConductorCLI,AgentDiscoveryService: FLUXO DE RECUPERAÇÃO DE HISTÓRICO
+    Note over ConductorCLI,AgentDiscoveryService: HISTORY RETRIEVAL FLOW
 
     ConductorCLI->>AgentDiscoveryService: get_conversation_history(agent_id)
     AgentDiscoveryService-->>ConductorCLI: history_list
@@ -67,7 +67,7 @@ sequenceDiagram
     participant ConductorCLI
     participant AgentDiscoveryService
 
-    Note over ConductorCLI,AgentDiscoveryService: FLUXO DE LIMPEZA DE HISTÓRICO
+    Note over ConductorCLI,AgentDiscoveryService: HISTORY CLEAR FLOW
 
     ConductorCLI->>AgentDiscoveryService: clear_conversation_history(agent_id)
     AgentDiscoveryService-->>ConductorCLI: success
@@ -80,9 +80,9 @@ sequenceDiagram
 - **TaskExecutionService** persists via repository (`append_to_history`)
 
 ### 2. **Manual Load/Clear via CLI:**
-- **ConductorCLI** usa `AgentDiscoveryService.get_conversation_history/clear_conversation_history`
-- Sem exposição direta do `repository` pelo `ConductorService`
+- **ConductorCLI** uses `AgentDiscoveryService.get_conversation_history/clear_conversation_history`
+- No direct exposure of the `repository` by the `ConductorService`
 
 ## 🎯 Architecture Notes
 
-O fluxo foi atualizado para refletir a API atual do `ConductorCLI` e dos serviços internos. Caso seja necessário acesso de baixo nível ao repositório pelo CLI, considere adicionar métodos dedicados no `ConductorService` em vez de expor o `repository` diretamente.
+The flow has been updated to reflect the current API of the `ConductorCLI` and internal services. If low-level access to the repository is needed by the CLI, consider adding dedicated methods in the `ConductorService` instead of exposing the `repository` directly.

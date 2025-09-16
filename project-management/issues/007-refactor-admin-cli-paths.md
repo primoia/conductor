@@ -1,32 +1,32 @@
-# Plano 007: Remover Lógica de Caminhos Legados do AdminCLI
+# Plan 007: Remove Legacy Path Logic from AdminCLI
 
-## 1. Meta
+## 1. Goal
 
-Refatorar o `AdminCLI` para eliminar completamente qualquer lógica de caminhos hardcoded (como `_common`) e fazer com que ele dependa exclusivamente do `ConductorService` para toda a descoberta e carregamento de agentes. O CLI não deve ter conhecimento da estrutura de diretórios.
+Refactor the `AdminCLI` to completely eliminate any hardcoded path logic (like `_common`) and make it depend exclusively on the `ConductorService` for all agent discovery and loading. The CLI should have no knowledge of the directory structure.
 
-## 2. Problema
+## 2. Problem
 
-O `AdminCLI` ainda exibe e utiliza caminhos legados (`_common`) durante sua inicialização. Isso causa confusão e mantém uma dependência de uma estrutura de diretórios obsoleta, criando um comportamento de "cérebro dividido" onde a interface do CLI reporta uma coisa, enquanto o serviço de backend executa outra (a correta).
+The `AdminCLI` still displays and uses legacy paths (`_common`) during its initialization. This causes confusion and maintains a dependency on an obsolete directory structure, creating a "split-brain" behavior where the CLI interface reports one thing, while the backend service executes another (the correct one).
 
-## 3. Resultado Esperado
+## 3. Expected Outcome
 
-O `AdminCLI` deve ser agnóstico à localização dos agentes. Ele apenas informa um `agent_id` ao `ConductorService` e confia que o serviço o encontrará.
+The `AdminCLI` should be agnostic to the location of the agents. It only informs the `ConductorService` of an `agent_id` and trusts that the service will find it.
 
-**Checklist de Implementação:**
+**Implementation Checklist:**
 
-1.  **Refatorar `src/cli/admin.py`:**
-    -   Remover a lógica no `__init__` que define `self.environment` e `self.project` como `"_common"` quando a flag `--meta` é usada.
-    -   Remover o parâmetro `destination_path` e qualquer lógica associada a ele.
-    -   Remover as linhas no `main()` que imprimem `Target: _common/agents/`. O CLI não deve mais exibir essa informação.
-2.  **Simplificar `_build_enhanced_message`:**
-    -   Remover as partes que adicionam `AGENT_ENVIRONMENT`, `AGENT_PROJECT`, e `DESTINATION_PATH` à mensagem. O contexto agora é gerenciado inteiramente pelo `ConductorService` e pelo estado do agente.
+1.  **Refactor `src/cli/admin.py`:**
+    -   Remove the logic in `__init__` that defines `self.environment` and `self.project` as `"_common"` when the `--meta` flag is used.
+    -   Remove the `destination_path` parameter and any logic associated with it.
+    -   Remove the lines in `main()` that print `Target: _common/agents/`. The CLI should no longer display this information.
+2.  **Simplify `_build_enhanced_message`:**
+    -   Remove the parts that add `AGENT_ENVIRONMENT`, `AGENT_PROJECT`, and `DESTINATION_PATH` to the message. The context is now managed entirely by the `ConductorService` and the agent's state.
 
-## 4. Regras e Restrições (Guardrails)
+## 4. Rules and Restrictions (Guardrails)
 
--   **PROIBIDO O USO DE `_common`:** O nome `_common` não deve mais existir no código do `AdminCLI`.
--   **CLI DEVE SER AGNÓSTICO:** O `AdminCLI` não deve construir, manipular ou ter conhecimento de nenhum caminho de sistema de arquivos relacionado aos agentes. Sua única responsabilidade é passar o `agent_id` para o `ConductorService`.
+-   **USE OF `_common` IS PROHIBITED:** The name `_common` should no longer exist in the `AdminCLI` code.
+-   **CLI MUST BE AGNOSTIC:** The `AdminCLI` must not build, manipulate, or have knowledge of any file system paths related to the agents. Its sole responsibility is to pass the `agent_id` to the `ConductorService`.
 
-## 5. Critério de Aceitação Final
+## 5. Final Acceptance Criterion
 
-- Após a refatoração, a execução do comando `python -m src.cli.admin --meta --agent AgentCreator_Agent --repl` deve iniciar com sucesso, e o log de inicialização **não deve** mais conter a linha `Target: _common/agents/`.
-- A execução de uma tarefa simples (ex: "olá") deve continuar funcionando normalmente.
+- After the refactoring, running the command `python -m src.cli.admin --meta --agent AgentCreator_Agent --repl` should start successfully, and the initialization log **must not** contain the line `Target: _common/agents/`.
+- The execution of a simple task (e.g., "hello") should continue to work normally.
