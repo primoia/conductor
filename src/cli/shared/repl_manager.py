@@ -6,7 +6,13 @@ Includes circuit breaker and safety mechanisms to prevent infinite loops.
 """
 
 import time
+import os
 from typing import Dict, Callable, Any
+from prompt_toolkit import prompt
+from prompt_toolkit.history import FileHistory
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.lexers import PygmentsLexer
+from pygments.lexers.python import PythonLexer
 
 
 class REPLManager:
@@ -45,68 +51,47 @@ class REPLManager:
 
     def _get_multiline_input(self) -> str:
         """
-        Get multi-line input from user. Supports pasting text with line breaks.
-        Continues reading until user presses Enter on an empty line or types a command.
+        Captura input multi-linha com edição rica usando prompt_toolkit.
+        Pressione Ctrl+D para enviar.
         """
-        lines = []
-        first_prompt = True
+        # Define que a submissão será APENAS com Ctrl+D
+        bindings = KeyBindings()
 
-        while True:
-            try:
-                if first_prompt:
-                    prompt = f"\n[{self.agent_name}]> "
-                    first_prompt = False
-                else:
-                    prompt = f"[{self.agent_name}]... "
+        @bindings.add('c-d')
+        def _(event):
+            """Ctrl+D submete o input"""
+            event.app.current_buffer.validate_and_handle()
 
-                line = input(prompt).rstrip()
+        @bindings.add('enter')
+        def _(event):
+            """Enter submete, Shift+Enter adiciona nova linha"""
+            event.app.current_buffer.validate_and_handle()
 
-                # If empty line, finish input (unless it's the very first line)
-                if not line and lines:
-                    break
+        @bindings.add('escape', 'enter')  # Alt+Enter (mais compatível)
+        def _(event):
+            """Alt+Enter adiciona nova linha"""
+            event.app.current_buffer.insert_text('\n')
 
-                # If first line is empty, just wait for real input
-                if not line and not lines:
-                    continue
+        # Define o caminho do histórico dentro do workspace
+        history_path = os.path.join('.conductor_workspace', '.repl_history.txt')
 
-                # Single command words should be processed immediately
-                if not lines and line.lower() in [
-                    "exit",
-                    "quit",
-                    "sair",
-                    "help",
-                    "status",
-                    "reset",
-                    "emergency",
-                    "clear",
-                    "save",
-                    "tools",
-                    "scope",
-                    "debug",
-                    "prompt",
-                    "state",
-                    "history",
-                ]:
-                    return line
-
-                # Add line to collection
-                lines.append(line)
-
-                # If this looks like a single-line command, process immediately
-                if len(lines) == 1 and not self._looks_like_multiline_content(line):
-                    break
-
-            except EOFError:
-                # Ctrl+D pressed, treat as completion
-                break
-            except KeyboardInterrupt:
-                # Ctrl+C pressed, clear current input and start over
-                print("\n^C")
-                return ""
-
-        # Join all lines with newlines
-        result = "\n".join(lines).strip()
-        return result
+        try:
+            # Exibe o prompt e aguarda a submissão
+            user_input = prompt(
+                f"[{self.agent_name}]> ",
+                multiline=True,
+                key_bindings=bindings,
+                history=FileHistory(history_path),
+                lexer=PygmentsLexer(PythonLexer),
+                prompt_continuation=" " * (len(self.agent_name) + 5),  # Espaços em vez de texto
+                wrap_lines=True,  # Permite wrap de linhas longas
+                mouse_support=True,  # Habilita suporte a mouse
+                complete_style='column'  # Estilo de autocompletar mais limpo
+            )
+            return user_input
+        except (EOFError, KeyboardInterrupt):
+            # Trata Ctrl+D em linha vazia ou Ctrl+C como um comando de saída
+            return "exit"
 
     def _looks_like_multiline_content(self, line: str) -> bool:
         """
@@ -184,10 +169,9 @@ class REPLManager:
         print("🔄 Digite 'reset' para reiniciar proteções")
         print("🚨 Digite 'emergency' para parada de emergência")
         print("")
-        print("📋 ENTRADA MULTI-LINHA:")
-        print("   • Cole código com múltiplas linhas normalmente")
-        print("   • Pressione Enter em linha vazia para enviar")
-        print("   • Comandos simples são enviados imediatamente")
+        print("💡 Pressione Enter para ENVIAR, Alt+Enter para nova linha")
+        print("🔧 Use setas ↑↓ para navegar entre linhas, ←→ para mover o cursor")
+        print("🖱️  Use o mouse para posicionar o cursor em qualquer lugar")
 
         if custom_help:
             print(custom_help)
