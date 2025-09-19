@@ -236,12 +236,13 @@ class AgentDiscoveryService:
         try:
             # Import here to avoid circular imports
             from src.core.prompt_engine import PromptEngine
+            from src.container import container
             import os
             from datetime import datetime
-            
+
             # Use current_message if provided, otherwise use sample_message
             user_message = current_message if current_message is not None else sample_message
-            
+
             # For meta agents, build the enhanced context first
             if meta:
                 enhanced_message = self.build_meta_agent_context(
@@ -249,22 +250,26 @@ class AgentDiscoveryService:
                 )
             else:
                 enhanced_message = user_message
-            
+
             # Get agent home path through the storage service
             agent_home_path = self._storage.get_agent_home_path(agent_id)
-            
+
+            # Get prompt format from configuration
+            config_service = container.get_configuration_service()
+            prompt_format = config_service.get_prompt_format()
+
             # Create and configure the PromptEngine - SEMPRE usa o real, não mock
-            prompt_engine = PromptEngine(agent_home_path)
+            prompt_engine = PromptEngine(agent_home_path, prompt_format)
             prompt_engine.load_context()
-            
+
             # Get conversation history (last interactions saved) - only if requested
             if include_history:
                 conversation_history = self.get_conversation_history(agent_id)
             else:
                 conversation_history = []
-            
-            # Build the complete prompt
-            complete_prompt = prompt_engine.build_prompt(conversation_history, enhanced_message, include_history)
+
+            # Build the complete prompt using the configured format
+            complete_prompt = prompt_engine.build_prompt_with_format(conversation_history, enhanced_message, include_history)
             
             # Add metadata header for clarity when displaying
             if save_to_file:
@@ -324,9 +329,12 @@ class AgentDiscoveryService:
                 # Try to load at least the persona if possible
                 try:
                     from src.core.prompt_engine import PromptEngine
-                    
+                    from src.container import container
+
                     agent_home_path = self._storage.get_agent_home_path(agent_id)
-                    prompt_engine = PromptEngine(agent_home_path)
+                    config_service = container.get_configuration_service()
+                    prompt_format = config_service.get_prompt_format()
+                    prompt_engine = PromptEngine(agent_home_path, prompt_format)
                     prompt_engine.load_context()
                     
                     fallback_parts.append("=== PERSONA DO AGENTE (disponível) ===")

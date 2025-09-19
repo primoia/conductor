@@ -5,6 +5,8 @@ import logging
 import re
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+from datetime import datetime
+import xml.dom.minidom
 
 from src.core.exceptions import AgentNotFoundError, ConfigurationError
 
@@ -17,7 +19,7 @@ class PromptEngine:
     Responsável por carregar, processar e construir prompts.
     """
 
-    def __init__(self, agent_home_path: str):
+    def __init__(self, agent_home_path: str, prompt_format: str = "xml"):
         """
         Inicializa o PromptEngine com o caminho para o diretório principal do agente.
         """
@@ -26,6 +28,7 @@ class PromptEngine:
         self.persona_content: str = ""
         self.playbook: Dict[str, Any] = {}
         self.playbook_content: str = ""
+        self.prompt_format = prompt_format  # "xml" or "text"
         self.is_mongodb = str(agent_home_path).startswith("mongodb://")
 
         # Extract agent_id from MongoDB path
@@ -35,7 +38,7 @@ class PromptEngine:
         else:
             self.agent_id = None
 
-        logger.debug(f"PromptEngine inicializado para o caminho: {agent_home_path} (MongoDB: {self.is_mongodb})")
+        logger.debug(f"PromptEngine inicializado para o caminho: {agent_home_path} (MongoDB: {self.is_mongodb}, Format: {self.prompt_format})")
 
     def load_context(self) -> None:
         """
@@ -59,7 +62,13 @@ class PromptEngine:
             formatted_history = self._format_history(conversation_history)
         else:
             formatted_history = "Execução isolada - sem histórico de conversas anteriores."
-        agent_instructions = self.agent_config.get("prompt", "")
+        # Get instructions from definition with fallbacks
+        agent_instructions = (
+            self.agent_config.get("prompt", "") or
+            self.agent_config.get("instructions", "") or
+            self.agent_config.get("description", "") or
+            ""
+        )
 
         # SAFETY: Truncate persona if too long to prevent system errors
         MAX_PERSONA_LENGTH = 20000  # Reasonable limit for persona content
@@ -112,7 +121,21 @@ class PromptEngine:
             )
 
         logger.info(f"Prompt final construído com sucesso ({len(final_prompt)} chars).")
+
+        # Save prompt to disk for debugging/analysis
+        self._save_prompt_to_disk(final_prompt, "text")
+
         return final_prompt
+
+    def build_prompt_with_format(self, conversation_history: List[Dict], message: str, include_history: bool = True) -> str:
+        """
+        Constrói o prompt final usando o formato configurado (XML ou texto).
+        Este método substitui build_prompt() para suportar ambos os formatos.
+        """
+        if self.prompt_format == "xml":
+            return self.build_xml_prompt(conversation_history, message, include_history)
+        else:
+            return self.build_prompt(conversation_history, message, include_history)
 
     def get_available_tools(self) -> List[str]:
         """Get list of available tool names from agent config."""
@@ -134,6 +157,11 @@ class PromptEngine:
                     raise AgentNotFoundError(f"Definition not found for agent: {self.agent_id}")
 
                 self.agent_config = config_data
+
+                # DEBUG: Log definition structure for debugging empty instructions
+                logger.debug(f"MongoDB definition loaded for {self.agent_id}: {list(config_data.keys()) if config_data else 'None'}")
+                if config_data:
+                    logger.debug(f"Available fields: prompt={bool(config_data.get('prompt'))}, instructions={bool(config_data.get('instructions'))}, description={bool(config_data.get('description'))}")
             except Exception as e:
                 raise ConfigurationError(f"Error loading agent definition from MongoDB: {e}")
         else:
@@ -355,19 +383,42 @@ class PromptEngine:
             return "Nenhum histórico de conversa para esta tarefa ainda."
 
         # Limitar histórico para evitar "Argument list too long"
-        # Manter apenas as últimas 5 interações para contexto
-        MAX_HISTORY_TURNS = 5
+        # Manter apenas as últimas 100 interações para contexto
+        MAX_HISTORY_TURNS = 100
         recent_history = (
             history[-MAX_HISTORY_TURNS:]
             if len(history) > MAX_HISTORY_TURNS
             else history
         )
 
+        # SAFETY: Ensure chronological order (oldest first, newest last)
+        # Sort by timestamp if available, otherwise keep original order
+        try:
+            # Try to sort by timestamp if available
+            recent_history = sorted(recent_history, key=lambda x: x.get("timestamp", 0) or 0)
+        except (TypeError, ValueError):
+            # If sorting fails, keep original order but log warning
+            logger.warning("Could not sort history by timestamp, keeping original order")
+
         formatted_lines = []
         for turn in recent_history:
-            # Use the correct field names as saved by agent_executor
-            user_input = turn.get("user_input", "")
-            ai_response = turn.get("ai_response", "")
+            # Get user input with fallbacks
+            user_input = (
+                turn.get("user_input", "") or
+                turn.get("prompt", "") or
+                turn.get("user", "") or
+                ""
+            )
+
+            # Get AI response with fallbacks
+            ai_response = (
+                turn.get("ai_response", "") or
+                turn.get("response", "") or
+                turn.get("assistant", "") or
+                turn.get("output", "") or
+                turn.get("summary", "") or  # ← Fallback para summary
+                ""
+            )
 
             # Truncar mensagens muito longas
             MAX_MESSAGE_LENGTH = 1000
@@ -376,7 +427,22 @@ class PromptEngine:
             if len(ai_response) > MAX_MESSAGE_LENGTH:
                 ai_response = ai_response[:MAX_MESSAGE_LENGTH] + "... [truncado]"
 
-            formatted_lines.append(f"Usuário: {user_input}\nIA: {ai_response}")
+            # Add timestamp context if available
+            timestamp = turn.get("timestamp", "")
+            timestamp_info = ""
+            if timestamp:
+                try:
+                    # Convert timestamp to readable format
+                    if isinstance(timestamp, (int, float)):
+                        from datetime import datetime
+                        timestamp_str = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M")
+                    else:
+                        timestamp_str = str(timestamp)[:16]  # Truncate if too long
+                    timestamp_info = f" [{timestamp_str}]"
+                except:
+                    pass
+
+            formatted_lines.append(f"Usuário{timestamp_info}: {user_input}\nIA: {ai_response}")
 
         # Adicionar indicador se histórico foi truncado
         if len(history) > MAX_HISTORY_TURNS:
@@ -386,3 +452,174 @@ class PromptEngine:
             )
 
         return "\n---\n".join(formatted_lines)
+
+    # --- XML Prompt Generation ---
+
+    def _escape_xml_cdata(self, content: str) -> str:
+        """Escapa o conteúdo para ser seguro dentro de uma seção CDATA."""
+        if not isinstance(content, str):
+            content = str(content)
+        # A sequência ']]>' não pode aparecer dentro de um CDATA.
+        # A forma de escapar é dividi-la em duas seções CDATA.
+        return content.replace(']]>', ']]]]><![CDATA[>')
+
+    def _format_history_xml(self, history: List[Dict[str, Any]]) -> str:
+        """Formata o histórico da conversa como uma série de tags XML."""
+        if not history:
+            return "<history/>"
+
+        MAX_HISTORY_TURNS = 100
+        recent_history = (
+            history[-MAX_HISTORY_TURNS:]
+            if len(history) > MAX_HISTORY_TURNS
+            else history
+        )
+
+        # SAFETY: Ensure chronological order (oldest first, newest last)
+        # Sort by timestamp if available, otherwise keep original order
+        try:
+            # Try to sort by timestamp if available
+            recent_history = sorted(recent_history, key=lambda x: x.get("timestamp", 0) or 0)
+        except (TypeError, ValueError):
+            # If sorting fails, keep original order but log warning
+            logger.warning("Could not sort history by timestamp, keeping original order")
+        
+        xml_turns = []
+        for i, turn in enumerate(recent_history):
+            # DEBUG: Log history structure
+            logger.debug(f"History turn {i}: keys={list(turn.keys())}, user_input={bool(turn.get('user_input'))}, ai_response={bool(turn.get('ai_response'))}, summary={bool(turn.get('summary'))}")
+            # Get user input with fallbacks
+            user_input = (
+                turn.get("user_input", "") or
+                turn.get("prompt", "") or
+                turn.get("user", "") or
+                ""
+            )
+
+            # Get AI response with fallbacks
+            ai_response = (
+                turn.get("ai_response", "") or
+                turn.get("response", "") or
+                turn.get("assistant", "") or
+                turn.get("output", "") or
+                turn.get("summary", "") or  # ← Fallback para summary
+                ""
+            )
+
+            user_input = self._escape_xml_cdata(user_input)
+            ai_response = self._escape_xml_cdata(ai_response)
+
+            # Get timestamp for context
+            timestamp = turn.get("timestamp", "")
+            timestamp_attr = f' timestamp="{timestamp}"' if timestamp else ""
+
+            xml_turns.append(f"""    <turn{timestamp_attr}>
+            <user><![CDATA[{user_input}]]></user>
+            <assistant><![CDATA[{ai_response}]]></assistant>
+        </turn>""")
+        
+        return "\n".join(xml_turns)
+
+    def build_xml_prompt(self, conversation_history: List[Dict], message: str, include_history: bool = True) -> str:
+        """Constrói o prompt final usando uma estrutura XML otimizada."""
+        if not self.persona_content or not self.agent_config:
+            raise ValueError("Contexto não foi carregado. Chame load_context() primeiro.")
+
+        # Carrega e escapa os conteúdos
+        persona_cdata = self._escape_xml_cdata(self.persona_content)
+
+        # Get instructions with fallbacks
+        agent_instructions = (
+            self.agent_config.get("prompt", "") or
+            self.agent_config.get("instructions", "") or
+            self.agent_config.get("description", "") or
+            ""
+        )
+        instructions_cdata = self._escape_xml_cdata(agent_instructions)
+        playbook_cdata = self._escape_xml_cdata(self.playbook_content)
+        message_cdata = self._escape_xml_cdata(message)
+        
+        # Formata o histórico
+        history_xml = self._format_history_xml(conversation_history) if include_history else "<history/>"
+
+        # Monta o prompt XML final
+        final_prompt = f"""<prompt>
+    <system_context>
+        <persona>
+            <![CDATA[{persona_cdata}]]>
+        </persona>
+        <instructions>
+            <![CDATA[{instructions_cdata}]]>
+        </instructions>
+        <playbook>
+            <![CDATA[{playbook_cdata}]]>
+        </playbook>
+    </system_context>
+    <conversation_history>
+{history_xml}
+    </conversation_history>
+    <user_request>
+        <![CDATA[{message_cdata}]]>
+    </user_request>
+</prompt>"""
+        
+        logger.info(f"Prompt XML final construído com sucesso ({len(final_prompt)} chars).")
+
+        # Save prompt to disk for debugging/analysis
+        self._save_prompt_to_disk(final_prompt, "xml", format_xml=True)
+
+        return final_prompt
+
+    def _save_prompt_to_disk(self, prompt_content: str, format_type: str, format_xml: bool = False) -> None:
+        """
+        Salva o prompt completo em disco para análise/debugging.
+
+        Args:
+            prompt_content: Conteúdo do prompt a ser salvo
+            format_type: Tipo do formato ("text" ou "xml")
+            format_xml: Se True, formata XML para melhor legibilidade
+        """
+        try:
+            # Create prompts_log directory if it doesn't exist
+            prompts_dir = Path("prompts_log")
+            prompts_dir.mkdir(exist_ok=True)
+
+            # Generate filename with timestamp and agent info
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # milliseconds precision
+            agent_name = self.agent_config.get("name") or self.agent_config.get("id", "unknown")
+
+            # Clean agent name for filename
+            safe_agent_name = re.sub(r'[^\w\-_]', '_', agent_name)
+
+            filename = f"{timestamp}_{safe_agent_name}_{format_type}.txt"
+            filepath = prompts_dir / filename
+
+            # Format XML if requested
+            content_to_save = prompt_content
+            if format_xml and format_type == "xml":
+                try:
+                    # Parse and format XML with proper indentation
+                    dom = xml.dom.minidom.parseString(prompt_content)
+                    content_to_save = dom.toprettyxml(indent="  ", encoding=None)
+                    # Remove extra newlines that toprettyxml adds
+                    content_to_save = '\n'.join([line for line in content_to_save.split('\n') if line.strip()])
+                except Exception as xml_error:
+                    logger.warning(f"Failed to format XML, saving as-is: {xml_error}")
+                    content_to_save = prompt_content
+
+            # Save prompt with metadata header
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(f"# PROMPT LOG - {datetime.now().isoformat()}\n")
+                f.write(f"# Agent: {agent_name}\n")
+                f.write(f"# Format: {format_type}\n")
+                f.write(f"# Formatted: {format_xml and format_type == 'xml'}\n")
+                f.write(f"# Length: {len(prompt_content)} chars\n")
+                f.write(f"# MongoDB: {self.is_mongodb}\n")
+                f.write("# " + "="*70 + "\n\n")
+                f.write(content_to_save)
+
+            logger.debug(f"Prompt saved to: {filepath}")
+
+        except Exception as e:
+            # Don't let prompt saving errors break the main flow
+            logger.warning(f"Failed to save prompt to disk: {e}")

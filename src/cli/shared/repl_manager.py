@@ -306,13 +306,38 @@ class REPLManager:
         if not history:
             print("📭 Nenhuma mensagem no histórico")
         else:
-            for i, msg in enumerate(history, 1):
+            # SAFETY: Ensure chronological order (oldest first, newest last)
+            # Sort by timestamp if available, otherwise keep original order
+            try:
+                # Try to sort by timestamp if available
+                sorted_history = sorted(history, key=lambda x: x.get("timestamp", 0) or 0)
+            except (TypeError, ValueError):
+                # If sorting fails, keep original order
+                sorted_history = history
+
+            for i, msg in enumerate(sorted_history, 1):
                 print(f"\n--- Mensagem {i} ---")
-                print(f"👤 User: {msg.get('user_input', 'N/A')}") # Usar user_input
-                response = msg.get('summary', msg.get('ai_response', 'N/A')) # Usar summary (campo real) ou ai_response como fallback
-                print(
-                    f"🤖 Assistant: {response[:200]}{'...' if len(response) > 200 else ''}"
+
+                # Get user input with fallbacks (same as PromptEngine)
+                user_input = (
+                    msg.get("user_input", "") or
+                    msg.get("prompt", "") or
+                    msg.get("user", "") or
+                    "N/A"
                 )
+
+                # Get AI response with fallbacks (same as PromptEngine)
+                ai_response = (
+                    msg.get("ai_response", "") or
+                    msg.get("response", "") or
+                    msg.get("assistant", "") or
+                    msg.get("output", "") or
+                    msg.get("summary", "") or
+                    "N/A"
+                )
+
+                print(f"👤 User: {user_input}")
+                print(f"🤖 Assistant: {ai_response[:200]}{'...' if len(ai_response) > 200 else ''}")
         print("=" * 50)
 
     def _check_rate_limiting(self) -> bool:

@@ -52,6 +52,8 @@ Thumbs.db
 logs/
 *.log
 /tmp/conductor-*.log
+# Prompt logs for debugging/analysis
+prompts_log/
 # Temporary files
 *.tmp
 *.backup

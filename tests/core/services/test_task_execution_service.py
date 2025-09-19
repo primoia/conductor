@@ -95,7 +95,11 @@ class TestTaskExecutionService:
             
             # Verify test environment uses PlaceholderLLMClient
             mock_llm_client.assert_called_once()
-            mock_prompt_engine.assert_called_once_with(agent_home_path="/tmp/test_path/agents/test_agent")
+            # Verify PromptEngine was called with both agent_home_path and prompt_format
+            mock_prompt_engine.assert_called_once()
+            call_args = mock_prompt_engine.call_args
+            assert call_args[1]['agent_home_path'] == "/tmp/test_path/agents/test_agent"
+            assert 'prompt_format' in call_args[1]
             mock_prompt_instance.load_context.assert_called_once()
             mock_agent_executor.assert_called_once()
 
