@@ -7,12 +7,65 @@ Includes circuit breaker and safety mechanisms to prevent infinite loops.
 
 import time
 import os
-from typing import Dict, Callable, Any
+import glob
+from typing import Dict, Callable, Any, List
 from prompt_toolkit import prompt
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.lexers import PygmentsLexer
+from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.document import Document
 from pygments.lexers.python import PythonLexer
+
+
+class FileCompleter(Completer):
+    """Autocompletar para arquivos quando usar @"""
+
+    def get_completions(self, document: Document, complete_event):
+        text = document.text_before_cursor
+
+        # Verifica se estamos completando após um @
+        if '@' in text:
+            # Encontra a última ocorrência de @
+            at_index = text.rfind('@')
+            if at_index >= 0:
+                # Extrai o texto após o @
+                file_path = text[at_index + 1:]
+
+                # Se não há espaço após @, estamos completando o arquivo
+                if ' ' not in file_path:
+                    try:
+                        # Se o caminho é vazio, busca no diretório atual
+                        if not file_path:
+                            pattern = "*"
+                            base_dir = "."
+                        elif file_path.endswith('/'):
+                            # Se termina com /, busca dentro do diretório
+                            pattern = file_path + "*"
+                            base_dir = "."
+                        else:
+                            # Busca arquivos que começam com o texto digitado
+                            pattern = file_path + "*"
+                            base_dir = "."
+
+                        # Busca arquivos e diretórios
+                        matches = glob.glob(pattern)
+
+                        for match in sorted(matches):
+                            # Remove o prefixo já digitado
+                            completion_text = match[len(file_path):]
+                            if os.path.isdir(match):
+                                completion_text += "/"
+
+                            yield Completion(
+                                completion_text,
+                                start_position=0,
+                                display=match,
+                                display_meta="📁 Diretório" if os.path.isdir(match) else "📄 Arquivo"
+                            )
+                    except Exception:
+                        # Em caso de erro, não mostra completions
+                        pass
 
 
 class REPLManager:
@@ -86,12 +139,49 @@ class REPLManager:
                 prompt_continuation=" " * (len(self.agent_name) + 5),  # Espaços em vez de texto
                 wrap_lines=True,  # Permite wrap de linhas longas
                 mouse_support=True,  # Habilita suporte a mouse
-                complete_style='column'  # Estilo de autocompletar mais limpo
+                complete_style='column',  # Estilo de autocompletar mais limpo
+                completer=FileCompleter(),  # Autocompletar para arquivos com @
+                complete_while_typing=True  # Mostra sugestões enquanto digita
             )
-            return user_input
+            # Processa referências de arquivo antes de retornar
+            return self._process_file_references(user_input)
         except (EOFError, KeyboardInterrupt):
             # Trata Ctrl+D em linha vazia ou Ctrl+C como um comando de saída
             return "exit"
+
+    def _process_file_references(self, text: str) -> str:
+        """
+        Processa referências de arquivo no formato @arquivo e expande o conteúdo.
+        Similar ao comportamento @ do Gemini/Claude.
+        """
+        import re
+
+        # Padrão para encontrar @arquivo (não seguido de espaço)
+        file_pattern = r'@([^\s@]+)'
+
+        def replace_file_ref(match):
+            file_path = match.group(1)
+            try:
+                # Verifica se o arquivo existe
+                if os.path.isfile(file_path):
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+
+                    # Limita o tamanho do arquivo (máximo 2000 caracteres para não sobrecarregar)
+                    if len(content) > 2000:
+                        content = content[:2000] + "\n... [arquivo truncado]"
+
+                    # Formata o conteúdo do arquivo
+                    return f"\n📎 **Arquivo: {file_path}**\n```\n{content}\n```\n"
+                else:
+                    return f"\n❌ **Arquivo não encontrado: {file_path}**\n"
+            except Exception as e:
+                return f"\n❌ **Erro ao ler arquivo {file_path}: {str(e)}**\n"
+
+        # Substitui todas as referências @arquivo pelo conteúdo
+        processed_text = re.sub(file_pattern, replace_file_ref, text)
+
+        return processed_text
 
     def _looks_like_multiline_content(self, line: str) -> bool:
         """
@@ -172,6 +262,8 @@ class REPLManager:
         print("💡 Pressione Enter para ENVIAR, Alt+Enter para nova linha")
         print("🔧 Use setas ↑↓ para navegar entre linhas, ←→ para mover o cursor")
         print("🖱️  Use o mouse para posicionar o cursor em qualquer lugar")
+        print("📎 Digite '@' seguido do nome do arquivo para referenciar (ex: @config.yaml)")
+        print("🔍 Tab para autocompletar arquivos após @")
 
         if custom_help:
             print(custom_help)
