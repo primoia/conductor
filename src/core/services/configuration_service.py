@@ -29,3 +29,6 @@ class ConfigurationService:
 
     def get_global_config(self) -> GlobalConfig:
         return self._config
+
+    def get_prompt_format(self) -> str:
+        return self._config.prompt_format
