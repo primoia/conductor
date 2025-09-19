@@ -16,12 +16,12 @@ def test_history_truncation():
 
     # Create fake long history
     long_history = []
-    for i in range(20):  # More than MAX_HISTORY_TURNS (5)
+    for i in range(150):  # More than MAX_HISTORY_TURNS (100)
         long_history.append(
             {
-                "prompt": f"User message {i} - " + "x" * 200,  # Long message
-                "response": f"AI response {i} - " + "y" * 300,  # Long response
-                "timestamp": 1234567890,
+                "user_input": f"User message {i} - " + "x" * 200,  # Long message - usar user_input
+                "ai_response": f"AI response {i} - " + "y" * 300,  # Long response - usar ai_response
+                "timestamp": 1234567890 + i,  # Timestamps incrementais para ordenação
             }
         )
 
@@ -63,10 +63,10 @@ allowed_tools: []
             f"Truncation indicator present: {'[Mostrando últimas' in formatted_history}"
         )
 
-        # Test that it's within reasonable bounds
-        assert len(formatted_history) < 10000, "History still too long after truncation"
+        # Test that it's within reasonable bounds (agora pode ser maior com 100 mensagens)
+        assert len(formatted_history) < 100000, "History still too long after truncation"
         assert (
-            "[Mostrando últimas 5 de 20 interações]" in formatted_history
+            "[Mostrando últimas 100 de 150 interações]" in formatted_history
         ), "Missing truncation indicator"
 
         print("✅ History truncation working correctly")
@@ -118,7 +118,7 @@ allowed_tools: []
         shutil.rmtree(temp_dir)
 
     print(f"\n✅ All loop prevention mechanisms working!")
-    print(f"   - History limited to last 5 interactions")
+    print(f"   - History limited to last 100 interactions")
     print(f"   - Individual messages truncated to 1000 chars")
     print(f"   - Total prompt truncated to 50000 chars")
     print(f"   - Admin CLI should no longer loop")

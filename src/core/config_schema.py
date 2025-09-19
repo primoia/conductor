@@ -10,3 +10,4 @@ class StorageConfig(BaseModel):
 class GlobalConfig(BaseModel):
     storage: StorageConfig
     tool_plugins: List[str] = Field(default_factory=list)
+    prompt_format: str = Field(default="xml", description="Format for prompts: 'xml' or 'text'")
