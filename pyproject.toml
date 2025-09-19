@@ -13,6 +13,8 @@ pydantic = "^2.11.7"
 pydantic-settings = "^2.10.1"
 python-json-logger = "^3.3.0"
 pymongo = "^4.3"
+prompt-toolkit = "^3.0.52"
+pygments = "^2.19.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"

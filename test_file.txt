@@ -1,0 +1,8 @@
+Este é um arquivo de teste para demonstrar a funcionalidade @.
+
+Conteúdo:
+- Linha 1: Hello World
+- Linha 2: Conductor REPL
+- Linha 3: File Reference Feature
+
+Fim do arquivo de teste.
