@@ -6,7 +6,66 @@ Includes circuit breaker and safety mechanisms to prevent infinite loops.
 """
 
 import time
-from typing import Dict, Callable, Any
+import os
+import glob
+from typing import Dict, Callable, Any, List
+from prompt_toolkit import prompt
+from prompt_toolkit.history import FileHistory
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.lexers import PygmentsLexer
+from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.document import Document
+from pygments.lexers.python import PythonLexer
+
+
+class FileCompleter(Completer):
+    """Autocompletar para arquivos quando usar @"""
+
+    def get_completions(self, document: Document, complete_event):
+        text = document.text_before_cursor
+
+        # Verifica se estamos completando após um @
+        if '@' in text:
+            # Encontra a última ocorrência de @
+            at_index = text.rfind('@')
+            if at_index >= 0:
+                # Extrai o texto após o @
+                file_path = text[at_index + 1:]
+
+                # Se não há espaço após @, estamos completando o arquivo
+                if ' ' not in file_path:
+                    try:
+                        # Se o caminho é vazio, busca no diretório atual
+                        if not file_path:
+                            pattern = "*"
+                            base_dir = "."
+                        elif file_path.endswith('/'):
+                            # Se termina com /, busca dentro do diretório
+                            pattern = file_path + "*"
+                            base_dir = "."
+                        else:
+                            # Busca arquivos que começam com o texto digitado
+                            pattern = file_path + "*"
+                            base_dir = "."
+
+                        # Busca arquivos e diretórios
+                        matches = glob.glob(pattern)
+
+                        for match in sorted(matches):
+                            # Remove o prefixo já digitado
+                            completion_text = match[len(file_path):]
+                            if os.path.isdir(match):
+                                completion_text += "/"
+
+                            yield Completion(
+                                completion_text,
+                                start_position=0,
+                                display=match,
+                                display_meta="📁 Diretório" if os.path.isdir(match) else "📄 Arquivo"
+                            )
+                    except Exception:
+                        # Em caso de erro, não mostra completions
+                        pass
 
 
 class REPLManager:
@@ -45,68 +104,84 @@ class REPLManager:
 
     def _get_multiline_input(self) -> str:
         """
-        Get multi-line input from user. Supports pasting text with line breaks.
-        Continues reading until user presses Enter on an empty line or types a command.
+        Captura input multi-linha com edição rica usando prompt_toolkit.
+        Pressione Ctrl+D para enviar.
         """
-        lines = []
-        first_prompt = True
+        # Define que a submissão será APENAS com Ctrl+D
+        bindings = KeyBindings()
 
-        while True:
+        @bindings.add('c-d')
+        def _(event):
+            """Ctrl+D submete o input"""
+            event.app.current_buffer.validate_and_handle()
+
+        @bindings.add('enter')
+        def _(event):
+            """Enter submete, Shift+Enter adiciona nova linha"""
+            event.app.current_buffer.validate_and_handle()
+
+        @bindings.add('escape', 'enter')  # Alt+Enter (mais compatível)
+        def _(event):
+            """Alt+Enter adiciona nova linha"""
+            event.app.current_buffer.insert_text('\n')
+
+        # Define o caminho do histórico dentro do workspace
+        history_path = os.path.join('.conductor_workspace', '.repl_history.txt')
+
+        try:
+            # Exibe o prompt e aguarda a submissão
+            user_input = prompt(
+                f"[{self.agent_name}]> ",
+                multiline=True,
+                key_bindings=bindings,
+                history=FileHistory(history_path),
+                lexer=PygmentsLexer(PythonLexer),
+                prompt_continuation=" " * (len(self.agent_name) + 5),  # Espaços em vez de texto
+                wrap_lines=True,  # Permite wrap de linhas longas
+                mouse_support=True,  # Habilita suporte a mouse
+                complete_style='column',  # Estilo de autocompletar mais limpo
+                completer=FileCompleter(),  # Autocompletar para arquivos com @
+                complete_while_typing=True  # Mostra sugestões enquanto digita
+            )
+            # Processa referências de arquivo antes de retornar
+            return self._process_file_references(user_input)
+        except (EOFError, KeyboardInterrupt):
+            # Trata Ctrl+D em linha vazia ou Ctrl+C como um comando de saída
+            return "exit"
+
+    def _process_file_references(self, text: str) -> str:
+        """
+        Processa referências de arquivo no formato @arquivo e expande o conteúdo.
+        Similar ao comportamento @ do Gemini/Claude.
+        """
+        import re
+
+        # Padrão para encontrar @arquivo (não seguido de espaço)
+        file_pattern = r'@([^\s@]+)'
+
+        def replace_file_ref(match):
+            file_path = match.group(1)
             try:
-                if first_prompt:
-                    prompt = f"\n[{self.agent_name}]> "
-                    first_prompt = False
+                # Verifica se o arquivo existe
+                if os.path.isfile(file_path):
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+
+                    # Limita o tamanho do arquivo (máximo 2000 caracteres para não sobrecarregar)
+                    if len(content) > 2000:
+                        content = content[:2000] + "\n... [arquivo truncado]"
+
+                    # Formata o conteúdo do arquivo
+                    return f"\n📎 **Arquivo: {file_path}**\n```\n{content}\n```\n"
                 else:
-                    prompt = f"[{self.agent_name}]... "
+                    return f"\n❌ **Arquivo não encontrado: {file_path}**\n"
+            except Exception as e:
+                return f"\n❌ **Erro ao ler arquivo {file_path}: {str(e)}**\n"
 
-                line = input(prompt).rstrip()
+        # Substitui todas as referências @arquivo pelo conteúdo
+        processed_text = re.sub(file_pattern, replace_file_ref, text)
 
-                # If empty line, finish input (unless it's the very first line)
-                if not line and lines:
-                    break
-
-                # If first line is empty, just wait for real input
-                if not line and not lines:
-                    continue
-
-                # Single command words should be processed immediately
-                if not lines and line.lower() in [
-                    "exit",
-                    "quit",
-                    "sair",
-                    "help",
-                    "status",
-                    "reset",
-                    "emergency",
-                    "clear",
-                    "save",
-                    "tools",
-                    "scope",
-                    "debug",
-                    "prompt",
-                    "state",
-                    "history",
-                ]:
-                    return line
-
-                # Add line to collection
-                lines.append(line)
-
-                # If this looks like a single-line command, process immediately
-                if len(lines) == 1 and not self._looks_like_multiline_content(line):
-                    break
-
-            except EOFError:
-                # Ctrl+D pressed, treat as completion
-                break
-            except KeyboardInterrupt:
-                # Ctrl+C pressed, clear current input and start over
-                print("\n^C")
-                return ""
-
-        # Join all lines with newlines
-        result = "\n".join(lines).strip()
-        return result
+        return processed_text
 
     def _looks_like_multiline_content(self, line: str) -> bool:
         """
@@ -184,10 +259,11 @@ class REPLManager:
         print("🔄 Digite 'reset' para reiniciar proteções")
         print("🚨 Digite 'emergency' para parada de emergência")
         print("")
-        print("📋 ENTRADA MULTI-LINHA:")
-        print("   • Cole código com múltiplas linhas normalmente")
-        print("   • Pressione Enter em linha vazia para enviar")
-        print("   • Comandos simples são enviados imediatamente")
+        print("💡 Pressione Enter para ENVIAR, Alt+Enter para nova linha")
+        print("🔧 Use setas ↑↓ para navegar entre linhas, ←→ para mover o cursor")
+        print("🖱️  Use o mouse para posicionar o cursor em qualquer lugar")
+        print("📎 Digite '@' seguido do nome do arquivo para referenciar (ex: @config.yaml)")
+        print("🔍 Tab para autocompletar arquivos após @")
 
         if custom_help:
             print(custom_help)
