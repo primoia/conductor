@@ -1,49 +1,44 @@
-# --- Estágio de Build ---
+# projects/conductor/Dockerfile
+
+# --- Estágio 1: Builder ---
+# Instala dependências em um ambiente virtual isolado
 FROM python:3.11-slim as builder
 
 WORKDIR /app
 
-# Instala Poetry
+# Instala o Poetry
 RUN pip install poetry
 
 # Configura Poetry para criar venv no projeto
 RUN poetry config virtualenvs.in-project true
 
-# Copia arquivos de configuração do Poetry
-COPY pyproject.toml poetry.lock ./
+# Copia os arquivos de definição de dependências
+# O contexto do build é a raiz do monorepo, então os caminhos são relativos a ela
+COPY ./projects/conductor/poetry.lock ./projects/conductor/pyproject.toml /app/
 
-# Instala apenas dependências de produção para a imagem final
-RUN poetry install --only main --no-interaction --no-ansi --no-root
+# Instala as dependências, sem as de desenvolvimento, em um venv
+RUN poetry install --only main --no-root
 
-# --- Estágio Final ---
+# --- Estágio 2: Final ---
+# Cria a imagem final, menor e mais limpa
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copia o ambiente virtual com as dependências do estágio de build
-COPY --from=builder /app/.venv ./.venv
+# Expõe a porta que a API vai usar
+EXPOSE 8000
 
-# Define o PATH para que os executáveis do .venv sejam encontrados
-ENV PATH="/app/.venv/bin:$PATH"
+# Copia o ambiente virtual com as dependências do estágio builder
+COPY --from=builder /app/.venv /.venv
 
-# Instala dependências do sistema necessárias
-RUN apt-get update && apt-get install -y \
-    curl \
-    git \
-    procps \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
-
-# Instala o Gemini CLI globalmente
-RUN npm install -g @google/gemini-cli
+# Define o PATH para usar o python do venv
+ENV PATH="/.venv/bin:$PATH"
+ENV PYTHONPATH=/app
 
 # Copia o código fonte da aplicação
-COPY src/ ./src
-COPY config/ ./config
+COPY ./projects/conductor/src ./src
+COPY ./projects/conductor/config.yaml .
+COPY ./projects/conductor/.conductor_workspace ./.conductor_workspace
 
-# Cria diretório de logs
-RUN mkdir -p logs
-
-# Define o ponto de entrada padrão (pode ser sobrescrito)
-ENTRYPOINT ["python", "-m", "src.cli.admin"]
+# Comando para iniciar o servidor FastAPI quando o contêiner rodar
+CMD ["python", "-m", "uvicorn", "src.server:app", "--host", "0.0.0.0", "--port", "8000"]

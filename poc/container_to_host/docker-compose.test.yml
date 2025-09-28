@@ -1,0 +1,14 @@
+# /mnt/ramdisk/primoia-main/primoia-monorepo/projects/conductor/poc/container_to_host/docker-compose.test.yml
+version: '3.8'
+
+services:
+  conductor-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    # Garante que o DNS 'host.docker.internal' funcione de forma confiável
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Passa uma variável de ambiente para o contêiner (opcional, para teste)
+    environment:
+      - TARGET_DIR=/mnt/ramdisk/develop
