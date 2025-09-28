@@ -13,8 +13,8 @@ RUN pip install poetry
 RUN poetry config virtualenvs.in-project true
 
 # Copia os arquivos de definição de dependências
-# O contexto do build é a raiz do monorepo, então os caminhos são relativos a ela
-COPY ./projects/conductor/poetry.lock ./projects/conductor/pyproject.toml /app/
+# O contexto do build é ./projects/conductor, então os caminhos são relativos a essa pasta
+COPY ./poetry.lock ./pyproject.toml /app/
 
 # Instala as dependências, sem as de desenvolvimento, em um venv
 RUN poetry install --only main --no-root
@@ -36,9 +36,9 @@ ENV PATH="/.venv/bin:$PATH"
 ENV PYTHONPATH=/app
 
 # Copia o código fonte da aplicação
-COPY ./projects/conductor/src ./src
-COPY ./projects/conductor/config.yaml .
-COPY ./projects/conductor/.conductor_workspace ./.conductor_workspace
+COPY ./src ./src
+COPY ./config.yaml .
+COPY ./.conductor_workspace ./.conductor_workspace
 
 # Comando para iniciar o servidor FastAPI quando o contêiner rodar
 CMD ["python", "-m", "uvicorn", "src.server:app", "--host", "0.0.0.0", "--port", "8000"]

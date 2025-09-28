@@ -34,7 +34,7 @@ class ClaudeMongoWatcher:
     def __init__(self,
                  mongo_uri: str = "mongodb://localhost:27017",
                  database: str = "conductor",
-                 collection: str = "claude_requests"):
+                 collection: str = "tasks"):
         """
         Inicializa o watcher MongoDB
 
@@ -175,30 +175,38 @@ class ClaudeMongoWatcher:
             return f"Erro na execução: {str(e)}", 1, duration
 
     def process_request(self, request: Dict) -> bool:
-        """Processar um request individual"""
+        """Processar uma task individual"""
         request_id = request["_id"]
+        agent_id = request.get("agent_id", "unknown")
+        provider = request.get("provider", "claude")
         command = request.get("command", [])
         cwd = request.get("cwd", ".")
         timeout = request.get("timeout", 180)
 
-        logger.info(f"📨 Processando request: {request_id}")
+        logger.info(f"📨 Processando task: {request_id} | Agent: {agent_id} | Provider: {provider}")
 
         # Marcar como processando
         if not self.mark_as_processing(request_id):
-            logger.warning(f"⚠️  Request {request_id} já está sendo processado")
+            logger.warning(f"⚠️  Task {request_id} já está sendo processada")
             return False
 
-        # Executar comando
-        result, exit_code, duration = self.execute_claude_command(command, cwd, timeout)
+        # Executar comando baseado no provider
+        if provider == "claude":
+            result, exit_code, duration = self.execute_claude_command(command, cwd, timeout)
+        else:
+            result = f"Provider '{provider}' não suportado ainda"
+            exit_code = 1
+            duration = 0.0
+            logger.warning(f"⚠️  Provider {provider} não implementado")
 
         # Salvar resultado
         success = self.complete_request(request_id, result, exit_code, duration)
 
         if success:
             status_emoji = "✅" if exit_code == 0 else "❌"
-            logger.info(f"{status_emoji} Request {request_id} processado com sucesso")
+            logger.info(f"{status_emoji} Task {request_id} processada com sucesso | Agent: {agent_id}")
         else:
-            logger.error(f"❌ Falha ao salvar resultado do request {request_id}")
+            logger.error(f"❌ Falha ao salvar resultado da task {request_id}")
 
         return success
 
@@ -209,17 +217,18 @@ class ClaudeMongoWatcher:
         Args:
             poll_interval: Intervalo entre verificações em segundos
         """
-        logger.info("🚀 Claude MongoDB Watcher iniciado")
-        logger.info(f"🔍 Monitorando: {self.database_name}.{self.collection_name}")
+        logger.info("🚀 Universal Task Watcher iniciado")
+        logger.info(f"🔍 Monitorando collection: {self.database_name}.{self.collection_name}")
         logger.info(f"⏱️  Poll interval: {poll_interval}s")
+        logger.info("🎯 Suporte: Claude (mais providers em breve)")
 
         while True:
             try:
-                # Buscar requests pendentes
+                # Buscar tasks pendentes
                 requests = self.get_pending_requests()
 
                 if requests:
-                    logger.info(f"📋 Encontrados {len(requests)} requests pendentes")
+                    logger.info(f"📋 Encontradas {len(requests)} tasks pendentes")
 
                     for request in requests:
                         self.process_request(request)
@@ -234,7 +243,7 @@ class ClaudeMongoWatcher:
                 logger.error(f"❌ Erro no loop principal: {e}")
                 time.sleep(5)  # Aguardar mais tempo em caso de erro
 
-        logger.info("👋 Claude MongoDB Watcher finalizado")
+        logger.info("👋 Universal Task Watcher finalizado")
 
 def main():
     """Função principal"""
@@ -245,7 +254,7 @@ def main():
                        help="URI de conexão MongoDB")
     parser.add_argument("--database", default="conductor",
                        help="Nome do database")
-    parser.add_argument("--collection", default="claude_requests",
+    parser.add_argument("--collection", default="tasks",
                        help="Nome da collection")
     parser.add_argument("--poll-interval", type=float, default=1.0,
                        help="Intervalo entre verificações (segundos)")

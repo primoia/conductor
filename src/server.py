@@ -18,8 +18,14 @@ from src.container import container
 try:
     from src.core.services.mongo_task_client import MongoTaskClient
 except ImportError as e:
-    logger.warning(f"MongoDB client não disponível: {e}")
     MongoTaskClient = None
+
+# Import das novas rotas modularizadas
+from src.api.routes.agents import router as agents_router
+from src.api.routes.system import router as system_router
+from src.api.routes.sessions import router as sessions_router
+from src.api.routes.templates import router as templates_router
+from src.api.routes.conductor_cli import router as conductor_cli_router
 
 # Configura o logging e a aplicação FastAPI
 logging.basicConfig(level=logging.INFO)
@@ -30,10 +36,18 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Legacy ExecuteRequest model for compatibility
 class ExecuteRequest(BaseModel):
     user_input: str
-    cwd: str = "/app"  # Diretório padrão dentro do contêiner, pode ser sobrescrito
+    cwd: str = "/app"
     timeout: int = 300
+
+# Incluir todos os roteadores
+app.include_router(conductor_cli_router)  # API genérica primeira
+app.include_router(agents_router)
+app.include_router(system_router)
+app.include_router(sessions_router)
+app.include_router(templates_router)
 
 @app.on_event("startup")
 def startup_event():
@@ -45,27 +59,13 @@ def startup_event():
     except Exception as e:
         logger.critical(f"❌ Falha ao inicializar o container de dependências: {e}", exc_info=True)
 
-@app.get("/agents", tags=["Agents"])
-def list_available_agents():
-    """Lista todos os agentes disponíveis no sistema."""
-    try:
-        logger.info("Recebida requisição para listar agentes em GET /agents")
-        conductor_service = container.get_conductor_service()
-        agents = conductor_service.discover_agents()
-
-        agent_list = [{"id": agent.agent_id, "name": getattr(agent, 'name', 'N/A')} for agent in agents]
-        logger.info(f"Encontrados {len(agent_list)} agentes.")
-        return {"total": len(agent_list), "agents": agent_list}
-
-    except Exception as e:
-        logger.error(f"Erro ao listar agentes: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro interno ao processar a lista de agentes: {e}")
-
+# As rotas de agentes foram movidas para src/api/routes/agents.py
 
 @app.post("/agents/{agent_id}/execute", tags=["Agents"])
 def execute_agent(agent_id: str, request: ExecuteRequest):
     """
-    Executa um agente específico de forma assíncrona via MongoDB Task Queue.
+    [DEPRECATED] Legacy endpoint for agent execution via MongoDB Task Queue.
+    Use the new generic /conductor/execute endpoint instead.
     """
     if MongoTaskClient is None:
         raise HTTPException(status_code=503, detail="MongoDB client não está disponível")
@@ -83,6 +83,7 @@ def execute_agent(agent_id: str, request: ExecuteRequest):
 
         logger.info(f"🚀 Submetendo tarefa para o agente '{agent_id}': {' '.join(command)}")
         task_id = task_client.submit_task(
+            agent_id=agent_id,
             command=command,
             cwd=request.cwd,
             timeout=request.timeout

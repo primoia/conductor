@@ -20,15 +20,17 @@ class MongoTaskClient:
             # Testa a conexão
             self.client.admin.command('ping')
             self.db = self.client.conductor # Nome do database
-            self.collection = self.db.claude_requests # Nome da coleção
+            self.collection = self.db.tasks # Nome da coleção (padronizado)
             logger.info("✅ Conexão com MongoDB estabelecida com sucesso.")
         except ConnectionFailure as e:
             logger.critical(f"❌ Falha ao conectar com MongoDB: {e}")
             raise
 
-    def submit_task(self, command: list, cwd: str, timeout: int = 300) -> str:
+    def submit_task(self, agent_id: str, command: list, cwd: str, timeout: int = 300, provider: str = "claude") -> str:
         """Insere uma nova tarefa na coleção e retorna seu ID."""
         task_document = {
+            "agent_id": agent_id,
+            "provider": provider,
             "command": command,
             "cwd": cwd,
             "timeout": timeout,
@@ -37,7 +39,11 @@ class MongoTaskClient:
             "updated_at": datetime.now(timezone.utc),
             "result": "",  # Para compatibilidade com o watcher
             "exit_code": None,
-            "duration": None
+            "duration": None,
+            "metadata": {
+                "original_user_input": " ".join(command) if command else "",
+                "retry_count": 0
+            }
         }
         result = self.collection.insert_one(task_document)
         task_id = str(result.inserted_id)

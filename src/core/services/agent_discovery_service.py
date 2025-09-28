@@ -183,6 +183,79 @@ class AgentDiscoveryService:
         else:
             return message
 
+    def validate_agent(self, agent_id: str) -> tuple[bool, List[str], List[str]]:
+        """
+        Valida um agente específico verificando sua definição e estrutura.
+
+        Returns:
+            tuple: (is_valid, errors, warnings)
+        """
+        errors = []
+        warnings = []
+
+        try:
+            # Verificar se agente existe
+            if not self.agent_exists(agent_id):
+                errors.append(f"Agente '{agent_id}' não encontrado no sistema")
+                return False, errors, warnings
+
+            # Carregar definição do agente
+            definition = self.get_agent_definition(agent_id)
+            if not definition:
+                errors.append(f"Não foi possível carregar a definição do agente '{agent_id}'")
+                return False, errors, warnings
+
+            # Validar campos obrigatórios
+            required_fields = ['name', 'version', 'description', 'author']
+            for field in required_fields:
+                if not hasattr(definition, field) or not getattr(definition, field):
+                    errors.append(f"Campo obrigatório '{field}' está ausente ou vazio")
+
+            # Validar estrutura de dados
+            if hasattr(definition, 'tags') and not isinstance(definition.tags, list):
+                errors.append("Campo 'tags' deve ser uma lista")
+
+            if hasattr(definition, 'capabilities') and not isinstance(definition.capabilities, list):
+                errors.append("Campo 'capabilities' deve ser uma lista")
+
+            if hasattr(definition, 'allowed_tools') and not isinstance(definition.allowed_tools, list):
+                errors.append("Campo 'allowed_tools' deve ser uma lista")
+
+            # Avisos para campos opcionais
+            if hasattr(definition, 'tags') and len(definition.tags) == 0:
+                warnings.append("Agente não possui tags definidas")
+
+            if hasattr(definition, 'capabilities') and len(definition.capabilities) == 0:
+                warnings.append("Agente não possui capabilities definidas")
+
+            # Verificar se há arquivos essenciais no diretório do agente
+            try:
+                agent_home_path = self._storage.get_agent_home_path(agent_id)
+                import os
+
+                # Verificar se diretório existe
+                if not os.path.exists(agent_home_path):
+                    errors.append(f"Diretório do agente não encontrado: {agent_home_path}")
+                else:
+                    # Verificar arquivos importantes
+                    persona_file = os.path.join(agent_home_path, "persona.md")
+                    if not os.path.exists(persona_file):
+                        warnings.append("Arquivo persona.md não encontrado")
+
+                    definition_file = os.path.join(agent_home_path, "definition.yaml")
+                    if not os.path.exists(definition_file):
+                        warnings.append("Arquivo definition.yaml não encontrado")
+
+            except Exception as e:
+                warnings.append(f"Não foi possível verificar arquivos do agente: {e}")
+
+            is_valid = len(errors) == 0
+            return is_valid, errors, warnings
+
+        except Exception as e:
+            errors.append(f"Erro inesperado durante validação: {str(e)}")
+            return False, errors, warnings
+
     def get_agent_output_scope(self, agent_id: str) -> List[str]:
         """Obtém o escopo de output de um agente."""
         try:

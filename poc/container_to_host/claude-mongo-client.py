@@ -20,7 +20,7 @@ class ClaudeMongoClient:
     def __init__(self,
                  mongo_uri: str = "mongodb://localhost:27017",
                  database: str = "conductor",
-                 collection: str = "claude_requests"):
+                 collection: str = "tasks"):
         """
         Cliente para comunicação com Claude via MongoDB
 
@@ -46,25 +46,33 @@ class ClaudeMongoClient:
             print(f"❌ Erro ao conectar MongoDB: {e}")
             raise
 
-    def create_request(self, command: List[str], cwd: str = ".",
-                      timeout: int = 180) -> ObjectId:
+    def create_request(self, agent_id: str, command: List[str], cwd: str = ".",
+                      timeout: int = 180, provider: str = "claude") -> ObjectId:
         """
-        Criar um novo request para o Claude
+        Criar uma nova task para execução
 
         Args:
+            agent_id: ID do agente (ex: "CodeReviewer_Agent")
             command: Lista de comandos (ex: ["claude", "-p", "Hello"])
             cwd: Diretório de trabalho
             timeout: Timeout em segundos
+            provider: Provider a usar (claude, gemini, etc.)
 
         Returns:
-            ObjectId: ID do request criado
+            ObjectId: ID da task criada
         """
         request_doc = {
+            "agent_id": agent_id,
+            "provider": provider,
             "command": command,
             "cwd": cwd,
             "timeout": timeout,
             "status": "pending",
-            "created_at": datetime.now(timezone.utc)
+            "created_at": datetime.now(timezone.utc),
+            "metadata": {
+                "original_user_input": " ".join(command) if command else "",
+                "retry_count": 0
+            }
         }
 
         result = self.collection.insert_one(request_doc)
@@ -120,21 +128,23 @@ class ClaudeMongoClient:
             # Aguardar próxima verificação
             time.sleep(poll_interval)
 
-    def call_claude(self, command: List[str], cwd: str = ".",
-                   timeout: int = 180) -> Dict:
+    def call_claude(self, agent_id: str, command: List[str], cwd: str = ".",
+                   timeout: int = 180, provider: str = "claude") -> Dict:
         """
-        Chamar Claude de forma síncrona (criar request + aguardar resposta)
+        Executar task via agente de forma síncrona (criar task + aguardar resposta)
 
         Args:
+            agent_id: ID do agente
             command: Lista de comandos
             cwd: Diretório de trabalho
             timeout: Timeout em segundos
+            provider: Provider a usar
 
         Returns:
             Dict: Resultado da execução
         """
         # Criar request
-        request_id = self.create_request(command, cwd, timeout)
+        request_id = self.create_request(agent_id, command, cwd, timeout, provider)
 
         # Aguardar conclusão
         result = self.wait_for_completion(request_id, timeout)
@@ -184,9 +194,10 @@ def demo():
     try:
         client = ClaudeMongoClient()
 
-        # Teste 1: Help command
-        print("\n📋 Teste 1: Claude Help")
+        # Teste 1: Help command via CodeReviewer
+        print("\n📋 Teste 1: Claude Help via CodeReviewer_Agent")
         result = client.call_claude(
+            agent_id="CodeReviewer_Agent",
             command=["claude", "--help"],
             cwd="/tmp"
         )
@@ -202,9 +213,10 @@ def demo():
         else:
             print(f"Erro: {result.get('result', 'Erro desconhecido')}")
 
-        # Teste 2: Prompt simples
-        print("\n💬 Teste 2: Claude com prompt")
+        # Teste 2: Prompt simples via CodeReviewer
+        print("\n💬 Teste 2: Saudação via CodeReviewer_Agent")
         result = client.call_claude(
+            agent_id="CodeReviewer_Agent",
             command=["claude", "-p", "Diga olá em português em 5 palavras"],
             cwd="/tmp"
         )
@@ -212,11 +224,12 @@ def demo():
         print(f"Status: {result.get('status')}")
         print(f"Resultado: {result.get('result', 'Sem resultado')}")
 
-        # Teste 3: README específico
-        print("\n📁 Teste 3: Resumir README.md")
+        # Teste 3: Análise de arquivo (uso apropriado do CodeReviewer)
+        print("\n📁 Teste 3: Análise de README.md via CodeReviewer_Agent")
         result = client.call_claude(
-            command=["claude", "-p", "Resuma o arquivo README.md em 3 frases"],
-            cwd="/mnt/ramdisk/develop/nex-web-backend"
+            agent_id="CodeReviewer_Agent",
+            command=["claude", "-p", "Analise o arquivo README.md e resuma em 3 frases"],
+            cwd="/mnt/ramdisk/primoia-main/primoia-monorepo/projects/conductor"
         )
 
         print(f"Status: {result.get('status')}")
@@ -251,7 +264,7 @@ def main():
                        help="URI de conexão MongoDB")
     parser.add_argument("--database", default="conductor",
                        help="Nome do database")
-    parser.add_argument("--collection", default="claude_requests",
+    parser.add_argument("--collection", default="tasks",
                        help="Nome da collection")
     parser.add_argument("--demo", action="store_true",
                        help="Executar demonstração")
@@ -277,6 +290,7 @@ def main():
 
                 if prompt.strip():
                     result = client.call_claude(
+                        agent_id="CodeReviewer_Agent",
                         command=["claude", "-p", prompt],
                         cwd="."
                     )
