@@ -2,6 +2,7 @@
 import sys
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 import logging
 import os
 
@@ -28,6 +29,11 @@ app = FastAPI(
     description="API para interagir com o sistema de agentes do Conductor.",
     version="1.0.0"
 )
+
+class ExecuteRequest(BaseModel):
+    user_input: str
+    cwd: str = "/app"  # Diretório padrão dentro do contêiner, pode ser sobrescrito
+    timeout: int = 300
 
 @app.on_event("startup")
 def startup_event():
@@ -56,11 +62,10 @@ def list_available_agents():
         raise HTTPException(status_code=500, detail=f"Erro interno ao processar a lista de agentes: {e}")
 
 
-@app.post("/agents/execute-summary-via-mongo", tags=["Agents"])
-def execute_summary_via_mongo():
+@app.post("/agents/{agent_id}/execute", tags=["Agents"])
+def execute_agent(agent_id: str, request: ExecuteRequest):
     """
-    Endpoint de teste que submete uma tarefa de resumo via MongoDB
-    e aguarda o resultado via polling.
+    Executa um agente específico de forma assíncrona via MongoDB Task Queue.
     """
     if MongoTaskClient is None:
         raise HTTPException(status_code=503, detail="MongoDB client não está disponível")
@@ -68,23 +73,31 @@ def execute_summary_via_mongo():
     try:
         task_client = MongoTaskClient()
 
-        # Usando comando testado e bem-sucedido
-        command = ["claude", "-p", "Resuma o arquivo README.md deste projeto em 3 frases."]
-        cwd = "/mnt/ramdisk/develop/nex-web-backend"  # Usando o mesmo projeto do teste bem-sucedido
+        # Constrói o comando dinamicamente
+        command = ["claude", "run", agent_id, "-i", request.user_input]
 
-        logger.info(f"🚀 Submetendo tarefa MongoDB: {' '.join(command)}")
+        # O CWD deve ser o caminho no HOST, que o Watcher entende
+        # O Gateway será responsável por fornecer este caminho.
+        # Para este exemplo, vamos assumir que o request o contém.
+        # Se o CWD não for fornecido, pode-se usar um padrão ou lançar um erro.
 
-        # 1. Submete a tarefa
-        task_id = task_client.submit_task(command=command, cwd=cwd)
+        logger.info(f"🚀 Submetendo tarefa para o agente '{agent_id}': {' '.join(command)}")
+        task_id = task_client.submit_task(
+            command=command,
+            cwd=request.cwd,
+            timeout=request.timeout
+        )
 
-        # 2. Aguarda o resultado
-        result_document = task_client.get_task_result(task_id=task_id)
+        result_document = task_client.get_task_result(
+            task_id=task_id,
+            timeout=request.timeout + 10  # Timeout do polling um pouco maior
+        )
 
-        logger.info(f"✅ Tarefa MongoDB concluída: {task_id}")
+        logger.info(f"✅ Tarefa concluída para agente '{agent_id}': {task_id}")
         return result_document
 
     except Exception as e:
-        logger.error(f"❌ Erro no fluxo de execução via MongoDB: {e}", exc_info=True)
+        logger.error(f"❌ Erro na execução do agente '{agent_id}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health", tags=["System"])
