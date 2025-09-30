@@ -24,7 +24,7 @@ services:
       - "./.conductor_workspace:/app/.conductor_workspace"
       - "./config.yaml:/app/config.yaml"
     environment:
-      - MONGO_URI=mongodb://admin:czrimr@host.docker.internal:27019/admin
+      - MONGO_URI=${MONGO_URI}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     # A linha 'command' foi removida para que o CMD do Dockerfile seja usado
