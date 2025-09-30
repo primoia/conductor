@@ -197,8 +197,16 @@ class MongoDbStorage(IAgentStorage):
 
         return history_entries
 
-    def append_to_history(self, agent_id: str, entry: HistoryEntry, user_input: str = None):
-        """Adiciona uma entrada ao histórico do agente."""
+    def append_to_history(self, agent_id: str, entry: HistoryEntry, user_input: str = None, ai_response: str = None):
+        """
+        Adiciona uma entrada ao histórico do agente.
+
+        Args:
+            agent_id: ID do agente
+            entry: Entrada de histórico (com summary truncado)
+            user_input: Input completo do usuário
+            ai_response: Resposta completa do LLM (usado para construir próximos prompts)
+        """
         import time
 
         data = {
@@ -206,12 +214,13 @@ class MongoDbStorage(IAgentStorage):
             'agent_id': entry.agent_id,
             'task_id': entry.task_id,
             'status': entry.status,
-            'summary': entry.summary,
+            'summary': entry.summary,  # Sumário truncado (200 chars)
             'git_commit_hash': entry.git_commit_hash,
-            # Campos adicionais para compatibilidade com testes
+            # Campos essenciais para histórico de conversação
             'timestamp': time.time(),
-            'user_input': user_input or 'Task executed',
-            'output_length': 100
+            'user_input': user_input or 'Task executed',  # Input completo do usuário
+            'ai_response': ai_response or entry.summary,   # 🔥 Resposta completa do LLM
+            'output_length': len(ai_response) if ai_response else len(entry.summary)
         }
 
         success = self.repository.append_to_history(agent_id, data)

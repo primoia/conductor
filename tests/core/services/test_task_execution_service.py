@@ -252,7 +252,7 @@ class TestTaskExecutionService:
             metadata={},
             updated_session={"new_session": "data"},
             updated_knowledge={"new_artifact": {"summary": "new", "purpose": "test2", "last_modified_by_task": "task2"}},
-            history_entry={"timestamp": "2023-01-01", "interaction": "test"}
+            history_entry={"timestamp": "2023-01-01", "interaction": "test", "ai_response": "Full AI response for conversation history"}
         )
 
         # Act
@@ -268,9 +268,12 @@ class TestTaskExecutionService:
         # Verifica se append_to_history foi chamado com agent_id e um HistoryEntry
         self.mock_storage.append_to_history.assert_called_once()
         call_args = self.mock_storage.append_to_history.call_args
-        assert call_args[0][0] == "test_agent"  # agent_id
+        # Verificar keyword arguments (agent_id, entry, user_input, ai_response)
+        assert call_args.kwargs['agent_id'] == "test_agent"
         from src.core.domain import HistoryEntry
-        assert isinstance(call_args[0][1], HistoryEntry)  # entry é HistoryEntry
+        assert isinstance(call_args.kwargs['entry'], HistoryEntry)
+        assert call_args.kwargs['user_input'] == "Test task"
+        assert 'ai_response' in call_args.kwargs  # ai_response deve estar presente
 
     def test_persist_task_result_partial_updates(self):
         """Testa persistência com apenas alguns componentes atualizados."""

@@ -162,9 +162,27 @@ def execute_conductor(request: ConductorExecuteRequest):
         else:
             return _execute_management_command(request)
 
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
+        import traceback
+        error_traceback = traceback.format_exc()
         logger.error(f"Erro na execução do conductor: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+
+        # Return detailed error information
+        error_detail = {
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "traceback": error_traceback,
+            "request": {
+                "agent_id": request.agent_id,
+                "input_text": request.input_text[:100] if request.input_text else None,
+                "cwd": request.cwd
+            },
+            "context": "Falha na execução do Conductor"
+        }
+        raise HTTPException(status_code=500, detail=error_detail)
 
 
 def _execute_agent_via_mongodb(request: ConductorExecuteRequest) -> Dict[str, Any]:
@@ -192,23 +210,42 @@ def _execute_agent_container_mongodb(request: ConductorExecuteRequest) -> Dict[s
         raise HTTPException(status_code=400, detail="input_text é obrigatório para execução de agente")
 
     try:
+        from src.container import container
+        from src.core.prompt_engine import PromptEngine
+
         task_client = MongoTaskClient()
 
-        # Montar comando preservando input original do usuário
-        command = ["claude", "-p", request.input_text]  # Input original preservado!
+        # Obter services do container (mesma forma que o CLI faz)
+        agent_discovery = container.get_agent_discovery_service()
+        storage_service = container.get_storage_service()
+        repository = storage_service.get_repository()
 
-        # Adicionar flags baseadas nos parâmetros
-        if request.chat:
-            command.append("--chat")
-        if request.debug:
-            command.append("--debug")
+        # Verificar se agente existe
+        agent_definition = agent_discovery.get_agent_definition(request.agent_id)
+        if not agent_definition:
+            raise HTTPException(status_code=404, detail=f"Agente '{request.agent_id}' não encontrado")
 
-        logger.info(f"Submetendo tarefa via MongoDB: agent={request.agent_id}, command={command[:2]}...")
+        # Obter histórico de conversas
+        conversation_history = agent_discovery.get_conversation_history(request.agent_id)
+
+        # Construir prompt completo usando PromptEngine (mesma forma que o CLI faz)
+        agent_home = repository.get_agent_home_path(request.agent_id)
+
+        prompt_engine = PromptEngine(agent_home_path=agent_home, prompt_format="xml")
+        prompt_engine.load_context()
+
+        full_prompt = prompt_engine.build_prompt_with_format(
+            conversation_history=conversation_history,
+            message=request.input_text,
+            include_history=True
+        )
+
+        logger.info(f"Submetendo tarefa via MongoDB: agent={request.agent_id}...")
 
         # Submeter tarefa via MongoDB
         task_id = task_client.submit_task(
             agent_id=request.agent_id,
-            command=command,
+            prompt=full_prompt,
             cwd=request.cwd or "/app",
             timeout=request.timeout or 300,
             provider="claude"  # Pode ser expandido para gemini
@@ -222,9 +259,23 @@ def _execute_agent_container_mongodb(request: ConductorExecuteRequest) -> Dict[s
 
         return result_document
 
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is (like 404 for agent not found)
+        raise
     except Exception as e:
+        import traceback
+        error_traceback = traceback.format_exc()
         logger.error(f"Erro na execução via MongoDB: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+
+        # Return detailed error information
+        error_detail = {
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "traceback": error_traceback,
+            "agent_id": request.agent_id,
+            "context": "Falha ao executar agente via MongoDB queue system"
+        }
+        raise HTTPException(status_code=500, detail=error_detail)
 
 
 def _execute_agent_container_direct(request: ConductorExecuteRequest) -> Dict[str, Any]:

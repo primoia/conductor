@@ -26,24 +26,35 @@ class MongoTaskClient:
             logger.critical(f"❌ Falha ao conectar com MongoDB: {e}")
             raise
 
-    def submit_task(self, agent_id: str, command: list, cwd: str, timeout: int = 300, provider: str = "claude") -> str:
-        """Insere uma nova tarefa na coleção e retorna seu ID."""
+    def submit_task(self, agent_id: str, cwd: str, timeout: int = 300, provider: str = "claude", prompt: str = None) -> str:
+        """
+        Insere uma nova tarefa na coleção e retorna seu ID.
+
+        Args:
+            agent_id: ID do agente que processará a task
+            cwd: Diretório de trabalho para execução
+            timeout: Timeout em segundos
+            provider: "claude" ou "gemini"
+            prompt: Prompt XML completo (persona + playbook + history + user_input)
+
+        Returns:
+            str: ID da task inserida
+        """
+        if not prompt:
+            raise ValueError("Campo 'prompt' é obrigatório")
+
         task_document = {
             "agent_id": agent_id,
             "provider": provider,
-            "command": command,
+            "prompt": prompt,  # 🔥 CAMPO PRINCIPAL: Prompt XML completo
             "cwd": cwd,
             "timeout": timeout,
             "status": "pending",
             "created_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc),
-            "result": "",  # Para compatibilidade com o watcher
+            "result": "",
             "exit_code": None,
             "duration": None,
-            "metadata": {
-                "original_user_input": " ".join(command) if command else "",
-                "retry_count": 0
-            }
         }
         result = self.collection.insert_one(task_document)
         task_id = str(result.inserted_id)

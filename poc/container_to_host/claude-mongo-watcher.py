@@ -130,10 +130,16 @@ class ClaudeMongoWatcher:
             logger.error(f"❌ Erro ao completar request: {e}")
             return False
 
-    def execute_claude_command(self, command: List[str], cwd: str,
-                              timeout: int = 180) -> tuple[str, int, float]:
+    def execute_llm_request(self, provider: str, prompt: str, cwd: str,
+                              timeout: int = 300) -> tuple[str, int, float]:
         """
-        Executar comando claude
+        Executar request para LLM (Claude ou Gemini) baseado no provider.
+
+        Args:
+            provider: "claude" ou "gemini"
+            prompt: Prompt XML completo já formatado
+            cwd: Diretório de trabalho
+            timeout: Timeout em segundos
 
         Returns:
             tuple: (result, exit_code, duration)
@@ -145,11 +151,20 @@ class ClaudeMongoWatcher:
             if not os.path.isdir(cwd):
                 return f"Diretório não encontrado: {cwd}", 1, time.time() - start_time
 
-            # Executar comando
-            logger.info(f"🔧 Executando: {' '.join(command)} em {cwd}")
+            # Montar comando baseado no provider
+            if provider == "claude":
+                command = ["claude", "--print", "--dangerously-skip-permissions"]
+            elif provider == "gemini":
+                command = ["gemini", "--print"]  # Ajustar conforme CLI do Gemini
+            else:
+                return f"Provider '{provider}' não suportado", 1, time.time() - start_time
 
+            logger.info(f"🔧 Executando {provider} em {cwd}")
+
+            # Enviar prompt via stdin (não via argumento -p)
             result = subprocess.run(
                 command,
+                input=prompt,  # Prompt via stdin
                 cwd=cwd,
                 capture_output=True,
                 text=True,
@@ -160,7 +175,7 @@ class ClaudeMongoWatcher:
             duration = time.time() - start_time
             output = result.stdout + result.stderr
 
-            logger.info(f"✅ Comando concluído em {duration:.1f}s - código: {result.returncode}")
+            logger.info(f"✅ {provider} concluído em {duration:.1f}s - código: {result.returncode}")
 
             return output, result.returncode, duration
 
@@ -179,9 +194,16 @@ class ClaudeMongoWatcher:
         request_id = request["_id"]
         agent_id = request.get("agent_id", "unknown")
         provider = request.get("provider", "claude")
-        command = request.get("command", [])
         cwd = request.get("cwd", ".")
-        timeout = request.get("timeout", 180)
+        timeout = request.get("timeout", 300)  # ✅ Alinhado com default da API (300s)
+
+        # Buscar campo 'prompt' com XML completo
+        prompt = request.get("prompt", "")
+
+        if not prompt:
+            logger.error(f"❌ Task {request_id} não possui campo 'prompt'")
+            self.complete_request(request_id, "Erro: campo 'prompt' obrigatório não encontrado", 1, 0.0)
+            return False
 
         logger.info(f"📨 Processando task: {request_id} | Agent: {agent_id} | Provider: {provider}")
 
@@ -190,14 +212,13 @@ class ClaudeMongoWatcher:
             logger.warning(f"⚠️  Task {request_id} já está sendo processada")
             return False
 
-        # Executar comando baseado no provider
-        if provider == "claude":
-            result, exit_code, duration = self.execute_claude_command(command, cwd, timeout)
-        else:
-            result = f"Provider '{provider}' não suportado ainda"
-            exit_code = 1
-            duration = 0.0
-            logger.warning(f"⚠️  Provider {provider} não implementado")
+        # Executar LLM request
+        result, exit_code, duration = self.execute_llm_request(
+            provider=provider,
+            prompt=prompt,
+            cwd=cwd,
+            timeout=timeout
+        )
 
         # Salvar resultado
         success = self.complete_request(request_id, result, exit_code, duration)

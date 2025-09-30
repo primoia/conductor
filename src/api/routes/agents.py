@@ -127,18 +127,26 @@ def execute_agent(agent_id: str, request: AgentExecuteRequest):
     try:
         task_client = MongoTaskClient()
 
-        # Montar comando baseado no user_input e agent_id
-        # Incluir contexto do agente específico no prompt
-        enhanced_prompt = f"Use o agente {agent_id} para: {request.user_input}"
-        command = ["claude", "-p", enhanced_prompt]
+        # Gerar o prompt XML completo usando o AgentDiscoveryService
+        discovery_service = container.get_agent_discovery_service()
 
-        # 1. Submete a tarefa com agent_id
+        # Build the complete XML prompt with persona + playbook + history + user input
+        xml_prompt = discovery_service.get_full_prompt(
+            agent_id=agent_id,
+            current_message=request.user_input,
+            meta=False,
+            new_agent_id=None,
+            include_history=True,
+            save_to_file=False
+        )
+
+        # 1. Submete a tarefa com agent_id e prompt XML completo
         task_id = task_client.submit_task(
             agent_id=agent_id,
-            command=command,
             cwd=request.cwd,
             timeout=request.timeout,
-            provider=request.provider
+            provider=request.provider,
+            prompt=xml_prompt  # Prompt XML completo (persona + playbook + history + user_input)
         )
 
         # 2. Aguarda o resultado
