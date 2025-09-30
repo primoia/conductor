@@ -76,20 +76,21 @@ class Settings(BaseSettings):
         has_api_key = self.GEMINI_API_KEY or self.ANTHROPIC_API_KEY
         has_gcp_auth = gcp_creds or gcloud_config_exists
 
-        if not (has_api_key or has_gcp_auth):
-            raise ValueError(
-                "\n" + "="*80 + "\n"
-                "CONFIGURATION ERROR: No AI credentials found!\n\n"
-                "To fix this, please:\n"
-                "  1. Copy the '.env.example' file to '.env' (`cp .env.example .env`).\n"
-                "  2. Add your API key (e.g., GEMINI_API_KEY) to the .env file.\n"
-                "  OR\n"
-                "  3. Configure Google Cloud authentication by mounting your gcloud config\n"
-                "     or setting the GOOGLE_APPLICATION_CREDENTIALS environment variable.\n"
-                "  OR\n"
-                "  4. For local development, install Claude Code CLI (`curl -fsSL https://claude.ai/install.sh | sh`)"
-                "\n" + "="*80
-            )
+        # Comentado para prova de conceito - permitir execução sem credenciais
+        # if not (has_api_key or has_gcp_auth):
+        #     raise ValueError(
+        #         "\n" + "="*80 + "\n"
+        #         "CONFIGURATION ERROR: No AI credentials found!\n\n"
+        #         "To fix this, please:\n"
+        #         "  1. Copy the '.env.example' file to '.env' (`cp .env.example .env`).\n"
+        #         "  2. Add your API key (e.g., GEMINI_API_KEY) to the .env file.\n"
+        #         "  OR\n"
+        #         "  3. Configure Google Cloud authentication by mounting your gcloud config\n"
+        #         "     or setting the GOOGLE_APPLICATION_CREDENTIALS environment variable.\n"
+        #         "  OR\n"
+        #         "  4. For local development, install Claude Code CLI (`curl -fsSL https://claude.ai/install.sh | sh`)"
+        #         "\n" + "="*80
+        #     )
         return self
 
     class Config:

@@ -1,0 +1,30 @@
+# projects/conductor/docker-compose.test.yml
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb_conductor_test
+    ports:
+      - "27019:27017" # Porta diferente para evitar conflito
+    volumes:
+      - /home/cezar/Workspace/mongo/data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=test_password
+
+  conductor-api: # Nome do serviço alterado para refletir sua nova função
+    build:
+      context: ../../ # O contexto agora é a raiz do monorepo
+      dockerfile: ./projects/conductor/Dockerfile # Caminho para o Dockerfile
+    container_name: conductor_api_test
+    depends_on:
+      - mongodb
+    ports:
+      - "8001:8000" # Expõe a porta da API para o host
+    volumes:
+      - "./.conductor_workspace:/app/.conductor_workspace"
+      - "./config.yaml:/app/config.yaml"
+    environment:
+      - MONGO_URI=${MONGO_URI}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # A linha 'command' foi removida para que o CMD do Dockerfile seja usado

@@ -1,0 +1,13 @@
+# /mnt/ramdisk/primoia-main/primoia-monorepo/projects/conductor/poc/container_to_host/Dockerfile.test
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Instala a biblioteca requests
+RUN pip install requests Flask
+
+# Copia o script de teste para dentro do contêiner
+COPY test_proxy.py .
+
+# Comando que será executado quando o contêiner iniciar
+CMD ["python", "test_proxy.py"]

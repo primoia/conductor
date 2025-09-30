@@ -211,13 +211,23 @@ class TaskExecutionService:
 
         # Append history entry
         if result.history_entry:
+            # Extract full ai_response BEFORE truncating for summary
+            full_ai_response = result.history_entry.get('ai_response', '')
+
             # Map AgentExecutor dict fields to HistoryEntry fields
             history_entry = HistoryEntry(
                 _id=str(uuid.uuid4()),  # Always generate unique ID
                 agent_id=result.history_entry.get('agent_id', agent_id),
                 task_id=result.history_entry.get('task_id', str(uuid.uuid4())),  # Fallback UUID if missing
                 status=result.history_entry.get('status', 'completed'),
-                summary=result.history_entry.get('ai_response', '')[:200] + '...' if result.history_entry.get('ai_response') else '',  # Use AI response as summary
+                summary=full_ai_response[:200] + '...' if len(full_ai_response) > 200 else full_ai_response,  # Truncated summary
                 git_commit_hash=result.history_entry.get('git_commit_hash', '')
             )
-            self._storage.append_to_history(agent_id, history_entry, task.user_input)
+
+            # 🔥 Pass FULL ai_response to append_to_history for conversation context
+            self._storage.append_to_history(
+                agent_id=agent_id,
+                entry=history_entry,
+                user_input=task.user_input,
+                ai_response=full_ai_response  # Full response for building next prompts
+            )
