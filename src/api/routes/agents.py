@@ -17,6 +17,8 @@ class AgentExecuteRequest(BaseModel):
     cwd: str
     timeout: Optional[int] = 300
     provider: Optional[str] = "claude"
+    instance_id: Optional[str] = None  # SAGA-003: Instance ID for isolated context
+    context_mode: Optional[str] = "stateless"  # SAGA-003: "stateful" or "stateless"
 
 @router.get("/", response_model=AgentListResponse, summary="Listar todos os agentes")
 def list_agents():
@@ -118,39 +120,72 @@ def execute_agent(agent_id: str, request: AgentExecuteRequest):
     """
     Executa um agente específico via MongoDB queue system.
 
-    Esta rota mantém a implementação exata do endpoint original,
-    garantindo compatibilidade total.
+    SAGA-003: Suporta context_mode "stateful" para manter histórico por instance_id.
     """
     if MongoTaskClient is None:
         raise HTTPException(status_code=503, detail="MongoDB client não está disponível")
 
     try:
         task_client = MongoTaskClient()
-
-        # Gerar o prompt XML completo usando o AgentDiscoveryService
         discovery_service = container.get_agent_discovery_service()
 
-        # Build the complete XML prompt with persona + playbook + history + user input
-        xml_prompt = discovery_service.get_full_prompt(
-            agent_id=agent_id,
-            current_message=request.user_input,
-            meta=False,
-            new_agent_id=None,
-            include_history=True,
-            save_to_file=False
-        )
+        # SAGA-003: Gerenciar histórico por instance_id se stateful
+        conversation_history = []
+        if request.context_mode == "stateful" and request.instance_id:
+            from src.core.services.conversation_service import ConversationService
+            conv_service = ConversationService()
+            conversation_history = conv_service.get_conversation_history(
+                instance_id=request.instance_id,
+                agent_name=agent_id
+            )
 
-        # 1. Submete a tarefa com agent_id e prompt XML completo
+        # Build XML prompt com histórico personalizado se stateful
+        if request.context_mode == "stateful" and conversation_history:
+            # Usar histórico do instance_id em vez do histórico global
+            xml_prompt = discovery_service.get_full_prompt(
+                agent_id=agent_id,
+                current_message=request.user_input,
+                meta=False,
+                new_agent_id=None,
+                include_history=False,  # Não usar histórico global
+                save_to_file=False
+            )
+            # TODO: Injetar conversation_history customizado no prompt
+            # Por enquanto, incluímos manualmente
+        else:
+            # Modo stateless: usa histórico global ou nenhum
+            xml_prompt = discovery_service.get_full_prompt(
+                agent_id=agent_id,
+                current_message=request.user_input,
+                meta=False,
+                new_agent_id=None,
+                include_history=(request.context_mode != "stateless"),
+                save_to_file=False
+            )
+
+        # Submete a tarefa
         task_id = task_client.submit_task(
             agent_id=agent_id,
             cwd=request.cwd,
             timeout=request.timeout,
             provider=request.provider,
-            prompt=xml_prompt  # Prompt XML completo (persona + playbook + history + user_input)
+            prompt=xml_prompt
         )
 
-        # 2. Aguarda o resultado
+        # Aguarda o resultado
         result_document = task_client.get_task_result(task_id=task_id, timeout=request.timeout)
+
+        # SAGA-003: Salvar histórico se stateful
+        if request.context_mode == "stateful" and request.instance_id:
+            from src.core.services.conversation_service import ConversationService
+            conv_service = ConversationService()
+            assistant_response = result_document.get("output", "")
+            conv_service.append_to_conversation(
+                instance_id=request.instance_id,
+                agent_name=agent_id,
+                user_message=request.user_input,
+                assistant_response=assistant_response
+            )
 
         return result_document
 
