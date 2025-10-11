@@ -158,12 +158,25 @@ def execute_conductor(request: ConductorExecuteRequest):
     Para operações de gerenciamento, usa conductor.py diretamente.
     """
     try:
+        # 🔍 DEBUG: Log da request recebida
+        logger.info("=" * 80)
+        logger.info("📥 [CONDUCTOR API] /conductor/execute recebeu request:")
+        logger.info(f"   - agent_id: {request.agent_id}")
+        logger.info(f"   - agent_name: {request.agent_name}")
+        logger.info(f"   - prompt: {request.prompt[:50] if request.prompt else None}...")
+        logger.info(f"   - input_text: {request.input_text[:50] if request.input_text else None}...")
+        logger.info(f"   - instance_id: {request.instance_id}")
+        logger.info(f"   - context_mode: {request.context_mode}")
+        logger.info("=" * 80)
+
         # === EXECUÇÃO DE AGENTES VIA MONGODB ===
-        if request.agent_id:
+        if request.agent_id or request.agent_name:
             return _execute_agent_via_mongodb(request)
 
         # === OPERAÇÕES DE INFORMAÇÃO E GERENCIAMENTO VIA CLI ===
         else:
+            logger.error("❌ [CONDUCTOR API] Nenhum agent_id ou agent_name fornecido!")
+            logger.error(f"   - Request completo: {request.dict()}")
             return _execute_management_command(request)
 
     except HTTPException:
@@ -317,6 +330,12 @@ def _execute_agent_container_mongodb(request: ConductorExecuteRequest) -> Dict[s
                 storage = agent_storage_service.get_storage()
 
                 # Salvar no history global (MESMA função que TaskExecutionService usa)
+                logger.info(f"💾 [CONDUCTOR] Salvando no history global:")
+                logger.info(f"   - agent_id: {agent_id}")
+                logger.info(f"   - instance_id: {request.instance_id}")
+                logger.info(f"   - user_input: {user_input[:100]}...")
+                logger.info(f"   - ai_response: {assistant_response[:100]}...")
+                
                 storage.append_to_history(
                     agent_id=agent_id,
                     entry=history_entry,
@@ -325,7 +344,9 @@ def _execute_agent_container_mongodb(request: ConductorExecuteRequest) -> Dict[s
                     instance_id=request.instance_id  # Pode ser None, storage decide o que fazer
                 )
 
-                logger.info(f"✅ Successfully saved to global history for agent: {agent_id}")
+                logger.info(f"✅ [CONDUCTOR] Successfully saved to global history for agent: {agent_id}")
+                if request.instance_id:
+                    logger.info(f"   - instance_id salvo: {request.instance_id}")
 
             except Exception as e:
                 logger.error(f"❌ Error saving to global history: {e}", exc_info=True)

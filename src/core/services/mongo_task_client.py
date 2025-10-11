@@ -19,8 +19,8 @@ class MongoTaskClient:
             self.client = MongoClient(mongo_uri)
             # Testa a conexão
             self.client.admin.command('ping')
-            self.db = self.client.conductor # Nome do database
-            self.collection = self.db.tasks # Nome da coleção (padronizado)
+            self.db = self.client.conductor_state  # Database correto (SAGA-004)
+            self.collection = self.db.tasks  # Coleção de tasks
             logger.info("✅ Conexão com MongoDB estabelecida com sucesso.")
         except ConnectionFailure as e:
             logger.critical(f"❌ Falha ao conectar com MongoDB: {e}")

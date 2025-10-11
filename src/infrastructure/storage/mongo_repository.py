@@ -15,7 +15,7 @@ class MongoStateRepository(IStateRepository):
     de baixo nível no MongoDB.
     """
 
-    def __init__(self, connection_string: str, db_name: str = "conductor"):
+    def __init__(self, connection_string: str, db_name: str = "conductor_state"):
         self.client = MongoClient(connection_string)
         self.db = self.client[db_name]
         self.agents_collection = self.db["agents"]
@@ -145,6 +145,9 @@ class MongoStateRepository(IStateRepository):
             instance_id: ID da instância (para isolamento de contextos por sessão/UI)
         """
         try:
+            import logging
+            logger = logging.getLogger(__name__)
+            
             doc = dict(history_entry)  # Copia o dict
             doc["agent_id"] = agent_id
             doc["createdAt"] = datetime.utcnow()
@@ -152,6 +155,9 @@ class MongoStateRepository(IStateRepository):
             # SAGA-004: Adicionar instance_id para separação de contextos
             if instance_id:
                 doc["instance_id"] = instance_id
+                logger.info(f"✅ [MONGO_REPOSITORY] instance_id adicionado ao documento: {instance_id}")
+            else:
+                logger.warning(f"⚠️ [MONGO_REPOSITORY] instance_id não fornecido para agent_id: {agent_id}")
 
             # Sempre força um _id único para evitar conflitos
             # Remove qualquer _id existente (vazio ou não) e gera um novo
@@ -161,7 +167,19 @@ class MongoStateRepository(IStateRepository):
             # Gera um _id único usando UUID
             doc["_id"] = str(uuid.uuid4())
 
+            logger.info("=" * 80)
+            logger.info(f"💾 [MONGO_REPOSITORY] Inserindo documento no MongoDB:")
+            logger.info(f"   - Collection: history")
+            logger.info(f"   - agent_id: {agent_id}")
+            logger.info(f"   - instance_id: {doc.get('instance_id', 'None')}")
+            logger.info(f"   - _id: {doc['_id']}")
+            logger.info(f"   - user_input: {doc.get('user_input', '')[:100]}...")
+            logger.info(f"   - ai_response: {doc.get('ai_response', '')[:100]}...")
+            logger.info("=" * 80)
+
             self.history_collection.insert_one(doc)
+            
+            logger.info(f"✅ [MONGO_REPOSITORY] Documento inserido com sucesso na collection 'history'!")
             return True
         except Exception as e:
             import json

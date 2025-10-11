@@ -273,7 +273,7 @@ def main():
     parser = argparse.ArgumentParser(description="Claude MongoDB Watcher")
     parser.add_argument("--mongo-uri", default="mongodb://localhost:27017",
                        help="URI de conexão MongoDB")
-    parser.add_argument("--database", default="conductor",
+    parser.add_argument("--database", default="conductor_state",
                        help="Nome do database")
     parser.add_argument("--collection", default="tasks",
                        help="Nome da collection")
