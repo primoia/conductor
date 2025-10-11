@@ -224,10 +224,14 @@ class TaskExecutionService:
                 git_commit_hash=result.history_entry.get('git_commit_hash', '')
             )
 
+            # SAGA-004: Extrair instance_id do context se disponível
+            instance_id = task.context.get("instance_id", None)
+
             # 🔥 Pass FULL ai_response to append_to_history for conversation context
             self._storage.append_to_history(
                 agent_id=agent_id,
                 entry=history_entry,
                 user_input=task.user_input,
-                ai_response=full_ai_response  # Full response for building next prompts
+                ai_response=full_ai_response,  # Full response for building next prompts
+                instance_id=instance_id  # SAGA-004: Pass instance_id for context isolation
             )

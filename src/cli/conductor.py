@@ -32,6 +32,8 @@ class ConductorCLI:
         debug_mode: bool = False,
     ):
         """Initialize Conductor CLI with unified parameters."""
+        import uuid
+
         self.agent_id = agent_id
         self.environment = environment
         self.project = project
@@ -40,15 +42,19 @@ class ConductorCLI:
         self.simulate_mode = simulate
         self.timeout = timeout
         self.debug_mode = debug_mode
-        
+
+        # SAGA-004: Generate unique instance_id for this REPL session
+        self.repl_session_id = f"cli-repl-{uuid.uuid4()}"
+
         # Initialize logging
         self.logger = configure_logging(debug_mode, f"conductor_{agent_id}", agent_id)
-        
+
         # Get services from container
         self.conductor_service = container.get_conductor_service()
         self.agent_service = container.get_agent_discovery_service()
-        
+
         print(f"✅ ConductorCLI inicializado para agente: {agent_id}")
+        print(f"🔑 Instance ID: {self.repl_session_id}")
 
     @property
     def embodied(self) -> bool:
@@ -86,9 +92,10 @@ class ConductorCLI:
                 "new_agent_id": self.new_agent_id,
                 "debug_save_input": debug_save_input,
                 "simulate_mode": self.simulate_mode,
-                "timeout": self.timeout
+                "timeout": self.timeout,
+                "instance_id": self.repl_session_id  # SAGA-004: Pass session ID for context isolation
             }
-            
+
             # Add project context if available
             if self.environment:
                 task_context["environment"] = self.environment

@@ -60,7 +60,7 @@ class IAgentStorage(ABC):
         pass
 
     @abstractmethod
-    def append_to_history(self, agent_id: str, entry: HistoryEntry, user_input: str = None, ai_response: str = None):
+    def append_to_history(self, agent_id: str, entry: HistoryEntry, user_input: str = None, ai_response: str = None, instance_id: str = None):
         """
         Adiciona uma entrada ao histórico do agente.
 
@@ -69,6 +69,7 @@ class IAgentStorage(ABC):
             entry: Entrada de histórico (com summary truncado)
             user_input: Input completo do usuário (opcional)
             ai_response: Resposta completa do LLM (opcional, usado para construir próximos prompts)
+            instance_id: ID da instância (SAGA-004: para separação de contextos)
         """
         pass
 

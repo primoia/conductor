@@ -26,7 +26,7 @@ class MongoTaskClient:
             logger.critical(f"❌ Falha ao conectar com MongoDB: {e}")
             raise
 
-    def submit_task(self, agent_id: str, cwd: str, timeout: int = 300, provider: str = "claude", prompt: str = None) -> str:
+    def submit_task(self, agent_id: str, cwd: str, timeout: int = 300, provider: str = "claude", prompt: str = None, instance_id: str = None) -> str:
         """
         Insere uma nova tarefa na coleção e retorna seu ID.
 
@@ -36,6 +36,7 @@ class MongoTaskClient:
             timeout: Timeout em segundos
             provider: "claude" ou "gemini"
             prompt: Prompt XML completo (persona + playbook + history + user_input)
+            instance_id: ID da instância (SAGA-004: para separação de contextos)
 
         Returns:
             str: ID da task inserida
@@ -50,12 +51,18 @@ class MongoTaskClient:
             "cwd": cwd,
             "timeout": timeout,
             "status": "pending",
+            "context": {},  # SAGA-004: Context object for additional metadata
             "created_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc),
             "result": "",
             "exit_code": None,
             "duration": None,
         }
+
+        # SAGA-004: Adicionar instance_id ao contexto se fornecido
+        if instance_id:
+            task_document["context"]["instance_id"] = instance_id
+
         result = self.collection.insert_one(task_document)
         task_id = str(result.inserted_id)
         logger.info(f"📤 Tarefa submetida ao MongoDB com ID: {task_id}")

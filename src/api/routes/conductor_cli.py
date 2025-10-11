@@ -62,13 +62,17 @@ class ConductorExecuteRequest(BaseModel):
     """Modelo genérico para execução do Conductor CLI."""
     # Parâmetros principais
     agent_id: Optional[str] = None
+    agent_name: Optional[str] = None  # For compatibility with gateway
+    prompt: Optional[str] = None  # For compatibility with gateway
     input_text: Optional[str] = None
     input_file: Optional[str] = None
     output_file: Optional[str] = None
+    instance_id: Optional[str] = None  # For stateful execution with isolated context
 
     # Modos de execução
     chat: bool = False
     interactive: bool = False
+    context_mode: Optional[str] = "stateless"  # "stateless" or "stateful"
 
     # Configurações
     cwd: Optional[str] = None
@@ -206,14 +210,34 @@ def _execute_agent_container_mongodb(request: ConductorExecuteRequest) -> Dict[s
     if MongoTaskClient is None:
         raise HTTPException(status_code=503, detail="MongoDB client não está disponível")
 
-    if not request.input_text:
-        raise HTTPException(status_code=400, detail="input_text é obrigatório para execução de agente")
+    # 🔍 DEBUG: Log completo da request recebida
+    logger.info("=" * 80)
+    logger.info("📥 REQUEST RECEBIDA:")
+    logger.info(f"  agent_id: {request.agent_id}")
+    logger.info(f"  agent_name: {request.agent_name}")
+    logger.info(f"  instance_id: {request.instance_id}")
+    logger.info(f"  input_text: {request.input_text[:50] if request.input_text else None}...")
+    logger.info(f"  prompt: {request.prompt[:50] if request.prompt else None}...")
+    logger.info(f"  context_mode: {request.context_mode}")
+    logger.info("=" * 80)
+
+    # Accept both input_text and prompt (for gateway compatibility)
+    user_input = request.input_text or request.prompt
+    if not user_input:
+        raise HTTPException(status_code=400, detail="input_text or prompt is required for agent execution")
+
+    # Accept both agent_id and agent_name (for gateway compatibility)
+    agent_id = request.agent_id or request.agent_name
+    if not agent_id:
+        raise HTTPException(status_code=400, detail="agent_id or agent_name is required")
 
     try:
         from src.container import container
         from src.core.prompt_engine import PromptEngine
+        from src.core.services.conversation_service import ConversationService
 
         task_client = MongoTaskClient()
+        conversation_service = ConversationService()
 
         # Obter services do container (mesma forma que o CLI faz)
         agent_discovery = container.get_agent_discovery_service()
@@ -221,30 +245,40 @@ def _execute_agent_container_mongodb(request: ConductorExecuteRequest) -> Dict[s
         repository = storage_service.get_repository()
 
         # Verificar se agente existe
-        agent_definition = agent_discovery.get_agent_definition(request.agent_id)
+        agent_definition = agent_discovery.get_agent_definition(agent_id)
         if not agent_definition:
-            raise HTTPException(status_code=404, detail=f"Agente '{request.agent_id}' não encontrado")
+            raise HTTPException(status_code=404, detail=f"Agente '{agent_id}' não encontrado")
 
         # Obter histórico de conversas
-        conversation_history = agent_discovery.get_conversation_history(request.agent_id)
+        # Se instance_id for fornecido, usar ConversationService (isolado por instância)
+        # Caso contrário, usar AgentDiscoveryService (histórico global do agente)
+        if request.instance_id:
+            logger.info(f"Loading conversation history for instance_id: {request.instance_id}")
+            conversation_history = conversation_service.get_conversation_history(
+                instance_id=request.instance_id,
+                agent_name=agent_id
+            )
+        else:
+            logger.info(f"Loading global conversation history for agent: {agent_id}")
+            conversation_history = agent_discovery.get_conversation_history(agent_id)
 
         # Construir prompt completo usando PromptEngine (mesma forma que o CLI faz)
-        agent_home = repository.get_agent_home_path(request.agent_id)
+        agent_home = repository.get_agent_home_path(agent_id)
 
         prompt_engine = PromptEngine(agent_home_path=agent_home, prompt_format="xml")
         prompt_engine.load_context()
 
         full_prompt = prompt_engine.build_prompt_with_format(
             conversation_history=conversation_history,
-            message=request.input_text,
+            message=user_input,
             include_history=True
         )
 
-        logger.info(f"Submetendo tarefa via MongoDB: agent={request.agent_id}...")
+        logger.info(f"Submetendo tarefa via MongoDB: agent={agent_id}, instance={request.instance_id or 'global'}...")
 
         # Submeter tarefa via MongoDB
         task_id = task_client.submit_task(
-            agent_id=request.agent_id,
+            agent_id=agent_id,
             prompt=full_prompt,
             cwd=request.cwd or "/app",
             timeout=request.timeout or 300,
@@ -256,6 +290,56 @@ def _execute_agent_container_mongodb(request: ConductorExecuteRequest) -> Dict[s
             task_id=task_id,
             timeout=request.timeout or 300
         )
+
+        # Extrair resposta do assistente
+        assistant_response = result_document.get("result") or result_document.get("stdout") or ""
+
+        # 🔥 NORMALIZAÇÃO: Salvar no history GLOBAL do agente (mesmo fluxo que REPL)
+        if assistant_response:
+            logger.info(f"Saving to global agent history for agent: {agent_id}")
+            try:
+                from src.core.domain import HistoryEntry
+                import uuid
+                import time
+
+                # Criar HistoryEntry (mesma estrutura que TaskExecutionService usa)
+                history_entry = HistoryEntry(
+                    _id=str(uuid.uuid4()),
+                    agent_id=agent_id,
+                    task_id=result_document.get("task_id", str(uuid.uuid4())),
+                    status="completed" if result_document.get("status") == "success" else "error",
+                    summary=assistant_response[:200] + '...' if len(assistant_response) > 200 else assistant_response,
+                    git_commit_hash=""
+                )
+
+                # Obter agent storage service do container
+                agent_storage_service = container.get_agent_storage_service()
+                storage = agent_storage_service.get_storage()
+
+                # Salvar no history global (MESMA função que TaskExecutionService usa)
+                storage.append_to_history(
+                    agent_id=agent_id,
+                    entry=history_entry,
+                    user_input=user_input,
+                    ai_response=assistant_response,
+                    instance_id=request.instance_id  # Pode ser None, storage decide o que fazer
+                )
+
+                logger.info(f"✅ Successfully saved to global history for agent: {agent_id}")
+
+            except Exception as e:
+                logger.error(f"❌ Error saving to global history: {e}", exc_info=True)
+                # Não falhar a request por erro de persistência
+
+        # Salvar em coleção isolada SE instance_id for fornecido (comportamento adicional)
+        if request.instance_id and assistant_response:
+            logger.info(f"Also saving to isolated conversation for instance_id: {request.instance_id}")
+            conversation_service.append_to_conversation(
+                instance_id=request.instance_id,
+                agent_name=agent_id,
+                user_message=user_input,
+                assistant_response=assistant_response
+            )
 
         return result_document
 

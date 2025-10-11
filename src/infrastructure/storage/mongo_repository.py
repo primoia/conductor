@@ -135,12 +135,23 @@ class MongoStateRepository(IStateRepository):
         except Exception:
             return False
 
-    def append_to_history(self, agent_id: str, history_entry: Dict) -> bool:
-        """Adiciona uma entrada ao histórico."""
+    def append_to_history(self, agent_id: str, history_entry: Dict, instance_id: str = None) -> bool:
+        """
+        Adiciona uma entrada ao histórico.
+
+        Args:
+            agent_id: ID do agente
+            history_entry: Dados da entrada de histórico
+            instance_id: ID da instância (para isolamento de contextos por sessão/UI)
+        """
         try:
             doc = dict(history_entry)  # Copia o dict
             doc["agent_id"] = agent_id
             doc["createdAt"] = datetime.utcnow()
+
+            # SAGA-004: Adicionar instance_id para separação de contextos
+            if instance_id:
+                doc["instance_id"] = instance_id
 
             # Sempre força um _id único para evitar conflitos
             # Remove qualquer _id existente (vazio ou não) e gera um novo

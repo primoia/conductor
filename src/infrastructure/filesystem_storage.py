@@ -198,7 +198,7 @@ class FileSystemStorage(IAgentStorage):
 
         return history_entries
 
-    def append_to_history(self, agent_id: str, entry: HistoryEntry, user_input: str = None, ai_response: str = None):
+    def append_to_history(self, agent_id: str, entry: HistoryEntry, user_input: str = None, ai_response: str = None, instance_id: str = None):
         """
         Adiciona uma entrada ao histórico do agente.
 
@@ -207,6 +207,7 @@ class FileSystemStorage(IAgentStorage):
             entry: Entrada de histórico (com summary truncado)
             user_input: Input completo do usuário (opcional)
             ai_response: Resposta completa do LLM (opcional, usado para construir próximos prompts)
+            instance_id: ID da instância (SAGA-004: para separação de contextos)
         """
         import time
 
@@ -223,6 +224,10 @@ class FileSystemStorage(IAgentStorage):
             'ai_response': ai_response or entry.summary,  # Resposta completa do LLM
             'output_length': len(ai_response) if ai_response else len(entry.summary)
         }
+
+        # SAGA-004: Adicionar instance_id se fornecido (filesystem pode ignorar por enquanto)
+        if instance_id:
+            data['instance_id'] = instance_id
 
         success = self.repository.append_to_history(agent_id, data)
         if not success:
