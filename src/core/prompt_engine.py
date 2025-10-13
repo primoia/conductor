@@ -485,35 +485,72 @@ class PromptEngine:
             logger.warning("Could not sort history by timestamp, keeping original order")
         
         xml_turns = []
-        for i, turn in enumerate(recent_history):
-            # DEBUG: Log history structure
-            logger.debug(f"History turn {i}: keys={list(turn.keys())}, user_input={bool(turn.get('user_input'))}, ai_response={bool(turn.get('ai_response'))}, summary={bool(turn.get('summary'))}")
-            # Get user input with fallbacks
-            user_input = (
-                turn.get("user_input", "") or
-                turn.get("prompt", "") or
-                turn.get("user", "") or
-                ""
-            )
+        
+        # Process history in pairs (user + assistant) for ConversationService format
+        if recent_history and recent_history[0].get("role"):
+            # ConversationService format: process in pairs
+            i = 0
+            while i < len(recent_history):
+                turn = recent_history[i]
+                
+                # DEBUG: Log history structure
+                logger.debug(f"History turn {i}: keys={list(turn.keys())}, role={turn.get('role')}")
+                
+                if turn.get("role") == "user":
+                    user_input = turn.get("content", "")
+                    ai_response = ""
+                    
+                    # Look for corresponding assistant response
+                    if i + 1 < len(recent_history) and recent_history[i + 1].get("role") == "assistant":
+                        ai_response = recent_history[i + 1].get("content", "")
+                        i += 2  # Skip both user and assistant
+                    else:
+                        i += 1  # Only skip user
+                    
+                    # Get timestamp from user turn
+                    timestamp = turn.get("timestamp", "")
+                    timestamp_attr = f' timestamp="{timestamp}"' if timestamp else ""
+                    
+                    user_input = self._escape_xml_cdata(user_input)
+                    ai_response = self._escape_xml_cdata(ai_response)
+                    
+                    xml_turns.append(f"""    <turn{timestamp_attr}>
+            <user><![CDATA[{user_input}]]></user>
+            <assistant><![CDATA[{ai_response}]]></assistant>
+        </turn>""")
+                else:
+                    i += 1  # Skip non-user turns
+        else:
+            # Legacy format: process each turn individually
+            for i, turn in enumerate(recent_history):
+                # DEBUG: Log history structure
+                logger.debug(f"History turn {i}: keys={list(turn.keys())}, user_input={bool(turn.get('user_input'))}, ai_response={bool(turn.get('ai_response'))}, summary={bool(turn.get('summary'))}")
+                
+                # Legacy format fallbacks
+                user_input = (
+                    turn.get("user_input", "") or
+                    turn.get("prompt", "") or
+                    turn.get("user", "") or
+                    ""
+                )
 
-            # Get AI response with fallbacks
-            ai_response = (
-                turn.get("ai_response", "") or
-                turn.get("response", "") or
-                turn.get("assistant", "") or
-                turn.get("output", "") or
-                turn.get("summary", "") or  # ← Fallback para summary
-                ""
-            )
+                ai_response = (
+                    turn.get("ai_response", "") or
+                    turn.get("response", "") or
+                    turn.get("assistant", "") or
+                    turn.get("output", "") or
+                    turn.get("summary", "") or  # ← Fallback para summary
+                    ""
+                )
 
-            user_input = self._escape_xml_cdata(user_input)
-            ai_response = self._escape_xml_cdata(ai_response)
+                user_input = self._escape_xml_cdata(user_input)
+                ai_response = self._escape_xml_cdata(ai_response)
 
-            # Get timestamp for context
-            timestamp = turn.get("timestamp", "")
-            timestamp_attr = f' timestamp="{timestamp}"' if timestamp else ""
+                # Get timestamp for context
+                timestamp = turn.get("timestamp", "")
+                timestamp_attr = f' timestamp="{timestamp}"' if timestamp else ""
 
-            xml_turns.append(f"""    <turn{timestamp_attr}>
+                xml_turns.append(f"""    <turn{timestamp_attr}>
             <user><![CDATA[{user_input}]]></user>
             <assistant><![CDATA[{ai_response}]]></assistant>
         </turn>""")
