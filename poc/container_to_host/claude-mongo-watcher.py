@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Claude MongoDB Watcher - Monitora requests do Claude via MongoDB
-Roda na sua sessão autenticada e executa comandos claude
+Universal MongoDB Watcher - Monitora requests de LLMs via MongoDB
+Roda na sua sessão autenticada e executa comandos claude, gemini ou cursor-agent
 """
 
 import os
@@ -30,13 +30,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-class ClaudeMongoWatcher:
+class UniversalMongoWatcher:
     def __init__(self,
                  mongo_uri: str = "mongodb://localhost:27017",
                  database: str = "conductor",
                  collection: str = "tasks"):
         """
-        Inicializa o watcher MongoDB
+        Inicializa o watcher MongoDB universal
 
         Args:
             mongo_uri: URI de conexão MongoDB
@@ -133,10 +133,10 @@ class ClaudeMongoWatcher:
     def execute_llm_request(self, provider: str, prompt: str, cwd: str,
                               timeout: int = 300) -> tuple[str, int, float]:
         """
-        Executar request para LLM (Claude ou Gemini) baseado no provider.
+        Executar request para LLM (Claude, Gemini ou Cursor-Agent) baseado no provider.
 
         Args:
-            provider: "claude" ou "gemini"
+            provider: "claude", "gemini" ou "cursor-agent"
             prompt: Prompt XML completo já formatado
             cwd: Diretório de trabalho
             timeout: Timeout em segundos
@@ -155,13 +155,25 @@ class ClaudeMongoWatcher:
             if provider == "claude":
                 command = ["claude", "--print", "--dangerously-skip-permissions"]
             elif provider == "gemini":
-                command = ["gemini", "--print"]  # Ajustar conforme CLI do Gemini
+                # Usar a mesma implementação da GeminiCLIClient
+                # Verificar se o prompt é muito longo para evitar "Argument list too long"
+                MAX_PROMPT_LENGTH = 50000
+                if len(prompt) > MAX_PROMPT_LENGTH:
+                    logger.warning(f"⚠️  Prompt muito longo ({len(prompt)} chars), truncando para evitar erros de sistema")
+                    prompt = prompt[:MAX_PROMPT_LENGTH] + "\n\n[PROMPT TRUNCADO PARA EVITAR ERRO DE SISTEMA]"
+                
+                # Gemini CLI usa -p para o prompt e --approval-mode yolo
+                command = ["gemini", "-p", prompt, "--approval-mode", "yolo"]
+            elif provider == "cursor-agent":
+                command = ["cursor-agent", "--print", "--force"]
             else:
-                return f"Provider '{provider}' não suportado", 1, time.time() - start_time
+                return f"Provider '{provider}' não suportado. Suportados: claude, gemini, cursor-agent", 1, time.time() - start_time
 
             logger.info(f"🔧 Executando {provider} em {cwd}")
+            logger.debug(f"Comando montado: {command}")
+            logger.debug(f"Prompt (primeiros 100 chars): {prompt[:100]}...")
 
-            # Enviar prompt via stdin (não via argumento -p)
+            # Executar comando - todos usam stdin para o prompt
             result = subprocess.run(
                 command,
                 input=prompt,  # Prompt via stdin
@@ -241,7 +253,7 @@ class ClaudeMongoWatcher:
         logger.info("🚀 Universal Task Watcher iniciado")
         logger.info(f"🔍 Monitorando collection: {self.database_name}.{self.collection_name}")
         logger.info(f"⏱️  Poll interval: {poll_interval}s")
-        logger.info("🎯 Suporte: Claude (mais providers em breve)")
+        logger.info("🎯 Suporte: Claude, Gemini, Cursor-Agent")
 
         while True:
             try:
@@ -270,7 +282,7 @@ def main():
     """Função principal"""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Claude MongoDB Watcher")
+    parser = argparse.ArgumentParser(description="Universal MongoDB Watcher - Suporta Claude, Gemini e Cursor-Agent")
     parser.add_argument("--mongo-uri", default="mongodb://localhost:27017",
                        help="URI de conexão MongoDB")
     parser.add_argument("--database", default="conductor_state",
@@ -283,7 +295,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        watcher = ClaudeMongoWatcher(
+        watcher = UniversalMongoWatcher(
             mongo_uri=args.mongo_uri,
             database=args.database,
             collection=args.collection
