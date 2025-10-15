@@ -278,7 +278,7 @@ def _execute_agent_container_mongodb(request: ConductorExecuteRequest) -> Dict[s
         # Construir prompt completo usando PromptEngine (mesma forma que o CLI faz)
         agent_home = repository.get_agent_home_path(agent_id)
 
-        prompt_engine = PromptEngine(agent_home_path=agent_home, prompt_format="xml")
+        prompt_engine = PromptEngine(agent_home_path=agent_home, prompt_format="xml", instance_id=request.instance_id)
         prompt_engine.load_context()
 
         full_prompt = prompt_engine.build_prompt_with_format(

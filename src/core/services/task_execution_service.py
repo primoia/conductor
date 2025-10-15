@@ -158,7 +158,8 @@ class TaskExecutionService:
         
         # Criar engine de prompt com formato configurado
         prompt_format = self._config.get_prompt_format()
-        prompt_engine = PromptEngine(agent_home_path=agent_home_path, prompt_format=prompt_format)
+        instance_id = self._current_task.context.get("instance_id") if hasattr(self, '_current_task') and self._current_task else None
+        prompt_engine = PromptEngine(agent_home_path=agent_home_path, prompt_format=prompt_format, instance_id=instance_id)
         prompt_engine.load_context()
         
         # Filtrar ferramentas permitidas

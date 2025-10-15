@@ -19,7 +19,7 @@ class PromptEngine:
     Responsável por carregar, processar e construir prompts.
     """
 
-    def __init__(self, agent_home_path: str, prompt_format: str = "xml"):
+    def __init__(self, agent_home_path: str, prompt_format: str = "xml", instance_id: Optional[str] = None):
         """
         Inicializa o PromptEngine com o caminho para o diretório principal do agente.
         """
@@ -30,6 +30,8 @@ class PromptEngine:
         self.playbook_content: str = ""
         self.prompt_format = prompt_format  # "xml" or "text"
         self.is_mongodb = str(agent_home_path).startswith("mongodb://")
+        self.instance_id = instance_id
+        self.screenplay_content: str = ""
 
         # Extract agent_id from MongoDB path
         if self.is_mongodb:
@@ -50,6 +52,7 @@ class PromptEngine:
         self._load_agent_persona()
         self._load_agent_playbook()
         self._resolve_persona_placeholders()
+        self._load_screenplay_context()
 
     def build_prompt(self, conversation_history: List[Dict], message: str, include_history: bool = True) -> str:
         """Constrói o prompt final usando o contexto já carregado."""
@@ -318,6 +321,40 @@ class PromptEngine:
         
         return "\n".join(formatted_sections)
 
+    def _load_screenplay_context(self) -> None:
+        """Carrega o contexto do screenplay associado à instância atual."""
+        self.screenplay_content = ""
+        if not self.instance_id:
+            return
+
+        try:
+            import os
+            from pymongo import MongoClient
+            from bson.objectid import ObjectId
+            
+            mongo_uri = os.getenv("MONGO_URI")
+            if not mongo_uri:
+                logger.debug("MONGO_URI não configurada, pulando carregamento do screenplay")
+                return
+                
+            client = MongoClient(mongo_uri)
+            db = client.conductor_state
+
+            instance_doc = db.agent_instances.find_one({"instance_id": self.instance_id})
+            if not instance_doc or "screenplay_id" not in instance_doc:
+                logger.debug(f"Nenhum screenplay_id associado à instância {self.instance_id}")
+                return
+
+            screenplay_id = instance_doc["screenplay_id"]
+            screenplay_doc = db.screenplays.find_one({"_id": ObjectId(screenplay_id)})
+
+            if screenplay_doc and "content" in screenplay_doc:
+                self.screenplay_content = screenplay_doc["content"]
+                logger.info(f"Contexto do screenplay '{screenplay_id}' carregado.")
+
+        except Exception as e:
+            logger.warning(f"Falha ao carregar contexto do screenplay: {e}")
+
     def _resolve_persona_placeholders(self) -> None:
         """Resolve placeholders dinâmicos no conteúdo da persona."""
         if self.persona_content is None:
@@ -576,8 +613,20 @@ class PromptEngine:
         playbook_cdata = self._escape_xml_cdata(self.playbook_content)
         message_cdata = self._escape_xml_cdata(message)
         
+        # Carrega e escapa o conteúdo do screenplay
+        screenplay_cdata = ""
+        if hasattr(self, 'screenplay_content') and self.screenplay_content:
+            screenplay_cdata = self._escape_xml_cdata(self.screenplay_content)
+        
         # Formata o histórico
         history_xml = self._format_history_xml(conversation_history) if include_history else "<history/>"
+
+        # Monta a seção do screenplay se disponível
+        screenplay_section = ""
+        if screenplay_cdata:
+            screenplay_section = f"""        <screenplay>
+            <![CDATA[{screenplay_cdata}]]>
+        </screenplay>"""
 
         # Monta o prompt XML final
         final_prompt = f"""<prompt>
@@ -590,7 +639,7 @@ class PromptEngine:
         </instructions>
         <playbook>
             <![CDATA[{playbook_cdata}]]>
-        </playbook>
+        </playbook>{screenplay_section}
     </system_context>
     <conversation_history>
 {history_xml}

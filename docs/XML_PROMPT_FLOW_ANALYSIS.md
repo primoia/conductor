@@ -166,6 +166,11 @@ subprocess.run(["claude", "--print"], input=prompt_from_db, ...)
                 ...
             </anti_patterns>
         </playbook>
+        <screenplay>
+            <![CDATA[
+                Conteúdo do roteiro associado à instância...
+            ]]>
+        </screenplay>
     </system_context>
 
     <conversation_history>
