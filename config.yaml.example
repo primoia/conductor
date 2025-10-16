@@ -1,0 +1,34 @@
+# Conductor Configuration File
+# Copy this file to config.yaml and adjust according to your environment
+
+storage:
+  # Storage type: 'filesystem' or 'mongodb'
+  type: mongodb
+  
+  # For filesystem storage (optional)
+  backup_path: .conductor_workspace
+  
+  # For MongoDB storage (optional)
+  # connection_string: mongodb://user:password@host:port/database?authSource=admin
+
+# Tool plugins (optional)
+tool_plugins: []
+
+# AI Providers Configuration
+# Defines which AI provider to use by default for different tasks
+ai_providers:
+  # Default providers for different task types
+  default_providers:
+    # Provider for chat interactions
+    chat: cursor-agent
+    
+    # Provider for code generation tasks
+    generation: cursor-agent
+  
+  # Fallback provider when others fail or are not configured
+  # Options: claude, gemini, cursor-agent
+  fallback_provider: cursor-agent
+
+# Prompt format (optional)
+# prompt_format: xml  # Options: 'xml' or 'text'
+

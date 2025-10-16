@@ -72,22 +72,46 @@ Conductor provides a unified CLI interface that makes it easy to interact with A
 
 ### 1. Configuration
 
-Configure your environment in the `config.yaml` file at the project root:
+First, create your configuration file from the template:
+
+```bash
+# Copy the example configuration
+cp config.yaml.example config.yaml
+
+# Edit with your preferences
+nano config.yaml
+```
+
+Configure your environment in the `config.yaml` file:
 
 ```yaml
 # config.yaml
 storage:
-  type: filesystem
+  type: filesystem  # or 'mongodb' for team environments
   path: .conductor_workspace
+
+# AI Providers Configuration
+ai_providers:
+  default_providers:
+    chat: cursor-agent        # Options: claude, gemini, cursor-agent
+    generation: cursor-agent
+  fallback_provider: cursor-agent
 
 # Add directories for your custom tools
 tool_plugins:
   - custom_tools/
 ```
 
+**Configuration Options:**
+
 -   **storage**: Defines where agent data is stored.
     -   `filesystem`: (Default) Ideal for local development, no dependencies required.
     -   `mongodb`: For team environments or production.
+-   **ai_providers**: Configure which AI provider to use by default.
+    -   `default_providers.chat`: Provider for chat interactions
+    -   `default_providers.generation`: Provider for code generation
+    -   `fallback_provider`: Fallback when others fail
+    -   Supported providers: `claude`, `gemini`, `cursor-agent`
 -   **tool_plugins**: List of directories where Conductor will look for custom tools.
 
 ### 2. Quick Start

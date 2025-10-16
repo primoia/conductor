@@ -151,6 +151,21 @@ class UniversalMongoWatcher:
             if not os.path.isdir(cwd):
                 return f"Diretório não encontrado: {cwd}", 1, time.time() - start_time
 
+            # Log do ambiente antes de montar comando
+            logger.info("=" * 80)
+            logger.info("🔍 DEBUG: Informações do ambiente")
+            logger.info(f"   Python: {sys.executable}")
+            logger.info(f"   CWD: {os.getcwd()}")
+            logger.info(f"   Target CWD: {cwd}")
+            logger.info(f"   USER: {os.environ.get('USER', 'N/A')}")
+            logger.info(f"   HOME: {os.environ.get('HOME', 'N/A')}")
+            logger.info(f"   PATH: {os.environ.get('PATH', 'N/A')[:200]}...")
+            
+            # Verificar se cursor-agent existe no PATH
+            import shutil
+            cursor_path = shutil.which("cursor-agent")
+            logger.info(f"   cursor-agent path: {cursor_path if cursor_path else '❌ NÃO ENCONTRADO'}")
+            
             # Montar comando baseado no provider
             if provider == "claude":
                 command = ["claude", "--print", "--dangerously-skip-permissions"]
@@ -170,10 +185,13 @@ class UniversalMongoWatcher:
                 return f"Provider '{provider}' não suportado. Suportados: claude, gemini, cursor-agent", 1, time.time() - start_time
 
             logger.info(f"🔧 Executando {provider} em {cwd}")
-            logger.debug(f"Comando montado: {command}")
-            logger.debug(f"Prompt (primeiros 100 chars): {prompt[:100]}...")
+            logger.info(f"📋 Comando completo: {' '.join(command)}")
+            logger.info(f"📏 Tamanho do prompt: {len(prompt)} chars")
+            logger.info(f"📝 Primeiros 200 chars do prompt: {prompt[:200]}")
+            logger.info("=" * 80)
 
             # Executar comando - todos usam stdin para o prompt
+            logger.info("⏳ Iniciando subprocess.run()...")
             result = subprocess.run(
                 command,
                 input=prompt,  # Prompt via stdin
@@ -187,18 +205,43 @@ class UniversalMongoWatcher:
             duration = time.time() - start_time
             output = result.stdout + result.stderr
 
-            logger.info(f"✅ {provider} concluído em {duration:.1f}s - código: {result.returncode}")
+            logger.info(f"✅ {provider} concluído em {duration:.1f}s - exit code: {result.returncode}")
+            logger.info(f"📤 Stdout length: {len(result.stdout)} chars")
+            logger.info(f"📤 Stderr length: {len(result.stderr)} chars")
+            logger.info(f"📄 Primeiros 500 chars do output:\n{output[:500]}")
+            logger.info("=" * 80)
 
             return output, result.returncode, duration
 
         except subprocess.TimeoutExpired:
             duration = time.time() - start_time
-            logger.warning(f"⏰ Timeout após {timeout}s")
+            logger.error("=" * 80)
+            logger.error(f"⏰ TIMEOUT após {timeout}s")
+            logger.error(f"   Provider: {provider}")
+            logger.error(f"   Comando: {' '.join(command)}")
+            logger.error("=" * 80)
             return f"Comando excedeu tempo limite de {timeout}s", 124, duration
+
+        except FileNotFoundError as e:
+            duration = time.time() - start_time
+            logger.error("=" * 80)
+            logger.error(f"❌ COMANDO NÃO ENCONTRADO: {e}")
+            logger.error(f"   Provider: {provider}")
+            logger.error(f"   Comando tentado: {' '.join(command)}")
+            logger.error(f"   PATH: {os.environ.get('PATH', 'N/A')}")
+            logger.error("=" * 80)
+            return f"Comando não encontrado: {str(e)}", 127, duration
 
         except Exception as e:
             duration = time.time() - start_time
-            logger.error(f"❌ Erro na execução: {e}")
+            logger.error("=" * 80)
+            logger.error(f"❌ ERRO NA EXECUÇÃO: {type(e).__name__}")
+            logger.error(f"   Mensagem: {str(e)}")
+            logger.error(f"   Provider: {provider}")
+            logger.error(f"   Comando: {' '.join(command) if 'command' in locals() else 'N/A'}")
+            logger.error("=" * 80)
+            import traceback
+            logger.error(traceback.format_exc())
             return f"Erro na execução: {str(e)}", 1, duration
 
     def process_request(self, request: Dict) -> bool:
@@ -217,7 +260,15 @@ class UniversalMongoWatcher:
             self.complete_request(request_id, "Erro: campo 'prompt' obrigatório não encontrado", 1, 0.0)
             return False
 
-        logger.info(f"📨 Processando task: {request_id} | Agent: {agent_id} | Provider: {provider}")
+        logger.info("=" * 80)
+        logger.info(f"📨 PROCESSANDO NOVA TASK")
+        logger.info(f"   ID: {request_id}")
+        logger.info(f"   Agent: {agent_id}")
+        logger.info(f"   Provider: {provider}")
+        logger.info(f"   CWD: {cwd}")
+        logger.info(f"   Timeout: {timeout}s")
+        logger.info(f"   Prompt length: {len(prompt)} chars")
+        logger.info("=" * 80)
 
         # Marcar como processando
         if not self.mark_as_processing(request_id):
@@ -235,11 +286,20 @@ class UniversalMongoWatcher:
         # Salvar resultado
         success = self.complete_request(request_id, result, exit_code, duration)
 
+        logger.info("=" * 80)
         if success:
             status_emoji = "✅" if exit_code == 0 else "❌"
-            logger.info(f"{status_emoji} Task {request_id} processada com sucesso | Agent: {agent_id}")
+            logger.info(f"{status_emoji} TASK COMPLETADA E SALVA NO MONGODB")
+            logger.info(f"   ID: {request_id}")
+            logger.info(f"   Agent: {agent_id}")
+            logger.info(f"   Exit code: {exit_code}")
+            logger.info(f"   Duração: {duration:.2f}s")
+            logger.info(f"   Resultado length: {len(result)} chars")
         else:
-            logger.error(f"❌ Falha ao salvar resultado da task {request_id}")
+            logger.error(f"❌ FALHA AO SALVAR RESULTADO NO MONGODB")
+            logger.error(f"   ID: {request_id}")
+            logger.error(f"   Agent: {agent_id}")
+        logger.info("=" * 80)
 
         return success
 
@@ -250,10 +310,32 @@ class UniversalMongoWatcher:
         Args:
             poll_interval: Intervalo entre verificações em segundos
         """
-        logger.info("🚀 Universal Task Watcher iniciado")
+        logger.info("=" * 80)
+        logger.info("🚀 UNIVERSAL TASK WATCHER INICIADO")
+        logger.info("=" * 80)
         logger.info(f"🔍 Monitorando collection: {self.database_name}.{self.collection_name}")
         logger.info(f"⏱️  Poll interval: {poll_interval}s")
         logger.info("🎯 Suporte: Claude, Gemini, Cursor-Agent")
+        logger.info("")
+        logger.info("📋 AMBIENTE DE EXECUÇÃO:")
+        logger.info(f"   Python: {sys.executable}")
+        logger.info(f"   CWD: {os.getcwd()}")
+        logger.info(f"   USER: {os.environ.get('USER', 'N/A')}")
+        logger.info(f"   HOME: {os.environ.get('HOME', 'N/A')}")
+        logger.info(f"   PATH: {os.environ.get('PATH', 'N/A')}")
+        
+        # Verificar CLIs disponíveis
+        import shutil
+        logger.info("")
+        logger.info("🔍 CLIs DISPONÍVEIS NO PATH:")
+        for cli in ["cursor-agent", "claude", "gemini"]:
+            cli_path = shutil.which(cli)
+            if cli_path:
+                logger.info(f"   ✅ {cli}: {cli_path}")
+            else:
+                logger.info(f"   ❌ {cli}: NÃO ENCONTRADO")
+        
+        logger.info("=" * 80)
 
         while True:
             try:
