@@ -37,7 +37,6 @@ ENV PYTHONPATH=/app
 
 # Copia o código fonte da aplicação
 COPY ./src ./src
-COPY ./config.yaml .
 
 # Cria o diretório .conductor_workspace se não existir
 RUN mkdir -p ./.conductor_workspace
