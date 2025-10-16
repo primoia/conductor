@@ -38,6 +38,9 @@ ENV PYTHONPATH=/app
 # Copia o código fonte da aplicação
 COPY ./src ./src
 COPY ./config.yaml .
+
+# Cria o diretório .conductor_workspace se não existir
+RUN mkdir -p ./.conductor_workspace
 COPY ./.conductor_workspace ./.conductor_workspace
 
 # Comando para iniciar o servidor FastAPI quando o contêiner rodar
