@@ -79,6 +79,7 @@ class ConductorExecuteRequest(BaseModel):
     timeout: Optional[int] = 300
     environment: Optional[str] = None
     project: Optional[str] = None
+    ai_provider: Optional[str] = None  # AI provider override
 
     # Operações especiais
     list_agents: bool = False
@@ -289,13 +290,30 @@ def _execute_agent_container_mongodb(request: ConductorExecuteRequest) -> Dict[s
 
         logger.info(f"Submetendo tarefa via MongoDB: agent={agent_id}, instance={request.instance_id or 'global'}...")
 
+        # 🔍 LOG DETALHADO PARA RASTREAR PROVIDER
+        logger.info("🔍 [CONDUCTOR_CLI] Determinando provider:")
+        logger.info(f"   - request.ai_provider: {request.ai_provider}")
+        logger.info(f"   - agent_definition: {agent_definition}")
+        logger.info(f"   - agent_ai_provider: {getattr(agent_definition, 'ai_provider', 'N/A')}")
+        
+        # Determinar provider com fallback hierárquico
+        provider = container.get_ai_provider(
+            agent_definition=agent_definition,
+            cli_provider=request.ai_provider
+        )
+        
+        logger.info(f"✅ [CONDUCTOR_CLI] Provider final: {provider}")
+        logger.info(f"   - cli_provider: {request.ai_provider}")
+        logger.info(f"   - agent_ai_provider: {getattr(agent_definition, 'ai_provider', 'N/A')}")
+        logger.info(f"   - provider_final: {provider}")
+
         # Submeter tarefa via MongoDB
         task_id = task_client.submit_task(
             agent_id=agent_id,
             prompt=full_prompt,
             cwd=request.cwd or "/app",
             timeout=request.timeout or 300,
-            provider="claude"  # Pode ser expandido para gemini
+            provider=provider
         )
 
         # Aguardar resultado

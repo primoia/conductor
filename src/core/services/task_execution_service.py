@@ -18,11 +18,13 @@ class TaskExecutionService:
         self,
         agent_storage_service: AgentStorageService,
         tool_service: ToolManagementService,
-        config_service: ConfigurationService
+        config_service: ConfigurationService,
+        container=None
     ):
         self._storage = agent_storage_service.get_storage()
         self._tools = tool_service
         self._config = config_service
+        self._container = container
 
     def execute_task(self, task: TaskDTO) -> TaskResultDTO:
         """Executa uma tarefa de agente."""
@@ -120,7 +122,29 @@ class TaskExecutionService:
         if is_test_environment:
             llm_client = PlaceholderLLMClient()
         else:
-            ai_provider = getattr(agent_definition, 'ai_provider', 'claude')
+            # Usar container para determinar o provider com fallback hierárquico
+            if self._container:
+                cli_provider = None
+                if hasattr(self, '_current_task') and self._current_task:
+                    cli_provider = self._current_task.context.get('ai_provider')
+                
+                ai_provider = self._container.get_ai_provider(
+                    agent_definition=agent_definition,
+                    cli_provider=cli_provider
+                )
+            else:
+                # Fallback simples quando container não está disponível
+                if hasattr(self, '_current_task') and self._current_task:
+                    ai_provider = self._current_task.context.get('ai_provider') or getattr(agent_definition, 'ai_provider', None)
+                else:
+                    ai_provider = getattr(agent_definition, 'ai_provider', None)
+                
+                # Se ainda for None, usar fallback do config
+                if ai_provider is None:
+                    config = self._config.get_global_config()
+                    ai_providers_config = config.get('ai_providers', {})
+                    default_providers = ai_providers_config.get('default_providers', {})
+                    ai_provider = default_providers.get('generation', 'claude')
             # Determinar working directory e timeout
             # Para MongoDB, usar diretório atual em vez do path conceitual
             if agent_home_path.startswith("mongodb://"):

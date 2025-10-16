@@ -129,6 +129,25 @@ def execute_agent(agent_id: str, request: AgentExecuteRequest):
         task_client = MongoTaskClient()
         discovery_service = container.get_agent_discovery_service()
 
+        # Obter agent_definition para determinar provider com fallback
+        agent_definition = discovery_service.get_agent_definition(agent_id)
+        if not agent_definition:
+            raise HTTPException(status_code=404, detail=f"Agente '{agent_id}' não encontrado")
+
+        # 🔍 LOG DETALHADO PARA RASTREAR PROVIDER
+        logger.info("🔍 [AGENTS] Determinando provider:")
+        logger.info(f"   - request.provider: {request.provider}")
+        logger.info(f"   - agent_definition: {agent_definition}")
+        logger.info(f"   - agent_ai_provider: {getattr(agent_definition, 'ai_provider', 'N/A')}")
+
+        # Determinar provider com fallback hierárquico
+        provider = container.get_ai_provider(
+            agent_definition=agent_definition,
+            cli_provider=request.provider
+        )
+        
+        logger.info(f"✅ [AGENTS] Provider final: {provider}")
+
         # Build XML prompt
         # Note: Histórico por instance_id será gerenciado automaticamente
         # pelo TaskExecutionService ao salvar no MongoDB
@@ -146,7 +165,7 @@ def execute_agent(agent_id: str, request: AgentExecuteRequest):
             agent_id=agent_id,
             cwd=request.cwd,
             timeout=request.timeout,
-            provider=request.provider,
+            provider=provider,
             prompt=xml_prompt,
             instance_id=request.instance_id  # SAGA-004: Pass instance_id to task
         )

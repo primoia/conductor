@@ -50,7 +50,7 @@ class AgentFields:
     """Campos válidos para AgentDefinition."""
     VALID_FIELDS = {
         'name', 'version', 'schema_version', 'description', 'author', 
-        'tags', 'capabilities', 'allowed_tools'
+        'tags', 'capabilities', 'allowed_tools', 'ai_provider'
     }
     REQUIRED_FIELDS = {
         'name', 'version', 'schema_version', 'description', 'author'

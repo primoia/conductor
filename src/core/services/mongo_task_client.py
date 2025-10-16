@@ -41,6 +41,20 @@ class MongoTaskClient:
         Returns:
             str: ID da task inserida
         """
+        # 🔍 LOG DETALHADO PARA RASTREAR PROVIDER
+        import traceback
+        logger.info("🔍 [MONGO_TASK_CLIENT] submit_task chamado com:")
+        logger.info(f"   - agent_id: {agent_id}")
+        logger.info(f"   - provider: {provider}")
+        logger.info(f"   - instance_id: {instance_id}")
+        logger.info(f"   - cwd: {cwd}")
+        logger.info(f"   - timeout: {timeout}")
+        
+        # Capturar stack trace para ver quem chamou
+        stack = traceback.extract_stack()
+        caller = stack[-2] if len(stack) > 1 else None
+        if caller:
+            logger.info(f"   - Chamado por: {caller.filename}:{caller.lineno} em {caller.name}()")
         if not prompt:
             raise ValueError("Campo 'prompt' é obrigatório")
 

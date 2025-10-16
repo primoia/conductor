@@ -30,6 +30,7 @@ class ConductorCLI:
         simulate: bool = False,
         timeout: int = 120,
         debug_mode: bool = False,
+        ai_provider: str = None,
     ):
         """Initialize Conductor CLI with unified parameters."""
         import uuid
@@ -42,6 +43,7 @@ class ConductorCLI:
         self.simulate_mode = simulate
         self.timeout = timeout
         self.debug_mode = debug_mode
+        self.ai_provider = ai_provider
 
         # SAGA-004: Generate unique instance_id for this REPL session
         self.repl_session_id = f"cli-repl-{uuid.uuid4()}"
@@ -803,7 +805,8 @@ def repl_command(args):
         new_agent_id=args.new_agent_id,
         simulate=args.simulate,
         timeout=args.timeout,
-        debug_mode=(args.mode == 'dev')
+        debug_mode=(args.mode == 'dev'),
+        ai_provider=getattr(args, 'ai_provider', None)
     )
     
     if not cli.embodied:
@@ -842,7 +845,7 @@ def chat_command(args):
     
     # Clear history if requested
     if args.clear_history:
-        cli = ConductorCLI(agent_id=args.agent)
+        cli = ConductorCLI(agent_id=args.agent, ai_provider=getattr(args, 'ai_provider', None))
         if cli.clear_conversation_history():
             print("🗑️ Histórico limpo")
         else:
@@ -854,7 +857,8 @@ def chat_command(args):
         environment=args.environment,
         project=args.project,
         meta=args.meta,
-        new_agent_id=args.new_agent_id
+        new_agent_id=args.new_agent_id,
+        ai_provider=getattr(args, 'ai_provider', None)
     )
     
     if not cli.embodied:
@@ -965,7 +969,7 @@ def handle_agent_interaction(args):
     try:
         # Clear history if requested
         if args.clear:
-            cli = ConductorCLI(agent_id=args.agent)
+            cli = ConductorCLI(agent_id=args.agent, ai_provider=getattr(args, 'ai_provider', None))
             if cli.clear_conversation_history():
                 print("🗑️ Histórico limpo")
             else:
@@ -980,7 +984,8 @@ def handle_agent_interaction(args):
             new_agent_id=args.new_agent_id,
             simulate=args.simulate,
             timeout=args.timeout,
-            debug_mode=False
+            debug_mode=False,
+            ai_provider=getattr(args, 'ai_provider', None)
         )
 
         if not cli.embodied:
@@ -1009,7 +1014,8 @@ def handle_agent_interaction(args):
                 "meta": args.meta,
                 "new_agent_id": args.new_agent_id,
                 "simulate_mode": args.simulate,
-                "timeout": args.timeout
+                "timeout": args.timeout,
+                "ai_provider": getattr(args, 'ai_provider', None)
             }
             
             if args.environment:

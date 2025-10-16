@@ -111,6 +111,7 @@ class AgentDefinition:
     capabilities: List[str] = field(default_factory=list)
     allowed_tools: List[str] = field(default_factory=list)
     agent_id: Optional[str] = None  # Optional field for compatibility
+    ai_provider: Optional[str] = None  # AI provider for this agent (uses global config if None)
 
 @dataclass(frozen=True)
 class AgentPersona:

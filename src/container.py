@@ -136,19 +136,81 @@ class DIContainer:
         return self._conductor_service
 
     def load_ai_providers_config(self) -> Dict[str, Any]:
-        """Load AI providers configuration."""
+        """Load AI providers configuration from main config.yaml."""
         if self._ai_providers_config is None:
-            config_path = Path("config") / "ai_providers.yaml"
-            if config_path.exists():
-                with open(config_path, "r", encoding="utf-8") as f:
-                    self._ai_providers_config = yaml.safe_load(f)
+            # Load from main config.yaml
+            config_service = self.get_configuration_service()
+            global_config = config_service.get_global_config()
+            
+            # Extract ai_providers section from the raw config
+            # Since GlobalConfig might not have ai_providers, we'll load it directly
+            import yaml
+            with open("config.yaml", "r", encoding="utf-8") as f:
+                main_config = yaml.safe_load(f)
+            
+            ai_providers_section = main_config.get('ai_providers', {})
+            
+            if ai_providers_section:
+                self._ai_providers_config = ai_providers_section
             else:
-                # Default configuration
+                # Default configuration if not found
                 self._ai_providers_config = {
                     "default_providers": {"chat": "claude", "generation": "claude"},
                     "fallback_provider": "claude",
                 }
         return self._ai_providers_config
+
+    def get_ai_provider(self, agent_definition=None, cli_provider=None) -> str:
+        """
+        Determina o provider de IA com fallback hierárquico:
+        1. CLI parameter (--ai-provider)
+        2. Agent definition (ai_provider field)
+        3. Config default (ai_providers.yaml)
+        4. Fallback: 'claude'
+        """
+        import traceback
+        from src.core.observability import configure_logging
+        logger = configure_logging(False, "container", "ai_provider")
+        
+        logger.info("🔍 [CONTAINER] get_ai_provider chamado com:")
+        logger.info(f"   - cli_provider: {cli_provider}")
+        logger.info(f"   - agent_definition: {agent_definition}")
+        if agent_definition:
+            logger.info(f"   - agent_ai_provider: {getattr(agent_definition, 'ai_provider', 'NOT_FOUND')}")
+        
+        # Capturar stack trace
+        stack = traceback.extract_stack()
+        caller = stack[-2] if len(stack) > 1 else None
+        if caller:
+            logger.info(f"   - Chamado por: {caller.filename}:{caller.lineno} em {caller.name}()")
+        
+        # 1. CLI parameter tem prioridade máxima
+        if cli_provider:
+            logger.info(f"✅ [CONTAINER] Usando CLI provider: {cli_provider}")
+            return cli_provider
+        
+        # 2. Agent definition
+        if agent_definition and hasattr(agent_definition, 'ai_provider') and agent_definition.ai_provider is not None:
+            agent_provider = agent_definition.ai_provider
+            logger.info(f"✅ [CONTAINER] Usando agent provider: {agent_provider}")
+            return agent_provider
+        
+        # 3. Config default
+        config = self.load_ai_providers_config()
+        default_providers = config.get('default_providers', {})
+        logger.info(f"🔍 [CONTAINER] Config carregado: {config}")
+        
+        # Para tarefas de geração, usar 'generation', senão 'chat'
+        task_type = 'generation'  # Default para geração de código
+        if default_providers.get(task_type):
+            config_provider = default_providers[task_type]
+            logger.info(f"✅ [CONTAINER] Usando config provider ({task_type}): {config_provider}")
+            return config_provider
+        
+        # 4. Fallback
+        fallback = config.get('fallback_provider', 'claude')
+        logger.info(f"✅ [CONTAINER] Usando fallback provider: {fallback}")
+        return fallback
 
 
 
