@@ -41,7 +41,6 @@ COPY ./config.yaml .
 
 # Cria o diretório .conductor_workspace se não existir
 RUN mkdir -p ./.conductor_workspace
-COPY ./.conductor_workspace ./.conductor_workspace
 
 # Comando para iniciar o servidor FastAPI quando o contêiner rodar
 CMD ["python", "-m", "uvicorn", "src.server:app", "--host", "0.0.0.0", "--port", "8000"]
