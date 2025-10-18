@@ -61,45 +61,47 @@ def startup_event():
 
 # As rotas de agentes foram movidas para src/api/routes/agents.py
 
-@app.post("/agents/{agent_id}/execute", tags=["Agents"])
-def execute_agent(agent_id: str, request: ExecuteRequest):
-    """
-    [DEPRECATED] Legacy endpoint for agent execution via MongoDB Task Queue.
-    Use the new generic /conductor/execute endpoint instead.
-    """
-    if MongoTaskClient is None:
-        raise HTTPException(status_code=503, detail="MongoDB client não está disponível")
-
-    try:
-        task_client = MongoTaskClient()
-
-        # Constrói o comando dinamicamente
-        command = ["claude", "run", agent_id, "-i", request.user_input]
-
-        # O CWD deve ser o caminho no HOST, que o Watcher entende
-        # O Gateway será responsável por fornecer este caminho.
-        # Para este exemplo, vamos assumir que o request o contém.
-        # Se o CWD não for fornecido, pode-se usar um padrão ou lançar um erro.
-
-        logger.info(f"🚀 Submetendo tarefa para o agente '{agent_id}': {' '.join(command)}")
-        task_id = task_client.submit_task(
-            agent_id=agent_id,
-            command=command,
-            cwd=request.cwd,
-            timeout=request.timeout
-        )
-
-        result_document = task_client.get_task_result(
-            task_id=task_id,
-            timeout=request.timeout + 10  # Timeout do polling um pouco maior
-        )
-
-        logger.info(f"✅ Tarefa concluída para agente '{agent_id}': {task_id}")
-        return result_document
-
-    except Exception as e:
-        logger.error(f"❌ Erro na execução do agente '{agent_id}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+# [DEPRECATED - COMMENTED OUT] Legacy endpoint - Use /conductor/execute instead
+# Este endpoint usa assinatura antiga de submit_task com parâmetro 'command' que não existe mais
+# @app.post("/agents/{agent_id}/execute", tags=["Agents"])
+# def execute_agent(agent_id: str, request: ExecuteRequest):
+#     """
+#     [DEPRECATED] Legacy endpoint for agent execution via MongoDB Task Queue.
+#     Use the new generic /conductor/execute endpoint instead.
+#     """
+#     if MongoTaskClient is None:
+#         raise HTTPException(status_code=503, detail="MongoDB client não está disponível")
+#
+#     try:
+#         task_client = MongoTaskClient()
+#
+#         # Constrói o comando dinamicamente
+#         command = ["claude", "run", agent_id, "-i", request.user_input]
+#
+#         # O CWD deve ser o caminho no HOST, que o Watcher entende
+#         # O Gateway será responsável por fornecer este caminho.
+#         # Para este exemplo, vamos assumir que o request o contém.
+#         # Se o CWD não for fornecido, pode-se usar um padrão ou lançar um erro.
+#
+#         logger.info(f"🚀 Submetendo tarefa para o agente '{agent_id}': {' '.join(command)}")
+#         task_id = task_client.submit_task(
+#             agent_id=agent_id,
+#             command=command,
+#             cwd=request.cwd,
+#             timeout=request.timeout
+#         )
+#
+#         result_document = task_client.get_task_result(
+#             task_id=task_id,
+#             timeout=request.timeout + 10  # Timeout do polling um pouco maior
+#         )
+#
+#         logger.info(f"✅ Tarefa concluída para agente '{agent_id}': {task_id}")
+#         return result_document
+#
+#     except Exception as e:
+#         logger.error(f"❌ Erro na execução do agente '{agent_id}': {e}", exc_info=True)
+#         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health", tags=["System"])
 def health_check():

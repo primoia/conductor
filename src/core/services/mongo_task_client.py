@@ -65,6 +65,7 @@ class MongoTaskClient:
             "cwd": cwd,
             "timeout": timeout,
             "status": "pending",
+            "instance_id": instance_id,  # SAGA-004: ID da instância para separação de contextos
             "context": {},  # SAGA-004: Context object for additional metadata
             "created_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc),
@@ -72,10 +73,6 @@ class MongoTaskClient:
             "exit_code": None,
             "duration": None,
         }
-
-        # SAGA-004: Adicionar instance_id ao contexto se fornecido
-        if instance_id:
-            task_document["context"]["instance_id"] = instance_id
 
         result = self.collection.insert_one(task_document)
         task_id = str(result.inserted_id)

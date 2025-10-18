@@ -313,7 +313,8 @@ def _execute_agent_container_mongodb(request: ConductorExecuteRequest) -> Dict[s
             prompt=full_prompt,
             cwd=request.cwd or "/app",
             timeout=request.timeout or 300,
-            provider=provider
+            provider=provider,
+            instance_id=request.instance_id  # SAGA-004: Pass instance_id to task
         )
 
         # Aguardar resultado

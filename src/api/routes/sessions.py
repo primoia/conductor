@@ -55,50 +55,52 @@ def start_interactive_session(request: SessionStartRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/execute/contextual", summary="Executar agente com contexto de conversação")
-def execute_agent_contextual(request: ExecuteContextualRequest):
-    """
-    Executa um agente mantendo contexto de conversação anterior.
-    """
-    try:
-        # Para este MVP, reutilizamos a lógica de execução stateless
-        # mas indicamos que mantemos histórico
-        from src.core.services.mongo_task_client import MongoTaskClient
-
-        if MongoTaskClient is None:
-            raise HTTPException(status_code=503, detail="MongoDB client não está disponível")
-
-        task_client = MongoTaskClient()
-
-        # Montar comando baseado no input_text
-        command = ["claude", "-p", request.input_text]
-
-        # Se clear_history for True, adicionar flag
-        if request.clear_history:
-            command.extend(["--clear-history"])
-
-        # Submete a tarefa
-        task_id = task_client.submit_task(
-            agent_id=request.agent_id,
-            command=command,
-            cwd=os.getcwd(),  # Usar diretório atual
-            timeout=request.timeout
-        )
-
-        # Aguarda o resultado
-        result_document = task_client.get_task_result(task_id=task_id, timeout=request.timeout)
-
-        return {
-            "status": "success",
-            "agent_id": request.agent_id,
-            "contextual": True,
-            "cleared_history": request.clear_history,
-            "result": result_document
-        }
-
-    except Exception as e:
-        logger.error(f"Erro na execução contextual: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+# [LEGACY - COMMENTED OUT] Código legado que não está sendo usado
+# Não há registros na coleção tasks vindos deste endpoint
+# @router.post("/execute/contextual", summary="Executar agente com contexto de conversação")
+# def execute_agent_contextual(request: ExecuteContextualRequest):
+#     """
+#     Executa um agente mantendo contexto de conversação anterior.
+#     """
+#     try:
+#         # Para este MVP, reutilizamos a lógica de execução stateless
+#         # mas indicamos que mantemos histórico
+#         from src.core.services.mongo_task_client import MongoTaskClient
+#
+#         if MongoTaskClient is None:
+#             raise HTTPException(status_code=503, detail="MongoDB client não está disponível")
+#
+#         task_client = MongoTaskClient()
+#
+#         # Montar comando baseado no input_text
+#         command = ["claude", "-p", request.input_text]
+#
+#         # Se clear_history for True, adicionar flag
+#         if request.clear_history:
+#             command.extend(["--clear-history"])
+#
+#         # Submete a tarefa
+#         task_id = task_client.submit_task(
+#             agent_id=request.agent_id,
+#             command=command,
+#             cwd=os.getcwd(),  # Usar diretório atual
+#             timeout=request.timeout
+#         )
+#
+#         # Aguarda o resultado
+#         result_document = task_client.get_task_result(task_id=task_id, timeout=request.timeout)
+#
+#         return {
+#             "status": "success",
+#             "agent_id": request.agent_id,
+#             "contextual": True,
+#             "cleared_history": request.clear_history,
+#             "result": result_document
+#         }
+#
+#     except Exception as e:
+#         logger.error(f"Erro na execução contextual: {e}", exc_info=True)
+#         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/{agent_id}/history", summary="Limpar histórico de conversação")
