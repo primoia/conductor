@@ -708,4 +708,5 @@ class PromptEngine:
 
         except Exception as e:
             # Don't let prompt saving errors break the main flow
-            logger.warning(f"Failed to save prompt to disk: {e}")
+            # Silently ignore permission errors in production
+            logger.debug(f"Failed to save prompt to disk: {e}")

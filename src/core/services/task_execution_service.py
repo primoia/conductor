@@ -141,10 +141,17 @@ class TaskExecutionService:
                 
                 # Se ainda for None, usar fallback do config
                 if ai_provider is None:
-                    config = self._config.get_global_config()
-                    ai_providers_config = config.get('ai_providers', {})
-                    default_providers = ai_providers_config.get('default_providers', {})
-                    ai_provider = default_providers.get('generation', 'claude')
+                    # Carregar config.yaml diretamente para obter ai_providers
+                    import yaml
+                    try:
+                        with open("config.yaml", "r", encoding="utf-8") as f:
+                            raw_config = yaml.safe_load(f)
+                        ai_providers_config = raw_config.get('ai_providers', {})
+                        default_providers = ai_providers_config.get('default_providers', {})
+                        ai_provider = default_providers.get('generation', 'claude')
+                    except Exception:
+                        # Fallback final se não conseguir ler o config
+                        ai_provider = 'claude'
             # Determinar working directory e timeout
             # Para MongoDB, usar diretório atual em vez do path conceitual
             if agent_home_path.startswith("mongodb://"):

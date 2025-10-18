@@ -34,7 +34,6 @@ class ConductorCLI:
     ):
         """Initialize Conductor CLI with unified parameters."""
         import uuid
-        print(f"DEBUG: __init__ ConductorCLI começou")  # DEBUG
 
         self.agent_id = agent_id
         self.environment = environment
@@ -48,19 +47,13 @@ class ConductorCLI:
 
         # SAGA-004: Generate unique instance_id for this REPL session
         self.repl_session_id = f"cli-repl-{uuid.uuid4()}"
-        print(f"DEBUG: UUID gerado")  # DEBUG
 
         # Initialize logging
-        print(f"DEBUG: Configurando logging...")  # DEBUG
         self.logger = configure_logging(debug_mode, f"conductor_{agent_id}", agent_id)
-        print(f"DEBUG: Logging configurado")  # DEBUG
 
         # Get services from container
-        print(f"DEBUG: Obtendo serviços do container...")  # DEBUG
         self.conductor_service = container.get_conductor_service()
-        print(f"DEBUG: conductor_service obtido")  # DEBUG
         self.agent_service = container.get_agent_discovery_service()
-        print(f"DEBUG: agent_service obtido")  # DEBUG
 
         print(f"✅ ConductorCLI inicializado para agente: {agent_id}")
         print(f"🔑 Instance ID: {self.repl_session_id}")
@@ -974,7 +967,6 @@ def handle_agent_interaction(args):
     print("=" * 50)
 
     try:
-        print("DEBUG: Iniciando try block...")  # DEBUG
         # Clear history if requested
         if args.clear:
             cli = ConductorCLI(agent_id=args.agent, ai_provider=getattr(args, 'ai_provider', None))
@@ -984,7 +976,6 @@ def handle_agent_interaction(args):
                 print("⚠️ Não foi possível limpar o histórico")
 
         # Initialize CLI
-        print("DEBUG: Criando ConductorCLI...")  # DEBUG
         cli = ConductorCLI(
             agent_id=args.agent,
             environment=args.environment,
@@ -996,7 +987,6 @@ def handle_agent_interaction(args):
             debug_mode=False,
             ai_provider=getattr(args, 'ai_provider', None)
         )
-        print("DEBUG: ConductorCLI criado")  # DEBUG
 
         if not cli.embodied:
             agent_service = container.get_agent_discovery_service()
@@ -1009,10 +999,8 @@ def handle_agent_interaction(args):
 
         # Show history info if in contextual mode
         if include_history:
-            print("DEBUG: Obtendo histórico...")  # DEBUG
             history = cli.get_conversation_history()
             print(f"📚 Histórico: {len(history)} interações anteriores")
-            print("DEBUG: Histórico obtido")  # DEBUG
 
         # Execute initial message if provided
         if args.input:
@@ -1076,26 +1064,22 @@ def handle_agent_interaction(args):
             print("\n🎮 Entrando no modo interativo...")
             print("💡 Digite 'exit' para sair")
 
-            print("DEBUG: Criando REPLManager...")  # DEBUG
             # Use existing REPL manager
             repl_manager = REPLManager(args.agent, cli)
-            print("DEBUG: REPLManager criado com sucesso")  # DEBUG
-            
+
             # Add debug commands based on context
             if args.meta or args.simulate:
                 repl_manager.add_custom_command("debug", lambda: _show_debug_info(cli))
                 repl_manager.add_custom_command("prompt", lambda: _show_full_prompt(cli))
-            
+
             if args.simulate:
                 repl_manager.add_custom_command("simulate", lambda: _toggle_simulation(cli))
-            
+
             mode_help = "🎮 Modo interativo ativo"
             if args.simulate:
                 mode_help += " (simulação)"
 
-            print("DEBUG: Iniciando sessão REPL...")  # DEBUG
             repl_manager.start_session(mode_help)
-            print("DEBUG: Sessão REPL encerrada")  # DEBUG
 
     except Exception as e:
         print(f"❌ Erro fatal: {e}")

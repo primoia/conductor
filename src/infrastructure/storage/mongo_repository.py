@@ -16,8 +16,6 @@ class MongoStateRepository(IStateRepository):
     """
 
     def __init__(self, connection_string: str, db_name: str = "conductor_state"):
-        print("DEBUG: MongoStateRepository.__init__ começou")  # DEBUG
-
         # Auto-detect if running in Docker or not and adjust connection string
         import os
         is_docker = os.path.exists("/.dockerenv") or os.getenv("DOCKER_CONTAINER") == "true"
@@ -25,22 +23,16 @@ class MongoStateRepository(IStateRepository):
         if not is_docker and "host.docker.internal" in connection_string:
             # Running outside Docker, replace host.docker.internal with localhost
             connection_string = connection_string.replace("host.docker.internal", "localhost")
-            print(f"DEBUG: Detectado execução fora do Docker, usando localhost")  # DEBUG
-
-        print(f"DEBUG: Connection string ajustada: {connection_string}")  # DEBUG
 
         # Add serverSelectionTimeoutMS to avoid hanging
         self.client = MongoClient(connection_string, serverSelectionTimeoutMS=5000)
-        print("DEBUG: MongoClient criado")  # DEBUG
         self.db = self.client[db_name]
         self.agents_collection = self.db["agents"]
         self.history_collection = self.db["history"]
         self.sessions_collection = self.db["sessions"]
-        print("DEBUG: Collections configuradas")  # DEBUG
 
         # Try to create indexes, but don't fail if it doesn't work
         try:
-            print("DEBUG: Criando índices...")  # DEBUG
             # Criar índice TTL na coleção de sessões, se não existir
             self.sessions_collection.create_index("createdAt", expireAfterSeconds=86400)
 
@@ -48,7 +40,6 @@ class MongoStateRepository(IStateRepository):
             self.agents_collection.create_index("agent_id")
             self.history_collection.create_index("agent_id")
             self.sessions_collection.create_index("agent_id")
-            print("DEBUG: Índices criados com sucesso")  # DEBUG
         except Exception as e:
             print(f"⚠️  Aviso: Não foi possível criar índices no MongoDB: {e}")
             print("   O sistema continuará funcionando, mas pode ter performance reduzida")

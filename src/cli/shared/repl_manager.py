@@ -128,6 +128,9 @@ class REPLManager:
         # Define o caminho do histórico dentro do workspace
         history_path = os.path.join('.conductor_workspace', '.repl_history.txt')
 
+        # Garante que o diretório existe
+        os.makedirs(os.path.dirname(history_path), exist_ok=True)
+
         try:
             # Exibe o prompt e aguarda a submissão
             user_input = prompt(
