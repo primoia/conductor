@@ -213,7 +213,7 @@ conductor --validate
 
 ### 🔨 Creating New Agents
 
-#### Method 1: Using AgentCreator_Agent (Recommended)
+**Using AgentCreator_Agent (Recommended)**
 ```bash
 # Interactive agent creation
 conductor --agent AgentCreator_Agent --chat --interactive
@@ -221,44 +221,7 @@ conductor --agent AgentCreator_Agent --chat --interactive
 [AgentCreator_Agent]> exit
 ```
 
-#### Method 2: Manual Creation
-```bash
-# 1. Create agent directory
-mkdir -p .conductor_workspace/agents/MyNewAgent_Agent
-
-# 2. Create definition file
-cat > .conductor_workspace/agents/MyNewAgent_Agent/definition.yaml << 'EOF'
-name: "My New Agent"
-version: "1.0.0"
-author: "Your Name"
-description: "Description of what the agent does"
-capabilities:
-  - capability1
-  - capability2
-tags:
-  - tag1
-  - tag2
-allowed_tools:
-  - file_operations
-  - web_search
-EOF
-
-# 3. Create persona file
-cat > .conductor_workspace/agents/MyNewAgent_Agent/persona.md << 'EOF'
-# Persona: Your Agent
-
-## Description
-Detailed description of agent behavior and specialization.
-
-## Instructions
-- Instruction 1
-- Instruction 2
-- Instruction 3
-EOF
-
-# 4. Verify agent was created correctly
-conductor --info MyNewAgent_Agent
-```
+> **💡 Tip:** For advanced customization and manual configuration, see the [Full Documentation](docs/README.md) and [Agent Design Patterns](docs/guides/AGENT_DESIGN_PATTERNS.md).
 
 ### 📊 Quick Reference
 
