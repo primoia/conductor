@@ -24,7 +24,7 @@ class RepositoryFactory:
         elif repo_type == 'mongodb':
             return MongoDbStorage(
                 connection_string=config.get('connection_string'),
-                db_name=config.get('db_name', 'conductor')
+                db_name=config.get('db_name', 'conductor_state')
             )
         else:
             raise ValueError(f"Tipo de repositório desconhecido: {repo_type}")

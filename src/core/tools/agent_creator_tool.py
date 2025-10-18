@@ -43,7 +43,7 @@ def _create_storage():
 
         # Usar variáveis de ambiente do .env ou config padrão
         connection_string = os.getenv('MONGO_URI', 'mongodb://localhost:27017')
-        db_name = os.getenv('MONGO_DATABASE', 'conductor')
+        db_name = os.getenv('MONGO_DATABASE', 'conductor_state')
 
         logger.info(f"🔗 Conectando MongoDB: {connection_string}")
         logger.info(f"📊 Database: {db_name}")

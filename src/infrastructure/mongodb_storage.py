@@ -15,7 +15,7 @@ class MongoDbStorage(IAgentStorage):
     Trabalha com objetos de domínio e delega a persistência para MongoStateRepository.
     """
 
-    def __init__(self, connection_string: str, db_name: str = "conductor"):
+    def __init__(self, connection_string: str, db_name: str = "conductor_state"):
         self.repository = MongoStateRepository(connection_string, db_name)
 
     def load_definition(self, agent_id: str) -> AgentDefinition:
