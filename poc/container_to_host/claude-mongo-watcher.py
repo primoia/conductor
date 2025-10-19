@@ -19,6 +19,12 @@ except ImportError:
     print("❌ PyMongo não encontrado. Instale com: pip install pymongo")
     sys.exit(1)
 
+try:
+    import requests
+except ImportError:
+    print("❌ Requests não encontrado. Instale com: pip install requests")
+    sys.exit(1)
+
 # Configuração de logging
 logging.basicConfig(
     level=logging.INFO,
@@ -34,7 +40,8 @@ class UniversalMongoWatcher:
     def __init__(self,
                  mongo_uri: str = "mongodb://localhost:27017",
                  database: str = "conductor",
-                 collection: str = "tasks"):
+                 collection: str = "tasks",
+                 gateway_url: str = "http://localhost:5006"):
         """
         Inicializa o watcher MongoDB universal
 
@@ -42,10 +49,12 @@ class UniversalMongoWatcher:
             mongo_uri: URI de conexão MongoDB
             database: Nome do database
             collection: Nome da collection
+            gateway_url: URL do conductor-gateway para atualização de estatísticas
         """
         self.mongo_uri = mongo_uri
         self.database_name = database
         self.collection_name = collection
+        self.gateway_url = gateway_url.rstrip('/')
 
         try:
             self.client = MongoClient(mongo_uri)
@@ -128,6 +137,65 @@ class UniversalMongoWatcher:
             return update_result.modified_count > 0
         except Exception as e:
             logger.error(f"❌ Erro ao completar request: {e}")
+            return False
+
+    def update_agent_statistics(self, instance_id: str, duration_ms: float, exit_code: int) -> bool:
+        """
+        Atualiza as estatísticas de um agente via API do conductor-gateway
+
+        Args:
+            instance_id: ID da instância do agente
+            duration_ms: Duração da execução em milissegundos
+            exit_code: Código de saída (0 = sucesso, outro = erro)
+
+        Returns:
+            bool: True se a atualização foi bem-sucedida
+        """
+        try:
+            url = f"{self.gateway_url}/api/agents/instances/{instance_id}/statistics"
+            payload = {
+                "task_duration": duration_ms,
+                "exit_code": exit_code,
+                "increment_count": True
+            }
+
+            logger.info(f"📊 [STATISTICS] Atualizando estatísticas via API:")
+            logger.info(f"   - URL: {url}")
+            logger.info(f"   - Instance ID: {instance_id}")
+            logger.info(f"   - Duration: {duration_ms}ms")
+            logger.info(f"   - Exit Code: {exit_code}")
+
+            response = requests.patch(url, json=payload, timeout=5)
+
+            if response.status_code == 200:
+                response_data = response.json()
+                stats = response_data.get("statistics", {})
+                logger.info(f"✅ [STATISTICS] Estatísticas atualizadas com sucesso:")
+                logger.info(f"   - Task Count: {stats.get('task_count', 'N/A')}")
+                logger.info(f"   - Total Time: {stats.get('total_execution_time', 'N/A')}ms")
+                logger.info(f"   - Average Time: {stats.get('average_execution_time', 'N/A'):.2f}ms")
+                logger.info(f"   - Success Rate: {stats.get('success_rate', 'N/A'):.1f}%")
+                return True
+            elif response.status_code == 404:
+                logger.warning(f"⚠️ [STATISTICS] Instância não encontrada: {instance_id}")
+                return False
+            else:
+                logger.error(f"❌ [STATISTICS] Erro ao atualizar estatísticas:")
+                logger.error(f"   - Status Code: {response.status_code}")
+                logger.error(f"   - Response: {response.text[:500]}")
+                return False
+
+        except requests.exceptions.Timeout:
+            logger.error(f"⏰ [STATISTICS] Timeout ao atualizar estatísticas para {instance_id}")
+            return False
+        except requests.exceptions.ConnectionError:
+            logger.error(f"🔌 [STATISTICS] Erro de conexão com gateway: {self.gateway_url}")
+            logger.error(f"   - Verifique se o conductor-gateway está rodando")
+            return False
+        except Exception as e:
+            logger.error(f"❌ [STATISTICS] Erro inesperado ao atualizar estatísticas: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return False
 
     def execute_llm_request(self, provider: str, prompt: str, cwd: str,
@@ -248,6 +316,24 @@ class UniversalMongoWatcher:
         """Processar uma task individual"""
         request_id = request["_id"]
         agent_id = request.get("agent_id", "unknown")
+
+        # ========================================================================
+        # 🔍 PROVA EXPLÍCITA: Lendo instance_id da task
+        # ========================================================================
+        logger.info("🔍 [DEBUG] Lendo campos da task do MongoDB:")
+        logger.info(f"   - Task _id: {request_id}")
+        logger.info(f"   - Chaves disponíveis na task: {list(request.keys())}")
+        logger.info(f"   - Campo 'instance_id' existe? {'instance_id' in request}")
+
+        instance_id = request.get("instance_id")  # ID da instância do agente
+
+        logger.info(f"   - instance_id LIDO: {repr(instance_id)}")
+        logger.info(f"   - instance_id TIPO: {type(instance_id)}")
+        logger.info(f"   - instance_id é None? {instance_id is None}")
+        logger.info(f"   - instance_id é truthy? {bool(instance_id)}")
+        logger.info("========================================================================")
+        # ========================================================================
+
         provider = request.get("provider", "claude")
         cwd = request.get("cwd", ".")
         timeout = request.get("timeout", 300)  # ✅ Alinhado com default da API (300s)
@@ -263,7 +349,8 @@ class UniversalMongoWatcher:
         logger.info("=" * 80)
         logger.info(f"📨 PROCESSANDO NOVA TASK")
         logger.info(f"   ID: {request_id}")
-        logger.info(f"   Agent: {agent_id}")
+        logger.info(f"   Agent ID: {agent_id}")
+        logger.info(f"   Instance ID: {instance_id}")
         logger.info(f"   Provider: {provider}")
         logger.info(f"   CWD: {cwd}")
         logger.info(f"   Timeout: {timeout}s")
@@ -291,14 +378,27 @@ class UniversalMongoWatcher:
             status_emoji = "✅" if exit_code == 0 else "❌"
             logger.info(f"{status_emoji} TASK COMPLETADA E SALVA NO MONGODB")
             logger.info(f"   ID: {request_id}")
-            logger.info(f"   Agent: {agent_id}")
+            logger.info(f"   Agent ID: {agent_id}")
+            logger.info(f"   Instance ID: {instance_id}")
             logger.info(f"   Exit code: {exit_code}")
             logger.info(f"   Duração: {duration:.2f}s")
             logger.info(f"   Resultado length: {len(result)} chars")
+
+            # Atualizar estatísticas do agente via API
+            if instance_id:
+                duration_ms = duration * 1000  # Converter segundos para milissegundos
+                stats_updated = self.update_agent_statistics(instance_id, duration_ms, exit_code)
+                if stats_updated:
+                    logger.info(f"📊 Estatísticas do agente atualizadas com sucesso")
+                else:
+                    logger.warning(f"⚠️  Falha ao atualizar estatísticas do agente (não-crítico)")
+            else:
+                logger.warning(f"⚠️  Task não possui instance_id, estatísticas não serão atualizadas")
         else:
             logger.error(f"❌ FALHA AO SALVAR RESULTADO NO MONGODB")
             logger.error(f"   ID: {request_id}")
-            logger.error(f"   Agent: {agent_id}")
+            logger.error(f"   Agent ID: {agent_id}")
+            logger.error(f"   Instance ID: {instance_id}")
         logger.info("=" * 80)
 
         return success
@@ -371,6 +471,8 @@ def main():
                        help="Nome do database")
     parser.add_argument("--collection", default="tasks",
                        help="Nome da collection")
+    parser.add_argument("--gateway-url", default="http://localhost:5006",
+                       help="URL do conductor-gateway para atualização de estatísticas (padrão: porta 5006 do Docker)")
     parser.add_argument("--poll-interval", type=float, default=1.0,
                        help="Intervalo entre verificações (segundos)")
 
@@ -380,7 +482,8 @@ def main():
         watcher = UniversalMongoWatcher(
             mongo_uri=args.mongo_uri,
             database=args.database,
-            collection=args.collection
+            collection=args.collection,
+            gateway_url=args.gateway_url
         )
 
         watcher.run(poll_interval=args.poll_interval)
