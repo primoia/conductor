@@ -199,7 +199,7 @@ class UniversalMongoWatcher:
             return False
 
     def execute_llm_request(self, provider: str, prompt: str, cwd: str,
-                              timeout: int = 300) -> tuple[str, int, float]:
+                              timeout: int = 600) -> tuple[str, int, float]:
         """
         Executar request para LLM (Claude, Gemini ou Cursor-Agent) baseado no provider.
 
@@ -336,7 +336,7 @@ class UniversalMongoWatcher:
 
         provider = request.get("provider", "claude")
         cwd = request.get("cwd", ".")
-        timeout = request.get("timeout", 300)  # ✅ Alinhado com default da API (300s)
+        timeout = request.get("timeout", 600)  # ✅ Alinhado com default da API (600s = 10 minutos)
 
         # Buscar campo 'prompt' com XML completo
         prompt = request.get("prompt", "")

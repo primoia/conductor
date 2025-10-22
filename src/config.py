@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     mongo_collection: str = "agent_states"
 
     # LLM Configuration
-    default_timeout: int = 120
+    default_timeout: int = 600  # 10 minutes timeout for long-running operations
     max_conversation_history: int = 50
 
     # Logging Configuration

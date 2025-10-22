@@ -15,7 +15,7 @@ router = APIRouter(prefix="/agents", tags=["Agents"])
 class AgentExecuteRequest(BaseModel):
     user_input: str
     cwd: str
-    timeout: Optional[int] = 300
+    timeout: Optional[int] = 600  # 10 minutes timeout for long-running operations
     provider: Optional[str] = "claude"
     instance_id: Optional[str] = None  # SAGA-003: Instance ID for isolated context
     context_mode: Optional[str] = "stateless"  # SAGA-003: "stateful" or "stateless"

@@ -80,7 +80,7 @@ while true; do
 
         (
             cd "$cwd" || exit 1
-            timeout 180 $command 2>&1
+            timeout 600 $command 2>&1
         ) > "/tmp/claude-temp-$request_id.txt" 2>&1
 
         exit_code=$?
@@ -101,7 +101,7 @@ while true; do
             echo "✅ Sucesso em ${duration}s"
         elif [ $exit_code -eq 124 ]; then
             status="timeout"
-            result="Comando excedeu tempo limite de 180s"
+            result="Comando excedeu tempo limite de 600s (10 minutos)"
             echo "⏰ Timeout em ${duration}s"
         else
             status="error"

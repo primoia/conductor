@@ -76,7 +76,7 @@ class ConductorExecuteRequest(BaseModel):
 
     # Configurações
     cwd: Optional[str] = None
-    timeout: Optional[int] = 300
+    timeout: Optional[int] = 600  # 10 minutes timeout for long-running operations
     environment: Optional[str] = None
     project: Optional[str] = None
     ai_provider: Optional[str] = None  # AI provider override
@@ -96,7 +96,7 @@ class ConductorExecuteRequest(BaseModel):
     meta: bool = False
     simulate: bool = False
 
-def _execute_conductor_command(args: List[str], cwd: Optional[str] = None, timeout: int = 300) -> Dict[str, Any]:
+def _execute_conductor_command(args: List[str], cwd: Optional[str] = None, timeout: int = 600) -> Dict[str, Any]:
     """
     Executa comando conductor.py de forma genérica.
     """
@@ -312,7 +312,7 @@ def _execute_agent_container_mongodb(request: ConductorExecuteRequest) -> Dict[s
             agent_id=agent_id,
             prompt=full_prompt,
             cwd=request.cwd or "/app",
-            timeout=request.timeout or 300,
+            timeout=request.timeout or 600,
             provider=provider,
             instance_id=request.instance_id  # SAGA-004: Pass instance_id to task
         )
@@ -320,7 +320,7 @@ def _execute_agent_container_mongodb(request: ConductorExecuteRequest) -> Dict[s
         # Aguardar resultado
         result_document = task_client.get_task_result(
             task_id=task_id,
-            timeout=request.timeout or 300
+            timeout=request.timeout or 600
         )
 
         # Extrair resposta do assistente
@@ -430,13 +430,13 @@ def _execute_agent_local_cli(request: ConductorExecuteRequest) -> Dict[str, Any]
         args.append("--interactive")
     if request.debug:
         args.append("--debug")
-    if request.timeout and request.timeout != 300:
+    if request.timeout and request.timeout != 600:
         args.extend(["--timeout", str(request.timeout)])
 
     logger.info(f"Executando via CLI local: conductor.py {' '.join(args[:6])}...")
 
     # Executar via CLI
-    result = _execute_conductor_command(args, request.cwd, request.timeout or 300)
+    result = _execute_conductor_command(args, request.cwd, request.timeout or 600)
     return result
 
 
@@ -462,7 +462,7 @@ def _execute_management_command(request: ConductorExecuteRequest) -> Dict[str, A
         raise HTTPException(status_code=400, detail="Operação não reconhecida")
 
     # Executar comando via CLI
-    result = _execute_conductor_command(args, request.cwd, request.timeout or 300)
+    result = _execute_conductor_command(args, request.cwd, request.timeout or 600)
     return result
 
 @router.get("/agents", summary="List all available agents")
@@ -491,7 +491,7 @@ def execute_agent_legacy(agent_id: str, request_data: Dict[str, Any]):
         # Extrair dados do request antigo
         user_input = request_data.get("user_input", "")
         cwd = request_data.get("cwd")
-        timeout = request_data.get("timeout", 300)
+        timeout = request_data.get("timeout", 600)
 
         # Criar request genérico
         conductor_request = ConductorExecuteRequest(

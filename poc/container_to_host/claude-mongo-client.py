@@ -47,7 +47,7 @@ class ClaudeMongoClient:
             raise
 
     def create_request(self, agent_id: str, command: List[str], cwd: str = ".",
-                      timeout: int = 180, provider: str = "claude") -> ObjectId:
+                      timeout: int = 600, provider: str = "claude") -> ObjectId:
         """
         Criar uma nova task para execução
 
@@ -84,7 +84,7 @@ class ClaudeMongoClient:
         return self.collection.find_one({"_id": request_id})
 
     def wait_for_completion(self, request_id: ObjectId,
-                           timeout: int = 180, poll_interval: float = 0.5) -> Dict:
+                           timeout: int = 600, poll_interval: float = 0.5) -> Dict:
         """
         Aguardar conclusão de um request
 
@@ -129,7 +129,7 @@ class ClaudeMongoClient:
             time.sleep(poll_interval)
 
     def call_claude(self, agent_id: str, command: List[str], cwd: str = ".",
-                   timeout: int = 180, provider: str = "claude") -> Dict:
+                   timeout: int = 600, provider: str = "claude") -> Dict:
         """
         Executar task via agente de forma síncrona (criar task + aguardar resposta)
 
