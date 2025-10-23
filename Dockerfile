@@ -42,4 +42,5 @@ COPY ./src ./src
 RUN mkdir -p ./.conductor_workspace
 
 # Comando para iniciar o servidor FastAPI quando o contêiner rodar
-CMD ["python", "-m", "uvicorn", "src.server:app", "--host", "0.0.0.0", "--port", "8000"]
+# timeout-keep-alive controls how long to wait for clients (10 minutes = 600s)
+CMD ["python", "-m", "uvicorn", "src.server:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-keep-alive", "600"]

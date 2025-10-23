@@ -6,6 +6,8 @@ IMPORTANTE: Inconsistências de timeout podem causar:
 - Cliente aguardando mais tempo que necessário
 - Watcher matando subprocess antes do cliente desistir
 - Experiência de usuário ruim
+
+DEFAULT TIMEOUT: 600s (10 minutos) para operações de IA de longa duração
 """
 import pytest
 
@@ -14,9 +16,9 @@ class TestTimeoutConsistency:
     """Valida que os timeouts defaults estão alinhados."""
 
     @pytest.mark.skip(reason="Requires fastapi dependency - API tests run separately")
-    def test_api_default_timeout_is_300s(self):
+    def test_api_default_timeout_is_600s(self):
         """
-        Valida que o default da API é 300s.
+        Valida que o default da API é 600s (10 minutos).
         """
         from src.api.routes.agents import AgentExecuteRequest
 
@@ -27,11 +29,11 @@ class TestTimeoutConsistency:
             # timeout não fornecido - deve usar default
         )
 
-        assert request.timeout == 300, "API default deve ser 300s"
+        assert request.timeout == 600, "API default deve ser 600s (10 minutos)"
 
-    def test_mongo_task_client_default_timeout_is_300s(self):
+    def test_mongo_task_client_default_timeout_is_600s(self):
         """
-        Valida que o default do MongoTaskClient é 300s.
+        Valida que o default do MongoTaskClient é 600s (10 minutos).
         """
         import inspect
         from src.core.services.mongo_task_client import MongoTaskClient
@@ -40,11 +42,11 @@ class TestTimeoutConsistency:
         sig = inspect.signature(MongoTaskClient.submit_task)
         timeout_param = sig.parameters['timeout']
 
-        assert timeout_param.default == 300, "MongoTaskClient.submit_task default deve ser 300s"
+        assert timeout_param.default == 600, "MongoTaskClient.submit_task default deve ser 600s (10 minutos)"
 
-    def test_get_task_result_default_timeout_is_300s(self):
+    def test_get_task_result_default_timeout_is_600s(self):
         """
-        Valida que o default do get_task_result é 300s.
+        Valida que o default do get_task_result é 600s (10 minutos).
         """
         import inspect
         from src.core.services.mongo_task_client import MongoTaskClient
@@ -53,11 +55,11 @@ class TestTimeoutConsistency:
         sig = inspect.signature(MongoTaskClient.get_task_result)
         timeout_param = sig.parameters['timeout']
 
-        assert timeout_param.default == 300, "get_task_result default deve ser 300s"
+        assert timeout_param.default == 600, "get_task_result default deve ser 600s (10 minutos)"
 
-    def test_watcher_execute_llm_request_default_is_300s(self):
+    def test_watcher_execute_llm_request_default_is_600s(self):
         """
-        Valida que o watcher usa default de 300s.
+        Valida que o watcher usa default de 600s (10 minutos).
         """
         # Ler arquivo do watcher e verificar default
         import re
@@ -71,11 +73,11 @@ class TestTimeoutConsistency:
         assert match, "execute_llm_request deve ter timeout com default"
 
         timeout_default = int(match.group(1))
-        assert timeout_default == 300, f"Watcher execute_llm_request default deve ser 300s, encontrado: {timeout_default}s"
+        assert timeout_default == 600, f"Watcher execute_llm_request default deve ser 600s, encontrado: {timeout_default}s"
 
-    def test_watcher_process_request_fallback_is_300s(self):
+    def test_watcher_process_request_fallback_is_600s(self):
         """
-        Valida que o watcher usa fallback de 300s ao ler do MongoDB.
+        Valida que o watcher usa fallback de 600s (10 minutos) ao ler do MongoDB.
         """
         import re
         from pathlib import Path
@@ -88,7 +90,7 @@ class TestTimeoutConsistency:
         assert match, "process_request deve ter request.get('timeout', DEFAULT)"
 
         timeout_fallback = int(match.group(1))
-        assert timeout_fallback == 300, f"Watcher fallback deve ser 300s, encontrado: {timeout_fallback}s"
+        assert timeout_fallback == 600, f"Watcher fallback deve ser 600s, encontrado: {timeout_fallback}s"
 
 
 class TestTimeoutPropagation:
@@ -190,7 +192,7 @@ class TestPollingIntervals:
         Regra: poll_interval << timeout (pelo menos 100x menor)
         """
         poll_interval = 2.0  # segundos
-        timeout = 300  # segundos
+        timeout = 600  # segundos (10 minutos)
 
         ratio = timeout / poll_interval
         assert ratio >= 100, f"Polling interval deve ser pelo menos 100x menor que timeout (ratio: {ratio})"
@@ -204,18 +206,18 @@ class TestTimeoutDocumentation:
         Lista todos os timeouts defaults para referência.
         """
         timeouts = {
-            "API AgentExecuteRequest": 300,
-            "MongoTaskClient.submit_task": 300,
-            "MongoTaskClient.get_task_result": 300,
-            "Watcher execute_llm_request": 300,
-            "Watcher process_request fallback": 300,
+            "API AgentExecuteRequest": 600,
+            "MongoTaskClient.submit_task": 600,
+            "MongoTaskClient.get_task_result": 600,
+            "Watcher execute_llm_request": 600,
+            "Watcher process_request fallback": 600,
             "Poll interval (client)": 2.0,
         }
 
-        # Validar que todos são consistentes (300s)
+        # Validar que todos são consistentes (600s = 10 minutos)
         timeout_values = [v for k, v in timeouts.items() if "interval" not in k.lower()]
-        assert all(t == 300 for t in timeout_values), \
-            f"Todos os timeouts devem ser 300s: {timeouts}"
+        assert all(t == 600 for t in timeout_values), \
+            f"Todos os timeouts devem ser 600s (10 minutos): {timeouts}"
 
         # Apenas para documentação
         print("\n📊 Timeouts Configurados:")

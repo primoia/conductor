@@ -134,7 +134,7 @@ LOG_LEVEL=INFO
 JSON_LOGGING=true
 ENVIRONMENT=develop
 DEBUG_MODE=false
-DEFAULT_TIMEOUT=120
+DEFAULT_TIMEOUT=600  # 10 minutes for long-running AI operations
 
 # For MongoDB (optional)
 MONGO_URI=mongodb://mongodb:27017/conductor_state
