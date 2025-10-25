@@ -26,7 +26,7 @@ class MongoTaskClient:
             logger.critical(f"❌ Falha ao conectar com MongoDB: {e}")
             raise
 
-    def submit_task(self, agent_id: str, cwd: str, timeout: int = 600, provider: str = "claude", prompt: str = None, instance_id: str = None) -> str:
+    def submit_task(self, agent_id: str, cwd: str, timeout: int = 600, provider: str = "claude", prompt: str = None, instance_id: str = None, is_councilor_execution: bool = False, councilor_config: dict = None) -> str:
         """
         Insere uma nova tarefa na coleção e retorna seu ID.
 
@@ -37,6 +37,8 @@ class MongoTaskClient:
             provider: "claude" ou "gemini"
             prompt: Prompt XML completo (persona + playbook + history + user_input)
             instance_id: ID da instância (SAGA-004: para separação de contextos)
+            is_councilor_execution: Flag indicando se é execução de conselheiro
+            councilor_config: Configuração do conselheiro (se aplicável)
 
         Returns:
             str: ID da task inserida
@@ -72,6 +74,10 @@ class MongoTaskClient:
             "result": "",
             "exit_code": None,
             "duration": None,
+            # Campos específicos para conselheiros
+            "is_councilor_execution": is_councilor_execution,
+            "councilor_config": councilor_config if is_councilor_execution else None,
+            "severity": None,  # Será definido após análise do resultado
         }
 
         result = self.collection.insert_one(task_document)
@@ -110,3 +116,175 @@ class MongoTaskClient:
             time.sleep(poll_interval)
 
         raise TimeoutError(f"⏰ Tempo de espera excedido para a tarefa {task_id}")
+
+    def analyze_severity(self, result: str) -> str:
+        """
+        Analisa o resultado de uma execução para determinar sua severidade.
+
+        Args:
+            result: Resultado da execução (output do agente)
+
+        Returns:
+            str: "success", "warning" ou "error"
+        """
+        if not result:
+            return "success"
+
+        lower_result = result.lower()
+
+        # Palavras-chave que indicam erro
+        error_keywords = ['crítico', 'erro', 'falha', 'critical', 'error', 'fail', 'exception']
+        if any(keyword in lower_result for keyword in error_keywords):
+            return 'error'
+
+        # Palavras-chave que indicam warning
+        warning_keywords = ['alerta', 'atenção', 'warning', 'aviso', 'vulnerab', 'deprecated']
+        if any(keyword in lower_result for keyword in warning_keywords):
+            return 'warning'
+
+        return 'success'
+
+    def update_task_severity(self, task_id: str, severity: str) -> bool:
+        """
+        Atualiza o campo severity de uma task após análise do resultado.
+
+        Args:
+            task_id: ID da task
+            severity: Severidade determinada ("success", "warning", "error")
+
+        Returns:
+            bool: True se atualizado com sucesso
+        """
+        try:
+            result = self.collection.update_one(
+                {"_id": ObjectId(task_id)},
+                {
+                    "$set": {
+                        "severity": severity,
+                        "updated_at": datetime.now(timezone.utc)
+                    }
+                }
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            logger.error(f"❌ Erro ao atualizar severity da task {task_id}: {e}")
+            return False
+
+    def get_councilor_executions(self, agent_id: str, limit: int = 10) -> list:
+        """
+        Obtém execuções recentes de um conselheiro.
+
+        Args:
+            agent_id: ID do agente conselheiro
+            limit: Número máximo de execuções a retornar
+
+        Returns:
+            list: Lista de documentos de execução
+        """
+        try:
+            cursor = self.collection.find({
+                "agent_id": agent_id,
+                "is_councilor_execution": True
+            }).sort("created_at", -1).limit(limit)
+
+            executions = []
+            for doc in cursor:
+                # Converter ObjectId para string
+                doc['_id'] = str(doc['_id'])
+
+                # Converter datetime para ISO string
+                for field in ['created_at', 'updated_at', 'started_at', 'completed_at']:
+                    if field in doc and doc[field]:
+                        doc[field] = doc[field].isoformat()
+
+                # Mapear campos para formato esperado pelo frontend
+                doc['execution_id'] = doc['_id']
+                doc['councilor_id'] = doc['agent_id']
+                doc['started_at'] = doc.get('created_at')
+                doc['output'] = doc.get('result', '')
+                doc['error'] = doc.get('result', '') if doc.get('status') == 'error' else None
+                doc['duration_ms'] = int(doc.get('duration', 0) * 1000) if doc.get('duration') else None
+
+                executions.append(doc)
+
+            return executions
+
+        except Exception as e:
+            logger.error(f"❌ Erro ao buscar execuções do conselheiro {agent_id}: {e}")
+            return []
+
+    def get_councilor_stats(self, agent_id: str) -> dict:
+        """
+        Calcula estatísticas de execução de um conselheiro.
+
+        Args:
+            agent_id: ID do agente conselheiro
+
+        Returns:
+            dict: Estatísticas (total_executions, success_rate, last_execution)
+        """
+        try:
+            # Contar total de execuções
+            total = self.collection.count_documents({
+                "agent_id": agent_id,
+                "is_councilor_execution": True,
+                "status": {"$in": ["completed", "error"]}
+            })
+
+            if total == 0:
+                return {
+                    "total_executions": 0,
+                    "success_rate": 0.0,
+                    "last_execution": None
+                }
+
+            # Contar sucessos (severity = success)
+            successes = self.collection.count_documents({
+                "agent_id": agent_id,
+                "is_councilor_execution": True,
+                "severity": "success"
+            })
+
+            # Calcular taxa de sucesso
+            success_rate = round((successes / total) * 100, 1) if total > 0 else 0.0
+
+            # Buscar última execução
+            last_exec = self.collection.find_one(
+                {"agent_id": agent_id, "is_councilor_execution": True},
+                sort=[("created_at", -1)]
+            )
+
+            last_execution = None
+            if last_exec and 'created_at' in last_exec:
+                last_execution = last_exec['created_at'].isoformat()
+
+            return {
+                "total_executions": total,
+                "success_rate": success_rate,
+                "last_execution": last_execution
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Erro ao calcular stats do conselheiro {agent_id}: {e}")
+            return {
+                "total_executions": 0,
+                "success_rate": 0.0,
+                "last_execution": None
+            }
+
+    def ensure_councilor_indexes(self):
+        """Cria índices para otimizar queries de conselheiros."""
+        try:
+            # Índice composto para queries de conselheiros
+            self.collection.create_index([
+                ("agent_id", 1),
+                ("is_councilor_execution", 1),
+                ("created_at", -1)
+            ])
+
+            # Índice para severity
+            self.collection.create_index("severity")
+
+            logger.info("✅ Índices de conselheiros criados com sucesso.")
+        except Exception as e:
+            logger.warning(f"⚠️ Falha ao criar índices de conselheiros: {e}")
