@@ -1,0 +1,9 @@
+name: "PortfolioAssistant_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "Portfolio assistant that presents professional experience, skills, and projects to visitors in an interactive and engaging way"
+author: "Cezar Fuhr - PrimoIA"
+type: "assistant"
+tags: ["portfolio", "career", "assistant", "public-facing"]
+capabilities: ["present_experience", "discuss_projects", "answer_questions", "professional_introduction"]
+allowed_tools: []
