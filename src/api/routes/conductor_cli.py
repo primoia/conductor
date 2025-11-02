@@ -268,7 +268,7 @@ def _execute_agent_container_mongodb(request: ConductorExecuteRequest) -> Dict[s
         # Caso contrário, usar AgentDiscoveryService (histórico global do agente)
         if request.instance_id:
             logger.info(f"Loading conversation history for instance_id: {request.instance_id}")
-            conversation_history = conversation_service.get_conversation_history(
+            conversation_history = conversation_service.get_conversation_history_legacy(
                 instance_id=request.instance_id,
                 agent_name=agent_id
             )
@@ -374,7 +374,7 @@ def _execute_agent_container_mongodb(request: ConductorExecuteRequest) -> Dict[s
         # Salvar em coleção isolada SE instance_id for fornecido (comportamento adicional)
         if request.instance_id and assistant_response:
             logger.info(f"Also saving to isolated conversation for instance_id: {request.instance_id}")
-            conversation_service.append_to_conversation(
+            conversation_service.append_to_conversation_legacy(
                 instance_id=request.instance_id,
                 agent_name=agent_id,
                 user_message=user_input,

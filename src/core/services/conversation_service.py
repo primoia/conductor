@@ -1,7 +1,14 @@
 # src/core/services/conversation_service.py
 """
-SAGA-003: Serviço para gerenciar conversas com instance_id isolado.
-Permite múltiplas instâncias do mesmo agente com contextos independentes.
+🔥 REFATORAÇÃO: Serviço para gerenciar conversas com conversation_id global.
+
+Este serviço implementa o novo modelo de conversações onde:
+- Uma conversa é independente de agentes específicos
+- Múltiplos agentes podem participar da mesma conversa
+- Histórico é unificado e compartilhado entre agentes
+
+Ref: PLANO_REFATORACAO_CONVERSATION_ID.md
+Data: 2025-11-01
 """
 import logging
 from typing import List, Dict, Any, Optional
@@ -9,6 +16,7 @@ from datetime import datetime
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 import os
+import uuid
 from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
@@ -16,8 +24,14 @@ logger = logging.getLogger(__name__)
 # Carregar variáveis de ambiente
 load_dotenv()
 
+
 class ConversationService:
-    """Gerencia conversas isoladas por instance_id no MongoDB."""
+    """
+    Gerencia conversas com modelo conversation_id global.
+
+    Uma conversa pode ter múltiplos agentes participantes e mantém
+    um histórico unificado de todas as interações.
+    """
 
     def __init__(self):
         """Inicializa conexão com MongoDB."""
@@ -26,30 +40,363 @@ class ConversationService:
 
         self.client = MongoClient(mongo_uri)
         self.db = self.client[db_name]
-        self.conversations = self.db['agent_conversations']
+
+        # 🔥 NOVA COLLECTION: conversations (modelo refatorado)
+        self.conversations = self.db['conversations']
+
+        # 🔄 LEGACY: agent_conversations (manter para compatibilidade na Fase 1-2)
+        self.legacy_conversations = self.db['agent_conversations']
 
         logger.info(f"ConversationService initialized with db: {db_name}")
+        self._ensure_indexes()
 
-    def get_conversation_history(
+    def _ensure_indexes(self):
+        """Cria índices para otimização de queries."""
+        try:
+            # Índice para conversation_id (chave primária)
+            self.conversations.create_index("conversation_id", unique=True)
+
+            # Índice para buscar conversas por participante
+            self.conversations.create_index("participants.agent_id")
+
+            # Índice para ordenação por data
+            self.conversations.create_index("updated_at")
+
+            logger.info("✅ Índices criados na collection conversations")
+        except Exception as e:
+            logger.warning(f"⚠️ Falha ao criar índices: {e}")
+
+    # ==========================================
+    # NOVO MODELO: Conversas Globais
+    # ==========================================
+
+    def create_conversation(
+        self,
+        title: Optional[str] = None,
+        active_agent: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Cria uma nova conversa.
+
+        Args:
+            title: Título da conversa (opcional, será gerado se não fornecido)
+            active_agent: Metadados do agente inicial {agent_id, instance_id, name, emoji}
+
+        Returns:
+            str: conversation_id (UUID)
+        """
+        conversation_id = str(uuid.uuid4())
+        timestamp = datetime.utcnow().isoformat()
+
+        # Gerar título padrão se não fornecido
+        if not title:
+            title = f"Conversa {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}"
+
+        conversation_doc = {
+            "conversation_id": conversation_id,
+            "title": title,
+            "created_at": timestamp,
+            "updated_at": timestamp,
+            "active_agent": active_agent,
+            "participants": [active_agent] if active_agent else [],
+            "messages": []
+        }
+
+        try:
+            self.conversations.insert_one(conversation_doc)
+            logger.info(f"✅ Conversa criada: {conversation_id} - '{title}'")
+            return conversation_id
+        except DuplicateKeyError:
+            logger.error(f"❌ Conversation ID já existe: {conversation_id}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Erro ao criar conversa: {e}", exc_info=True)
+            raise
+
+    def get_conversation_by_id(self, conversation_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtém uma conversa pelo ID.
+
+        Args:
+            conversation_id: ID da conversa
+
+        Returns:
+            Dict com dados da conversa ou None se não encontrada
+        """
+        try:
+            conversation = self.conversations.find_one(
+                {"conversation_id": conversation_id},
+                {"_id": 0}  # Não retornar _id do MongoDB
+            )
+
+            if conversation:
+                logger.info(f"📖 Conversa encontrada: {conversation_id} ({len(conversation.get('messages', []))} mensagens)")
+            else:
+                logger.warning(f"⚠️ Conversa não encontrada: {conversation_id}")
+
+            return conversation
+        except Exception as e:
+            logger.error(f"❌ Erro ao buscar conversa: {e}", exc_info=True)
+            return None
+
+    def add_message(
+        self,
+        conversation_id: str,
+        user_input: Optional[str] = None,
+        agent_response: Optional[str] = None,
+        agent_info: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Adiciona uma ou mais mensagens à conversa.
+
+        Args:
+            conversation_id: ID da conversa
+            user_input: Mensagem do usuário (opcional)
+            agent_response: Resposta do agente (opcional)
+            agent_info: Metadados do agente {agent_id, instance_id, name, emoji}
+
+        Returns:
+            bool: True se adicionado com sucesso
+        """
+        try:
+            timestamp = datetime.utcnow().isoformat()
+            new_messages = []
+
+            # Adicionar mensagem do usuário
+            if user_input:
+                new_messages.append({
+                    "id": str(uuid.uuid4()),
+                    "type": "user",
+                    "content": user_input,
+                    "timestamp": timestamp
+                })
+
+            # Adicionar resposta do agente
+            if agent_response and agent_info:
+                new_messages.append({
+                    "id": str(uuid.uuid4()),
+                    "type": "bot",
+                    "content": agent_response,
+                    "timestamp": timestamp,
+                    "agent": {
+                        "agent_id": agent_info.get("agent_id"),
+                        "instance_id": agent_info.get("instance_id"),
+                        "name": agent_info.get("name"),
+                        "emoji": agent_info.get("emoji")
+                    }
+                })
+
+                # Adicionar agente aos participantes se ainda não estiver
+                self._add_participant(conversation_id, agent_info)
+
+            if not new_messages:
+                logger.warning(f"⚠️ Nenhuma mensagem para adicionar")
+                return False
+
+            # Atualizar conversa
+            result = self.conversations.update_one(
+                {"conversation_id": conversation_id},
+                {
+                    "$push": {"messages": {"$each": new_messages}},
+                    "$set": {"updated_at": timestamp}
+                }
+            )
+
+            if result.matched_count == 0:
+                logger.error(f"❌ Conversa não encontrada: {conversation_id}")
+                return False
+
+            logger.info(f"✅ Adicionadas {len(new_messages)} mensagens à conversa {conversation_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Erro ao adicionar mensagem: {e}", exc_info=True)
+            return False
+
+    def set_active_agent(
+        self,
+        conversation_id: str,
+        agent_info: Dict[str, Any]
+    ) -> bool:
+        """
+        Define o agente ativo para a próxima resposta.
+
+        Args:
+            conversation_id: ID da conversa
+            agent_info: Metadados do agente {agent_id, instance_id, name, emoji}
+
+        Returns:
+            bool: True se atualizado com sucesso
+        """
+        try:
+            timestamp = datetime.utcnow().isoformat()
+
+            result = self.conversations.update_one(
+                {"conversation_id": conversation_id},
+                {
+                    "$set": {
+                        "active_agent": agent_info,
+                        "updated_at": timestamp
+                    }
+                }
+            )
+
+            if result.matched_count == 0:
+                logger.error(f"❌ Conversa não encontrada: {conversation_id}")
+                return False
+
+            logger.info(f"✅ Agente ativo atualizado: {agent_info.get('name')} ({agent_info.get('agent_id')})")
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Erro ao atualizar agente ativo: {e}", exc_info=True)
+            return False
+
+    def _add_participant(self, conversation_id: str, agent_info: Dict[str, Any]):
+        """
+        Adiciona um agente à lista de participantes se ainda não estiver presente.
+
+        Args:
+            conversation_id: ID da conversa
+            agent_info: Metadados do agente
+        """
+        try:
+            # Verificar se agente já está nos participantes
+            conversation = self.conversations.find_one(
+                {
+                    "conversation_id": conversation_id,
+                    "participants.agent_id": agent_info.get("agent_id")
+                }
+            )
+
+            if conversation:
+                # Agente já é participante
+                return
+
+            # Adicionar agente aos participantes
+            self.conversations.update_one(
+                {"conversation_id": conversation_id},
+                {"$push": {"participants": agent_info}}
+            )
+
+            logger.info(f"✅ Participante adicionado: {agent_info.get('name')}")
+
+        except Exception as e:
+            logger.error(f"❌ Erro ao adicionar participante: {e}", exc_info=True)
+
+    def get_conversation_messages(
+        self,
+        conversation_id: str,
+        limit: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Obtém as mensagens de uma conversa.
+
+        Args:
+            conversation_id: ID da conversa
+            limit: Limitar número de mensagens retornadas (mais recentes)
+
+        Returns:
+            Lista de mensagens
+        """
+        try:
+            conversation = self.get_conversation_by_id(conversation_id)
+
+            if not conversation:
+                return []
+
+            messages = conversation.get("messages", [])
+
+            if limit and limit > 0:
+                messages = messages[-limit:]
+
+            return messages
+
+        except Exception as e:
+            logger.error(f"❌ Erro ao obter mensagens: {e}", exc_info=True)
+            return []
+
+    def list_conversations(
+        self,
+        limit: int = 20,
+        skip: int = 0
+    ) -> List[Dict[str, Any]]:
+        """
+        Lista conversas recentes.
+
+        Args:
+            limit: Número máximo de conversas a retornar
+            skip: Número de conversas a pular (paginação)
+
+        Returns:
+            Lista de conversas
+        """
+        try:
+            conversations = list(
+                self.conversations
+                .find({}, {"_id": 0})
+                .sort("updated_at", -1)
+                .skip(skip)
+                .limit(limit)
+            )
+
+            logger.info(f"📋 Listadas {len(conversations)} conversas")
+            return conversations
+
+        except Exception as e:
+            logger.error(f"❌ Erro ao listar conversas: {e}", exc_info=True)
+            return []
+
+    def delete_conversation(self, conversation_id: str) -> bool:
+        """
+        Deleta uma conversa.
+
+        Args:
+            conversation_id: ID da conversa
+
+        Returns:
+            bool: True se deletada com sucesso
+        """
+        try:
+            result = self.conversations.delete_one({"conversation_id": conversation_id})
+
+            if result.deleted_count > 0:
+                logger.info(f"🗑️ Conversa deletada: {conversation_id}")
+                return True
+            else:
+                logger.warning(f"⚠️ Conversa não encontrada para deletar: {conversation_id}")
+                return False
+
+        except Exception as e:
+            logger.error(f"❌ Erro ao deletar conversa: {e}", exc_info=True)
+            return False
+
+    # ==========================================
+    # LEGACY: Compatibilidade com modelo antigo
+    # ==========================================
+
+    def get_conversation_history_legacy(
         self,
         instance_id: str,
         agent_name: str
     ) -> List[Dict[str, Any]]:
         """
-        Recupera o histórico de conversa para uma instância específica.
+        🔄 LEGACY: Recupera histórico no formato antigo (agent_conversations).
+
+        Este método será removido na Fase 4 após migração completa.
 
         Args:
             instance_id: ID único da instância do agente
             agent_name: Nome do agente
 
         Returns:
-            Lista de mensagens no formato [{"role": "user", "content": "...", "timestamp": "..."}]
+            Lista de mensagens no formato antigo
         """
         try:
-            doc = self.conversations.find_one({"instance_id": instance_id})
+            doc = self.legacy_conversations.find_one({"instance_id": instance_id})
 
             if not doc:
-                logger.info(f"No conversation history found for instance_id: {instance_id}")
+                logger.info(f"No legacy history found for instance_id: {instance_id}")
                 return []
 
             # Validar que o agente corresponde
@@ -61,14 +408,14 @@ class ConversationService:
                 return []
 
             history = doc.get("conversation_history", [])
-            logger.info(f"Retrieved {len(history)} messages for instance {instance_id}")
+            logger.info(f"Retrieved {len(history)} messages from legacy for instance {instance_id}")
             return history
 
         except Exception as e:
-            logger.error(f"Error retrieving conversation history: {e}")
+            logger.error(f"Error retrieving legacy conversation history: {e}")
             return []
 
-    def append_to_conversation(
+    def append_to_conversation_legacy(
         self,
         instance_id: str,
         agent_name: str,
@@ -76,21 +423,13 @@ class ConversationService:
         assistant_response: str
     ) -> bool:
         """
-        Adiciona uma nova interação ao histórico da conversa.
+        🔄 LEGACY: Adiciona mensagem no formato antigo (agent_conversations).
 
-        Args:
-            instance_id: ID único da instância
-            agent_name: Nome do agente
-            user_message: Mensagem do usuário
-            assistant_response: Resposta do assistente
-
-        Returns:
-            True se salvou com sucesso, False caso contrário
+        Este método será removido na Fase 4 após migração completa.
         """
         try:
             timestamp = datetime.utcnow().isoformat()
 
-            # Criar as mensagens
             new_messages = [
                 {
                     "role": "user",
@@ -105,7 +444,7 @@ class ConversationService:
             ]
 
             # Tentar atualizar documento existente
-            result = self.conversations.update_one(
+            result = self.legacy_conversations.update_one(
                 {"instance_id": instance_id},
                 {
                     "$push": {
@@ -122,7 +461,7 @@ class ConversationService:
 
             # Se não existir, criar novo documento
             if result.matched_count == 0:
-                logger.info(f"Creating new conversation for instance {instance_id}")
+                logger.info(f"Creating new legacy conversation for instance {instance_id}")
                 doc = {
                     "instance_id": instance_id,
                     "agent_name": agent_name,
@@ -135,12 +474,10 @@ class ConversationService:
                 }
 
                 try:
-                    self.conversations.insert_one(doc)
-                    logger.info(f"Created new conversation for instance {instance_id}")
+                    self.legacy_conversations.insert_one(doc)
                 except DuplicateKeyError:
-                    # Race condition: outro processo criou entre nosso check e insert
-                    # Tentar novamente o update
-                    self.conversations.update_one(
+                    # Race condition: tentar update novamente
+                    self.legacy_conversations.update_one(
                         {"instance_id": instance_id},
                         {
                             "$push": {
@@ -155,47 +492,9 @@ class ConversationService:
                         }
                     )
 
-            logger.info(f"Appended conversation for instance {instance_id}")
+            logger.info(f"Appended to legacy conversation for instance {instance_id}")
             return True
 
         except Exception as e:
-            logger.error(f"Error appending to conversation: {e}")
+            logger.error(f"Error appending to legacy conversation: {e}")
             return False
-
-    def clear_conversation(self, instance_id: str) -> bool:
-        """
-        Limpa o histórico de uma conversa específica.
-
-        Args:
-            instance_id: ID único da instância
-
-        Returns:
-            True se limpou com sucesso, False caso contrário
-        """
-        try:
-            result = self.conversations.delete_one({"instance_id": instance_id})
-            logger.info(f"Cleared conversation for instance {instance_id} (deleted: {result.deleted_count})")
-            return True
-        except Exception as e:
-            logger.error(f"Error clearing conversation: {e}")
-            return False
-
-    def get_conversation_metadata(self, instance_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Recupera apenas os metadados de uma conversa.
-
-        Args:
-            instance_id: ID único da instância
-
-        Returns:
-            Dict com metadados ou None se não encontrar
-        """
-        try:
-            doc = self.conversations.find_one(
-                {"instance_id": instance_id},
-                {"metadata": 1, "agent_name": 1, "_id": 0}
-            )
-            return doc
-        except Exception as e:
-            logger.error(f"Error retrieving metadata: {e}")
-            return None
