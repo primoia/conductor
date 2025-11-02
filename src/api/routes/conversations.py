@@ -39,6 +39,7 @@ class CreateConversationRequest(BaseModel):
     """Request para criar nova conversa."""
     title: Optional[str] = Field(None, description="Título da conversa")
     active_agent: Optional[AgentInfo] = Field(None, description="Agente inicial")
+    screenplay_id: Optional[str] = Field(None, description="ID do roteiro ao qual esta conversa pertence")
 
 
 class CreateConversationResponse(BaseModel):
@@ -78,6 +79,7 @@ class ConversationDetail(BaseModel):
     active_agent: Optional[Dict[str, Any]]
     participants: List[Dict[str, Any]]
     messages: List[Dict[str, Any]]
+    screenplay_id: Optional[str] = None
 
 
 class ConversationSummary(BaseModel):
@@ -88,6 +90,7 @@ class ConversationSummary(BaseModel):
     updated_at: str
     message_count: int
     participant_count: int
+    screenplay_id: Optional[str] = None
 
 
 # ==========================================
@@ -110,7 +113,8 @@ def create_conversation(request: CreateConversationRequest):
 
         conversation_id = conversation_service.create_conversation(
             title=request.title,
-            active_agent=agent_info_dict
+            active_agent=agent_info_dict,
+            screenplay_id=request.screenplay_id
         )
 
         # Buscar conversa criada para retornar dados completos
@@ -231,7 +235,8 @@ def set_active_agent(
 @router.get("/", summary="Listar conversas")
 def list_conversations(
     limit: int = Query(20, ge=1, le=100, description="Número de conversas a retornar"),
-    skip: int = Query(0, ge=0, description="Número de conversas a pular (paginação)")
+    skip: int = Query(0, ge=0, description="Número de conversas a pular (paginação)"),
+    screenplay_id: Optional[str] = Query(None, description="Filtrar conversas por roteiro")
 ):
     """
     Lista conversas recentes.
@@ -239,12 +244,13 @@ def list_conversations(
     Args:
         limit: Número máximo de conversas
         skip: Paginação (offset)
+        screenplay_id: Opcional, filtrar conversas de um roteiro específico
 
     Returns:
         Lista de conversas com sumários
     """
     try:
-        conversations = conversation_service.list_conversations(limit=limit, skip=skip)
+        conversations = conversation_service.list_conversations(limit=limit, skip=skip, screenplay_id=screenplay_id)
 
         # Mapear para sumários
         summaries = []
@@ -255,7 +261,8 @@ def list_conversations(
                 created_at=conv['created_at'],
                 updated_at=conv['updated_at'],
                 message_count=len(conv.get('messages', [])),
-                participant_count=len(conv.get('participants', []))
+                participant_count=len(conv.get('participants', [])),
+                screenplay_id=conv.get('screenplay_id')
             ))
 
         return {
@@ -326,3 +333,116 @@ def get_conversation_messages(
     except Exception as e:
         logger.error(f"❌ Erro ao obter mensagens: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erro ao obter mensagens: {str(e)}")
+
+
+@router.post("/migrate-screenplays", summary="Migrar roteiros antigos para ter conversas")
+def migrate_screenplays_to_conversations():
+    """
+    Endpoint de migração para normalizar roteiros antigos.
+
+    Para cada roteiro no banco:
+    1. Verifica se já tem conversa vinculada
+    2. Se não tiver, cria uma conversa default
+    3. Atualiza agent_instances para incluir conversation_id
+
+    Returns:
+        Estatísticas da migração
+    """
+    try:
+        from pymongo import MongoClient
+        from datetime import datetime
+        import os
+        import uuid
+
+        # Conectar ao MongoDB
+        mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017')
+        db_name = os.getenv('MONGO_DATABASE', 'conductor_state')
+        client = MongoClient(mongo_uri)
+        db = client[db_name]
+
+        screenplays_collection = db['screenplays']
+        conversations_collection = db['conversations']
+        agent_instances_collection = db['agent_instances']
+
+        stats = {
+            "screenplays_processed": 0,
+            "conversations_created": 0,
+            "agent_instances_updated": 0,
+            "errors": []
+        }
+
+        # Buscar todos os roteiros
+        screenplays = list(screenplays_collection.find({}, {"_id": 1, "name": 1}))
+        logger.info(f"🔄 [MIGRATION] Encontrados {len(screenplays)} roteiros para processar")
+
+        for screenplay in screenplays:
+            screenplay_id = str(screenplay['_id'])
+            screenplay_name = screenplay.get('name', 'Sem nome')
+
+            try:
+                stats["screenplays_processed"] += 1
+
+                # Verificar se já existe conversa para esse roteiro
+                existing_conversation = conversations_collection.find_one({
+                    "screenplay_id": screenplay_id
+                })
+
+                conversation_id = None
+
+                if existing_conversation:
+                    # Já tem conversa
+                    conversation_id = existing_conversation['conversation_id']
+                    logger.info(f"✅ [MIGRATION] Roteiro '{screenplay_name}' já tem conversa: {conversation_id}")
+                else:
+                    # Criar conversa default
+                    conversation_id = str(uuid.uuid4())
+                    timestamp = datetime.utcnow().isoformat()
+
+                    conversation_doc = {
+                        "conversation_id": conversation_id,
+                        "title": f"Conversa - {screenplay_name}",
+                        "created_at": timestamp,
+                        "updated_at": timestamp,
+                        "active_agent": None,
+                        "participants": [],
+                        "messages": [],
+                        "screenplay_id": screenplay_id
+                    }
+
+                    conversations_collection.insert_one(conversation_doc)
+                    stats["conversations_created"] += 1
+                    logger.info(f"✅ [MIGRATION] Conversa criada para roteiro '{screenplay_name}': {conversation_id}")
+
+                # Atualizar agent_instances que pertencem a esse roteiro mas não têm conversation_id
+                update_result = agent_instances_collection.update_many(
+                    {
+                        "screenplay_id": screenplay_id,
+                        "$or": [
+                            {"conversation_id": {"$exists": False}},
+                            {"conversation_id": None}
+                        ]
+                    },
+                    {
+                        "$set": {"conversation_id": conversation_id}
+                    }
+                )
+
+                if update_result.modified_count > 0:
+                    stats["agent_instances_updated"] += update_result.modified_count
+                    logger.info(f"✅ [MIGRATION] Atualizados {update_result.modified_count} agent_instances do roteiro '{screenplay_name}'")
+
+            except Exception as e:
+                error_msg = f"Erro ao processar roteiro '{screenplay_name}': {str(e)}"
+                stats["errors"].append(error_msg)
+                logger.error(f"❌ [MIGRATION] {error_msg}")
+
+        logger.info(f"🎉 [MIGRATION] Migração concluída: {stats}")
+        return {
+            "success": True,
+            "message": "Migração concluída com sucesso",
+            "stats": stats
+        }
+
+    except Exception as e:
+        logger.error(f"❌ [MIGRATION] Erro fatal na migração: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro na migração: {str(e)}")

@@ -62,6 +62,9 @@ class ConversationService:
             # Índice para ordenação por data
             self.conversations.create_index("updated_at")
 
+            # Índice para buscar conversas por screenplay_id
+            self.conversations.create_index("screenplay_id")
+
             logger.info("✅ Índices criados na collection conversations")
         except Exception as e:
             logger.warning(f"⚠️ Falha ao criar índices: {e}")
@@ -73,7 +76,8 @@ class ConversationService:
     def create_conversation(
         self,
         title: Optional[str] = None,
-        active_agent: Optional[Dict[str, Any]] = None
+        active_agent: Optional[Dict[str, Any]] = None,
+        screenplay_id: Optional[str] = None
     ) -> str:
         """
         Cria uma nova conversa.
@@ -81,6 +85,7 @@ class ConversationService:
         Args:
             title: Título da conversa (opcional, será gerado se não fornecido)
             active_agent: Metadados do agente inicial {agent_id, instance_id, name, emoji}
+            screenplay_id: ID do roteiro ao qual esta conversa pertence (opcional)
 
         Returns:
             str: conversation_id (UUID)
@@ -99,7 +104,8 @@ class ConversationService:
             "updated_at": timestamp,
             "active_agent": active_agent,
             "participants": [active_agent] if active_agent else [],
-            "messages": []
+            "messages": [],
+            "screenplay_id": screenplay_id
         }
 
         try:
@@ -319,7 +325,8 @@ class ConversationService:
     def list_conversations(
         self,
         limit: int = 20,
-        skip: int = 0
+        skip: int = 0,
+        screenplay_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Lista conversas recentes.
@@ -327,20 +334,26 @@ class ConversationService:
         Args:
             limit: Número máximo de conversas a retornar
             skip: Número de conversas a pular (paginação)
+            screenplay_id: Filtrar conversas por roteiro (opcional)
 
         Returns:
             Lista de conversas
         """
         try:
+            # Construir filtro
+            query_filter = {}
+            if screenplay_id:
+                query_filter["screenplay_id"] = screenplay_id
+
             conversations = list(
                 self.conversations
-                .find({}, {"_id": 0})
+                .find(query_filter, {"_id": 0})
                 .sort("updated_at", -1)
                 .skip(skip)
                 .limit(limit)
             )
 
-            logger.info(f"📋 Listadas {len(conversations)} conversas")
+            logger.info(f"📋 Listadas {len(conversations)} conversas" + (f" para screenplay {screenplay_id}" if screenplay_id else ""))
             return conversations
 
         except Exception as e:
