@@ -3,12 +3,14 @@ from fastapi import APIRouter, HTTPException, Path
 from typing import List, Dict, Any
 from pydantic import BaseModel
 from typing import Optional
+import logging
 
 # Importar da arquitetura existente
 from src.container import container  # Usar instância global do container DI
 from src.api.models import AgentListResponse, AgentSummary, AgentDetailResponse, ValidationResult
 from src.core.services.mongo_task_client import MongoTaskClient
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/agents", tags=["Agents"])
 
 # Modelo existente do server.py
@@ -180,3 +182,51 @@ def execute_agent(agent_id: str, request: AgentExecuteRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/history/{history_id}/delete", summary="Marcar mensagem do histórico como deletada")
+def soft_delete_history_message(history_id: str = Path(..., description="ID da mensagem (_id do MongoDB)")):
+    """
+    Marca uma mensagem do histórico como deletada (soft delete).
+
+    A mensagem não é removida do banco, mas recebe o campo isDeleted: true,
+    fazendo com que seja excluída do prompt montado pelo PromptEngine.
+
+    Args:
+        history_id: ID único da mensagem (_id do MongoDB)
+
+    Returns:
+        Objeto com success: true/false e message
+    """
+    try:
+        storage_service = container.get_storage_service()
+        repository = storage_service.get_repository()
+
+        # Atualizar documento com isDeleted: true
+        result = repository.history_collection.update_one(
+            {"_id": history_id},
+            {"$set": {"isDeleted": True}}
+        )
+
+        if result.matched_count == 0:
+            logger.warning(f"Mensagem com _id {history_id} não encontrada")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Mensagem com ID '{history_id}' não encontrada no histórico"
+            )
+
+        logger.info(f"✅ Mensagem {history_id} marcada como deletada (soft delete)")
+
+        return {
+            "success": True,
+            "message": f"Mensagem {history_id} marcada como deletada",
+            "history_id": history_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao marcar mensagem como deletada: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao marcar mensagem como deletada: {str(e)}"
+        )

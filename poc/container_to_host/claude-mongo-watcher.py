@@ -2,6 +2,8 @@
 """
 Universal MongoDB Watcher - Monitora requests de LLMs via MongoDB
 Roda na sua sessão autenticada e executa comandos claude, gemini ou cursor-agent
+
+VERSÃO PARALELIZADA - Suporta execução simultânea de múltiplas tasks
 """
 
 import os
@@ -9,8 +11,12 @@ import sys
 import time
 import subprocess
 import logging
+import signal
+import threading
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
+from concurrent.futures import ThreadPoolExecutor, Future
+from collections import defaultdict
 
 try:
     from pymongo import MongoClient
@@ -41,20 +47,54 @@ class UniversalMongoWatcher:
                  mongo_uri: str = "mongodb://localhost:27017",
                  database: str = "conductor",
                  collection: str = "tasks",
-                 gateway_url: str = "http://localhost:5006"):
+                 gateway_url: str = "http://localhost:5006",
+                 max_workers: int = 5,
+                 fifo_mode: str = "per_agent"):
         """
-        Inicializa o watcher MongoDB universal
+        Inicializa o watcher MongoDB universal com suporte a paralelização
 
         Args:
             mongo_uri: URI de conexão MongoDB
             database: Nome do database
             collection: Nome da collection
             gateway_url: URL do conductor-gateway para atualização de estatísticas
+            max_workers: Número máximo de workers paralelos (padrão: 5)
+            fifo_mode: Modo FIFO - "strict" (uma task por vez), "per_agent" (FIFO por agente),
+                      "relaxed" (qualquer task pendente). Padrão: "per_agent"
         """
         self.mongo_uri = mongo_uri
         self.database_name = database
         self.collection_name = collection
         self.gateway_url = gateway_url.rstrip('/')
+        self.max_workers = max_workers
+        self.fifo_mode = fifo_mode
+
+        # Controle de paralelização
+        self.executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="TaskWorker")
+        self.active_futures: Set[Future] = set()
+        self.futures_lock = threading.Lock()
+
+        # Controle FIFO por agente
+        self.agent_locks: Dict[str, threading.Lock] = defaultdict(threading.Lock)
+        self.processing_agents: Set[str] = set()
+        self.processing_agents_lock = threading.Lock()
+
+        # Métricas de paralelização
+        self.metrics = {
+            "total_tasks_processed": 0,
+            "total_tasks_failed": 0,
+            "total_execution_time": 0.0,
+            "concurrent_tasks_count": 0,
+            "max_concurrent_tasks": 0,
+            "tasks_by_agent": defaultdict(int),
+            "errors_by_agent": defaultdict(int)
+        }
+        self.metrics_lock = threading.Lock()
+
+        # Controle de shutdown
+        self.shutdown_requested = False
+        signal.signal(signal.SIGTERM, self._signal_handler)
+        signal.signal(signal.SIGINT, self._signal_handler)
 
         try:
             self.client = MongoClient(mongo_uri)
@@ -81,12 +121,106 @@ class UniversalMongoWatcher:
             # Índice para created_at (para ordenação)
             self.collection.create_index("created_at")
 
+            # Índice composto para queries otimizadas (agent_id + status + created_at)
+            self.collection.create_index([("agent_id", 1), ("status", 1), ("created_at", 1)])
+
             # TTL Index para limpeza automática após 24h
             self.collection.create_index("created_at", expireAfterSeconds=86400)
 
             logger.info("📊 Índices MongoDB criados/verificados")
         except Exception as e:
             logger.warning(f"⚠️  Erro ao criar índices: {e}")
+
+    def _signal_handler(self, signum, frame):
+        """Handler para sinais de shutdown (SIGTERM, SIGINT)"""
+        logger.info(f"🛑 Sinal {signum} recebido. Iniciando graceful shutdown...")
+        self.shutdown_requested = True
+
+    def _can_process_agent(self, agent_id: str) -> bool:
+        """
+        Verifica se podemos processar uma task deste agente baseado no modo FIFO
+
+        Args:
+            agent_id: ID do agente
+
+        Returns:
+            bool: True se pode processar, False caso contrário
+        """
+        if self.fifo_mode == "strict":
+            # Modo strict: apenas uma task por vez em todo o sistema
+            with self.processing_agents_lock:
+                return len(self.processing_agents) == 0
+
+        elif self.fifo_mode == "per_agent":
+            # Modo per_agent: uma task por agente
+            with self.processing_agents_lock:
+                return agent_id not in self.processing_agents
+
+        else:  # "relaxed"
+            # Modo relaxed: sem restrição FIFO
+            return True
+
+    def _mark_agent_processing(self, agent_id: str):
+        """Marca um agente como processando"""
+        with self.processing_agents_lock:
+            self.processing_agents.add(agent_id)
+            with self.metrics_lock:
+                self.metrics["concurrent_tasks_count"] += 1
+                if self.metrics["concurrent_tasks_count"] > self.metrics["max_concurrent_tasks"]:
+                    self.metrics["max_concurrent_tasks"] = self.metrics["concurrent_tasks_count"]
+
+    def _unmark_agent_processing(self, agent_id: str):
+        """Remove marca de processamento de um agente"""
+        with self.processing_agents_lock:
+            self.processing_agents.discard(agent_id)
+            with self.metrics_lock:
+                self.metrics["concurrent_tasks_count"] = max(0, self.metrics["concurrent_tasks_count"] - 1)
+
+    def _update_metrics(self, agent_id: str, success: bool, duration: float):
+        """Atualiza métricas de execução"""
+        with self.metrics_lock:
+            self.metrics["total_tasks_processed"] += 1
+            if not success:
+                self.metrics["total_tasks_failed"] += 1
+                self.metrics["errors_by_agent"][agent_id] += 1
+            self.metrics["total_execution_time"] += duration
+            self.metrics["tasks_by_agent"][agent_id] += 1
+
+    def get_metrics(self) -> Dict:
+        """Retorna métricas atuais"""
+        with self.metrics_lock:
+            return {
+                **self.metrics,
+                "tasks_by_agent": dict(self.metrics["tasks_by_agent"]),
+                "errors_by_agent": dict(self.metrics["errors_by_agent"]),
+                "average_execution_time": (
+                    self.metrics["total_execution_time"] / self.metrics["total_tasks_processed"]
+                    if self.metrics["total_tasks_processed"] > 0 else 0
+                ),
+                "success_rate": (
+                    100 * (self.metrics["total_tasks_processed"] - self.metrics["total_tasks_failed"])
+                    / self.metrics["total_tasks_processed"]
+                    if self.metrics["total_tasks_processed"] > 0 else 100
+                )
+            }
+
+    def log_metrics(self):
+        """Imprime métricas no log"""
+        metrics = self.get_metrics()
+        logger.info("=" * 80)
+        logger.info("📊 MÉTRICAS DE PARALELIZAÇÃO")
+        logger.info("=" * 80)
+        logger.info(f"   Total de tasks processadas: {metrics['total_tasks_processed']}")
+        logger.info(f"   Total de tasks com erro: {metrics['total_tasks_failed']}")
+        logger.info(f"   Taxa de sucesso: {metrics['success_rate']:.1f}%")
+        logger.info(f"   Tempo total de execução: {metrics['total_execution_time']:.2f}s")
+        logger.info(f"   Tempo médio por task: {metrics['average_execution_time']:.2f}s")
+        logger.info(f"   Tasks concorrentes agora: {metrics['concurrent_tasks_count']}")
+        logger.info(f"   Pico de tasks simultâneas: {metrics['max_concurrent_tasks']}")
+        logger.info(f"   Tasks por agente: {dict(metrics['tasks_by_agent'])}")
+        if metrics['errors_by_agent']:
+            logger.info(f"   Erros por agente: {dict(metrics['errors_by_agent'])}")
+        logger.info("=" * 80)
 
     def get_pending_requests(self) -> List[Dict]:
         """Buscar requests pendentes"""
@@ -312,15 +446,45 @@ class UniversalMongoWatcher:
             logger.error(traceback.format_exc())
             return f"Erro na execução: {str(e)}", 1, duration
 
+    def _process_request_wrapper(self, request: Dict):
+        """
+        Wrapper para processar task com controle de agente e métricas
+        Executado dentro de uma thread do ThreadPoolExecutor
+        """
+        agent_id = request.get("agent_id", "unknown")
+        thread_name = threading.current_thread().name
+
+        try:
+            # Marcar agente como processando
+            self._mark_agent_processing(agent_id)
+            logger.info(f"🚀 [{thread_name}] Iniciando processamento da task do agente {agent_id}")
+
+            # Processar a task
+            success = self.process_request(request)
+
+            return success
+
+        except Exception as e:
+            logger.error(f"❌ [{thread_name}] Erro ao processar task: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return False
+
+        finally:
+            # Desmarcar agente
+            self._unmark_agent_processing(agent_id)
+            logger.info(f"🏁 [{thread_name}] Finalizou processamento do agente {agent_id}")
+
     def process_request(self, request: Dict) -> bool:
         """Processar uma task individual"""
         request_id = request["_id"]
         agent_id = request.get("agent_id", "unknown")
+        thread_name = threading.current_thread().name
 
         # ========================================================================
         # 🔍 PROVA EXPLÍCITA: Lendo instance_id da task
         # ========================================================================
-        logger.info("🔍 [DEBUG] Lendo campos da task do MongoDB:")
+        logger.info(f"🔍 [{thread_name}] [DEBUG] Lendo campos da task do MongoDB:")
         logger.info(f"   - Task _id: {request_id}")
         logger.info(f"   - Chaves disponíveis na task: {list(request.keys())}")
         logger.info(f"   - Campo 'instance_id' existe? {'instance_id' in request}")
@@ -342,12 +506,13 @@ class UniversalMongoWatcher:
         prompt = request.get("prompt", "")
 
         if not prompt:
-            logger.error(f"❌ Task {request_id} não possui campo 'prompt'")
+            logger.error(f"❌ [{thread_name}] Task {request_id} não possui campo 'prompt'")
             self.complete_request(request_id, "Erro: campo 'prompt' obrigatório não encontrado", 1, 0.0)
+            self._update_metrics(agent_id, False, 0.0)
             return False
 
         logger.info("=" * 80)
-        logger.info(f"📨 PROCESSANDO NOVA TASK")
+        logger.info(f"📨 [{thread_name}] PROCESSANDO NOVA TASK")
         logger.info(f"   ID: {request_id}")
         logger.info(f"   Agent ID: {agent_id}")
         logger.info(f"   Instance ID: {instance_id}")
@@ -357,9 +522,9 @@ class UniversalMongoWatcher:
         logger.info(f"   Prompt length: {len(prompt)} chars")
         logger.info("=" * 80)
 
-        # Marcar como processando
+        # Marcar como processando no MongoDB
         if not self.mark_as_processing(request_id):
-            logger.warning(f"⚠️  Task {request_id} já está sendo processada")
+            logger.warning(f"⚠️  [{thread_name}] Task {request_id} já está sendo processada")
             return False
 
         # Executar LLM request
@@ -373,10 +538,13 @@ class UniversalMongoWatcher:
         # Salvar resultado
         success = self.complete_request(request_id, result, exit_code, duration)
 
+        # Atualizar métricas
+        self._update_metrics(agent_id, success and exit_code == 0, duration)
+
         logger.info("=" * 80)
         if success:
             status_emoji = "✅" if exit_code == 0 else "❌"
-            logger.info(f"{status_emoji} TASK COMPLETADA E SALVA NO MONGODB")
+            logger.info(f"{status_emoji} [{thread_name}] TASK COMPLETADA E SALVA NO MONGODB")
             logger.info(f"   ID: {request_id}")
             logger.info(f"   Agent ID: {agent_id}")
             logger.info(f"   Instance ID: {instance_id}")
@@ -389,13 +557,13 @@ class UniversalMongoWatcher:
                 duration_ms = duration * 1000  # Converter segundos para milissegundos
                 stats_updated = self.update_agent_statistics(instance_id, duration_ms, exit_code)
                 if stats_updated:
-                    logger.info(f"📊 Estatísticas do agente atualizadas com sucesso")
+                    logger.info(f"📊 [{thread_name}] Estatísticas do agente atualizadas com sucesso")
                 else:
-                    logger.warning(f"⚠️  Falha ao atualizar estatísticas do agente (não-crítico)")
+                    logger.warning(f"⚠️  [{thread_name}] Falha ao atualizar estatísticas do agente (não-crítico)")
             else:
-                logger.warning(f"⚠️  Task não possui instance_id, estatísticas não serão atualizadas")
+                logger.warning(f"⚠️  [{thread_name}] Task não possui instance_id, estatísticas não serão atualizadas")
         else:
-            logger.error(f"❌ FALHA AO SALVAR RESULTADO NO MONGODB")
+            logger.error(f"❌ [{thread_name}] FALHA AO SALVAR RESULTADO NO MONGODB")
             logger.error(f"   ID: {request_id}")
             logger.error(f"   Agent ID: {agent_id}")
             logger.error(f"   Instance ID: {instance_id}")
@@ -403,19 +571,23 @@ class UniversalMongoWatcher:
 
         return success
 
-    def run(self, poll_interval: float = 1.0):
+    def run(self, poll_interval: float = 1.0, metrics_interval: int = 60):
         """
-        Loop principal do watcher
+        Loop principal do watcher com suporte a paralelização
 
         Args:
             poll_interval: Intervalo entre verificações em segundos
+            metrics_interval: Intervalo para imprimir métricas em segundos
         """
         logger.info("=" * 80)
-        logger.info("🚀 UNIVERSAL TASK WATCHER INICIADO")
+        logger.info("🚀 UNIVERSAL TASK WATCHER INICIADO (VERSÃO PARALELIZADA)")
         logger.info("=" * 80)
         logger.info(f"🔍 Monitorando collection: {self.database_name}.{self.collection_name}")
         logger.info(f"⏱️  Poll interval: {poll_interval}s")
-        logger.info("🎯 Suporte: Claude, Gemini, Cursor-Agent")
+        logger.info(f"🎯 Suporte: Claude, Gemini, Cursor-Agent")
+        logger.info(f"🔧 Max workers: {self.max_workers}")
+        logger.info(f"📊 Modo FIFO: {self.fifo_mode}")
+        logger.info(f"📈 Métricas a cada: {metrics_interval}s")
         logger.info("")
         logger.info("📋 AMBIENTE DE EXECUÇÃO:")
         logger.info(f"   Python: {sys.executable}")
@@ -423,7 +595,7 @@ class UniversalMongoWatcher:
         logger.info(f"   USER: {os.environ.get('USER', 'N/A')}")
         logger.info(f"   HOME: {os.environ.get('HOME', 'N/A')}")
         logger.info(f"   PATH: {os.environ.get('PATH', 'N/A')}")
-        
+
         # Verificar CLIs disponíveis
         import shutil
         logger.info("")
@@ -434,37 +606,114 @@ class UniversalMongoWatcher:
                 logger.info(f"   ✅ {cli}: {cli_path}")
             else:
                 logger.info(f"   ❌ {cli}: NÃO ENCONTRADO")
-        
+
         logger.info("=" * 80)
 
-        while True:
-            try:
-                # Buscar tasks pendentes
-                requests = self.get_pending_requests()
+        last_metrics_time = time.time()
 
-                if requests:
-                    logger.info(f"📋 Encontradas {len(requests)} tasks pendentes")
+        try:
+            while not self.shutdown_requested:
+                try:
+                    # Buscar tasks pendentes
+                    requests = self.get_pending_requests()
 
-                    for request in requests:
-                        self.process_request(request)
+                    if requests:
+                        logger.info(f"📋 Encontradas {len(requests)} tasks pendentes")
 
-                # Aguardar próximo ciclo
-                time.sleep(poll_interval)
+                        # Submeter tasks para processamento paralelo
+                        for request in requests:
+                            agent_id = request.get("agent_id", "unknown")
 
-            except KeyboardInterrupt:
-                logger.info("🛑 Shutdown solicitado pelo usuário")
-                break
-            except Exception as e:
-                logger.error(f"❌ Erro no loop principal: {e}")
-                time.sleep(5)  # Aguardar mais tempo em caso de erro
+                            # Verificar se podemos processar este agente (FIFO)
+                            if not self._can_process_agent(agent_id):
+                                logger.info(f"⏸️  Agente {agent_id} já está processando, aguardando...")
+                                continue
 
-        logger.info("👋 Universal Task Watcher finalizado")
+                            # Verificar se há workers disponíveis
+                            with self.futures_lock:
+                                # Limpar futures completadas
+                                self.active_futures = {f for f in self.active_futures if not f.done()}
+
+                                if len(self.active_futures) >= self.max_workers:
+                                    logger.info(f"⏸️  Máximo de {self.max_workers} workers atingido, aguardando...")
+                                    break
+
+                                # Submeter task para processamento
+                                future = self.executor.submit(self._process_request_wrapper, request)
+                                self.active_futures.add(future)
+
+                            logger.info(f"✅ Task submetida para processamento (workers ativos: {len(self.active_futures)}/{self.max_workers})")
+
+                    # Limpar futures completadas periodicamente
+                    with self.futures_lock:
+                        completed = [f for f in self.active_futures if f.done()]
+                        if completed:
+                            for future in completed:
+                                try:
+                                    future.result()  # Verificar exceções
+                                except Exception as e:
+                                    logger.error(f"❌ Erro em future: {e}")
+                        self.active_futures = {f for f in self.active_futures if not f.done()}
+
+                    # Imprimir métricas periodicamente
+                    current_time = time.time()
+                    if current_time - last_metrics_time >= metrics_interval:
+                        self.log_metrics()
+                        last_metrics_time = current_time
+
+                    # Aguardar próximo ciclo
+                    time.sleep(poll_interval)
+
+                except KeyboardInterrupt:
+                    logger.info("🛑 Shutdown solicitado pelo usuário (Ctrl+C)")
+                    self.shutdown_requested = True
+                    break
+                except Exception as e:
+                    logger.error(f"❌ Erro no loop principal: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    time.sleep(5)  # Aguardar mais tempo em caso de erro
+
+        finally:
+            # Graceful shutdown
+            logger.info("=" * 80)
+            logger.info("🛑 INICIANDO GRACEFUL SHUTDOWN")
+            logger.info("=" * 80)
+
+            # Aguardar tasks em execução
+            with self.futures_lock:
+                if self.active_futures:
+                    logger.info(f"⏳ Aguardando {len(self.active_futures)} tasks em execução...")
+                    for future in self.active_futures:
+                        try:
+                            future.result(timeout=30)  # Aguardar até 30s por task
+                        except Exception as e:
+                            logger.error(f"❌ Erro ao aguardar future: {e}")
+
+            # Shutdown do executor
+            logger.info("🔄 Finalizando ThreadPoolExecutor...")
+            self.executor.shutdown(wait=True, cancel_futures=False)
+
+            # Fechar conexão MongoDB
+            logger.info("🔌 Fechando conexão MongoDB...")
+            self.client.close()
+
+            # Imprimir métricas finais
+            logger.info("")
+            logger.info("📊 MÉTRICAS FINAIS:")
+            self.log_metrics()
+
+            logger.info("=" * 80)
+            logger.info("👋 Universal Task Watcher finalizado com sucesso")
+            logger.info("=" * 80)
 
 def main():
     """Função principal"""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Universal MongoDB Watcher - Suporta Claude, Gemini e Cursor-Agent")
+    parser = argparse.ArgumentParser(
+        description="Universal MongoDB Watcher - Suporta Claude, Gemini e Cursor-Agent (VERSÃO PARALELIZADA)"
+    )
     parser.add_argument("--mongo-uri", default="mongodb://localhost:27017",
                        help="URI de conexão MongoDB")
     parser.add_argument("--database", default="conductor_state",
@@ -474,7 +723,13 @@ def main():
     parser.add_argument("--gateway-url", default="http://localhost:5006",
                        help="URL do conductor-gateway para atualização de estatísticas (padrão: porta 5006 do Docker)")
     parser.add_argument("--poll-interval", type=float, default=1.0,
-                       help="Intervalo entre verificações (segundos)")
+                       help="Intervalo entre verificações em segundos (padrão: 1.0)")
+    parser.add_argument("--max-workers", type=int, default=5,
+                       help="Número máximo de workers paralelos (padrão: 5)")
+    parser.add_argument("--fifo-mode", choices=["strict", "per_agent", "relaxed"], default="per_agent",
+                       help="Modo FIFO: strict (uma task total), per_agent (FIFO por agente), relaxed (sem FIFO)")
+    parser.add_argument("--metrics-interval", type=int, default=60,
+                       help="Intervalo para imprimir métricas em segundos (padrão: 60)")
 
     args = parser.parse_args()
 
@@ -483,13 +738,20 @@ def main():
             mongo_uri=args.mongo_uri,
             database=args.database,
             collection=args.collection,
-            gateway_url=args.gateway_url
+            gateway_url=args.gateway_url,
+            max_workers=args.max_workers,
+            fifo_mode=args.fifo_mode
         )
 
-        watcher.run(poll_interval=args.poll_interval)
+        watcher.run(
+            poll_interval=args.poll_interval,
+            metrics_interval=args.metrics_interval
+        )
 
     except Exception as e:
         logger.error(f"❌ Erro fatal: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         sys.exit(1)
 
 if __name__ == "__main__":

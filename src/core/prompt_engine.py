@@ -419,13 +419,17 @@ class PromptEngine:
         if not history:
             return "Nenhum histórico de conversa para esta tarefa ainda."
 
+        # FILTER: Remove mensagens deletadas (soft delete)
+        # Retrocompatibilidade: mensagens sem o campo isDeleted são tratadas como ativas
+        active_history = [turn for turn in history if not turn.get("isDeleted", False)]
+
         # Limitar histórico para evitar "Argument list too long"
         # Manter apenas as últimas 100 interações para contexto
         MAX_HISTORY_TURNS = 100
         recent_history = (
-            history[-MAX_HISTORY_TURNS:]
-            if len(history) > MAX_HISTORY_TURNS
-            else history
+            active_history[-MAX_HISTORY_TURNS:]
+            if len(active_history) > MAX_HISTORY_TURNS
+            else active_history
         )
 
         # SAFETY: Ensure chronological order (oldest first, newest last)
@@ -482,10 +486,10 @@ class PromptEngine:
             formatted_lines.append(f"Usuário{timestamp_info}: {user_input}\nIA: {ai_response}")
 
         # Adicionar indicador se histórico foi truncado
-        if len(history) > MAX_HISTORY_TURNS:
+        if len(active_history) > MAX_HISTORY_TURNS:
             formatted_lines.insert(
                 0,
-                f"[Mostrando últimas {MAX_HISTORY_TURNS} de {len(history)} interações]",
+                f"[Mostrando últimas {MAX_HISTORY_TURNS} de {len(active_history)} interações]",
             )
 
         return "\n---\n".join(formatted_lines)
@@ -505,11 +509,15 @@ class PromptEngine:
         if not history:
             return "<history/>"
 
+        # FILTER: Remove mensagens deletadas (soft delete)
+        # Retrocompatibilidade: mensagens sem o campo isDeleted são tratadas como ativas
+        active_history = [turn for turn in history if not turn.get("isDeleted", False)]
+
         MAX_HISTORY_TURNS = 100
         recent_history = (
-            history[-MAX_HISTORY_TURNS:]
-            if len(history) > MAX_HISTORY_TURNS
-            else history
+            active_history[-MAX_HISTORY_TURNS:]
+            if len(active_history) > MAX_HISTORY_TURNS
+            else active_history
         )
 
         # SAFETY: Ensure chronological order (oldest first, newest last)
