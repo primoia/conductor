@@ -346,7 +346,10 @@ class PromptEngine:
                 return
 
             screenplay_id = instance_doc["screenplay_id"]
-            screenplay_doc = db.screenplays.find_one({"_id": ObjectId(screenplay_id)})
+            screenplay_doc = db.screenplays.find_one({
+                "_id": ObjectId(screenplay_id),
+                "isDeleted": {"$ne": True}
+            })
 
             if screenplay_doc and "content" in screenplay_doc:
                 self.screenplay_content = screenplay_doc["content"]
