@@ -40,6 +40,7 @@ class CreateConversationRequest(BaseModel):
     title: Optional[str] = Field(None, description="Título da conversa")
     active_agent: Optional[AgentInfo] = Field(None, description="Agente inicial")
     screenplay_id: Optional[str] = Field(None, description="ID do roteiro ao qual esta conversa pertence")
+    context: Optional[str] = Field(None, description="Contexto da conversa em markdown (bug, feature, etc.)")
 
 
 class CreateConversationResponse(BaseModel):
@@ -80,6 +81,7 @@ class ConversationDetail(BaseModel):
     participants: List[Dict[str, Any]]
     messages: List[Dict[str, Any]]
     screenplay_id: Optional[str] = None
+    context: Optional[str] = None
 
 
 class ConversationSummary(BaseModel):
@@ -114,7 +116,8 @@ def create_conversation(request: CreateConversationRequest):
         conversation_id = conversation_service.create_conversation(
             title=request.title,
             active_agent=agent_info_dict,
-            screenplay_id=request.screenplay_id
+            screenplay_id=request.screenplay_id,
+            context=request.context
         )
 
         # Buscar conversa criada para retornar dados completos
@@ -333,6 +336,79 @@ def get_conversation_messages(
     except Exception as e:
         logger.error(f"❌ Erro ao obter mensagens: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erro ao obter mensagens: {str(e)}")
+
+
+@router.patch("/{conversation_id}/title", summary="Atualizar título da conversa")
+def update_conversation_title(
+    conversation_id: str = Path(..., description="ID da conversa"),
+    new_title: str = Query(..., min_length=3, max_length=100, description="Novo título da conversa")
+):
+    """
+    Atualiza o título de uma conversa.
+
+    Args:
+        conversation_id: ID da conversa
+        new_title: Novo título (3-100 caracteres)
+
+    Returns:
+        Confirmação de sucesso
+    """
+    try:
+        success = conversation_service.update_conversation_title(
+            conversation_id=conversation_id,
+            new_title=new_title
+        )
+
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Conversa não encontrada: {conversation_id}")
+
+        return {"success": True, "message": "Título atualizado com sucesso", "new_title": new_title}
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erro ao atualizar título: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar título: {str(e)}")
+
+
+class UpdateContextRequest(BaseModel):
+    """Request para atualizar contexto da conversa."""
+    context: Optional[str] = Field(None, description="Contexto da conversa em markdown (null para limpar)")
+
+
+@router.patch("/{conversation_id}/context", summary="Atualizar contexto da conversa")
+def update_conversation_context(
+    conversation_id: str = Path(..., description="ID da conversa"),
+    request: UpdateContextRequest = ...
+):
+    """
+    Atualiza o contexto de uma conversa.
+
+    Args:
+        conversation_id: ID da conversa
+        request: Novo contexto em markdown (pode ser null para limpar)
+
+    Returns:
+        Confirmação de sucesso
+    """
+    try:
+        success = conversation_service.update_conversation_context(
+            conversation_id=conversation_id,
+            context=request.context
+        )
+
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Conversa não encontrada: {conversation_id}")
+
+        return {"success": True, "message": "Contexto atualizado com sucesso"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erro ao atualizar contexto: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar contexto: {str(e)}")
 
 
 @router.post("/migrate-screenplays", summary="Migrar roteiros antigos para ter conversas")
