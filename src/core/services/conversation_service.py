@@ -77,7 +77,8 @@ class ConversationService:
         self,
         title: Optional[str] = None,
         active_agent: Optional[Dict[str, Any]] = None,
-        screenplay_id: Optional[str] = None
+        screenplay_id: Optional[str] = None,
+        context: Optional[str] = None
     ) -> str:
         """
         Cria uma nova conversa.
@@ -86,6 +87,7 @@ class ConversationService:
             title: Título da conversa (opcional, será gerado se não fornecido)
             active_agent: Metadados do agente inicial {agent_id, instance_id, name, emoji}
             screenplay_id: ID do roteiro ao qual esta conversa pertence (opcional)
+            context: Contexto da conversa em markdown (bug, feature, etc.) (opcional)
 
         Returns:
             str: conversation_id (UUID)
@@ -97,6 +99,10 @@ class ConversationService:
         if not title:
             title = f"Conversa {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}"
 
+        # Validar título (3-100 caracteres)
+        if len(title) < 3 or len(title) > 100:
+            raise ValueError("O título deve ter entre 3 e 100 caracteres")
+
         conversation_doc = {
             "conversation_id": conversation_id,
             "title": title,
@@ -105,7 +111,8 @@ class ConversationService:
             "active_agent": active_agent,
             "participants": [active_agent] if active_agent else [],
             "messages": [],
-            "screenplay_id": screenplay_id
+            "screenplay_id": screenplay_id,
+            "context": context  # Campo de contexto em markdown (pode ser null)
         }
 
         try:
@@ -382,6 +389,83 @@ class ConversationService:
 
         except Exception as e:
             logger.error(f"❌ Erro ao deletar conversa: {e}", exc_info=True)
+            return False
+
+    def update_conversation_title(self, conversation_id: str, new_title: str) -> bool:
+        """
+        Atualiza o título de uma conversa.
+
+        Args:
+            conversation_id: ID da conversa
+            new_title: Novo título (deve ter entre 3 e 100 caracteres)
+
+        Returns:
+            bool: True se atualizado com sucesso
+        """
+        try:
+            # Validar título
+            if len(new_title) < 3 or len(new_title) > 100:
+                raise ValueError("O título deve ter entre 3 e 100 caracteres")
+
+            timestamp = datetime.utcnow().isoformat()
+
+            result = self.conversations.update_one(
+                {"conversation_id": conversation_id},
+                {
+                    "$set": {
+                        "title": new_title,
+                        "updated_at": timestamp
+                    }
+                }
+            )
+
+            if result.matched_count == 0:
+                logger.error(f"❌ Conversa não encontrada: {conversation_id}")
+                return False
+
+            logger.info(f"✅ Título atualizado para conversa {conversation_id}: '{new_title}'")
+            return True
+
+        except ValueError as e:
+            logger.error(f"❌ Erro de validação: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Erro ao atualizar título: {e}", exc_info=True)
+            return False
+
+    def update_conversation_context(self, conversation_id: str, context: Optional[str]) -> bool:
+        """
+        Atualiza o contexto de uma conversa.
+
+        Args:
+            conversation_id: ID da conversa
+            context: Novo contexto em markdown (pode ser None para limpar)
+
+        Returns:
+            bool: True se atualizado com sucesso
+        """
+        try:
+            timestamp = datetime.utcnow().isoformat()
+
+            result = self.conversations.update_one(
+                {"conversation_id": conversation_id},
+                {
+                    "$set": {
+                        "context": context,
+                        "updated_at": timestamp
+                    }
+                }
+            )
+
+            if result.matched_count == 0:
+                logger.error(f"❌ Conversa não encontrada: {conversation_id}")
+                return False
+
+            logger.info(f"✅ Contexto atualizado para conversa {conversation_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Erro ao atualizar contexto: {e}", exc_info=True)
             return False
 
     # ==========================================

@@ -32,6 +32,7 @@ class PromptEngine:
         self.is_mongodb = str(agent_home_path).startswith("mongodb://")
         self.instance_id = instance_id
         self.screenplay_content: str = ""
+        self.conversation_context: str = ""
 
         # Extract agent_id from MongoDB path
         if self.is_mongodb:
@@ -42,10 +43,13 @@ class PromptEngine:
 
         logger.debug(f"PromptEngine inicializado para o caminho: {agent_home_path} (MongoDB: {self.is_mongodb}, Format: {self.prompt_format})")
 
-    def load_context(self) -> None:
+    def load_context(self, conversation_id: Optional[str] = None) -> None:
         """
         Carrega e processa todos os artefatos de contexto do agente.
         Esta é a principal função de inicialização.
+
+        Args:
+            conversation_id: ID da conversa para carregar contexto específico
         """
         self._load_agent_config()
         self._validate_agent_config()
@@ -53,6 +57,7 @@ class PromptEngine:
         self._load_agent_playbook()
         self._resolve_persona_placeholders()
         self._load_screenplay_context()
+        self._load_conversation_context(conversation_id)
 
     def build_prompt(self, conversation_history: List[Dict], message: str, include_history: bool = True) -> str:
         """Constrói o prompt final usando o contexto já carregado."""
@@ -346,7 +351,10 @@ class PromptEngine:
                 return
 
             screenplay_id = instance_doc["screenplay_id"]
-            screenplay_doc = db.screenplays.find_one({"_id": ObjectId(screenplay_id)})
+            screenplay_doc = db.screenplays.find_one({
+                "_id": ObjectId(screenplay_id),
+                "isDeleted": {"$ne": True}
+            })
 
             if screenplay_doc and "content" in screenplay_doc:
                 self.screenplay_content = screenplay_doc["content"]
@@ -354,6 +362,62 @@ class PromptEngine:
 
         except Exception as e:
             logger.warning(f"Falha ao carregar contexto do screenplay: {e}")
+
+    def _load_conversation_context(self, conversation_id: Optional[str] = None) -> None:
+        """Carrega o contexto da conversa atual (bug, feature, problema específico)."""
+        self.conversation_context = ""
+        if not conversation_id:
+            # Tentar carregar do instance_id se disponível
+            if not self.instance_id:
+                return
+
+            try:
+                import os
+                from pymongo import MongoClient
+
+                mongo_uri = os.getenv("MONGO_URI")
+                if not mongo_uri:
+                    logger.debug("MONGO_URI não configurada, pulando carregamento do contexto da conversa")
+                    return
+
+                client = MongoClient(mongo_uri)
+                db = client.conductor_state
+
+                # Buscar conversation_id pela instance
+                instance_doc = db.agent_instances.find_one({"instance_id": self.instance_id})
+                if not instance_doc or "conversation_id" not in instance_doc:
+                    logger.debug(f"Nenhum conversation_id associado à instância {self.instance_id}")
+                    return
+
+                conversation_id = instance_doc["conversation_id"]
+            except Exception as e:
+                logger.warning(f"Falha ao buscar conversation_id pela instância: {e}")
+                return
+
+        if not conversation_id:
+            return
+
+        try:
+            import os
+            from pymongo import MongoClient
+
+            mongo_uri = os.getenv("MONGO_URI")
+            if not mongo_uri:
+                return
+
+            client = MongoClient(mongo_uri)
+            db = client.conductor_state
+
+            # Buscar contexto da conversa
+            conversation_doc = db.conversations.find_one({"conversation_id": conversation_id})
+            if conversation_doc and "context" in conversation_doc and conversation_doc["context"]:
+                self.conversation_context = conversation_doc["context"]
+                logger.info(f"Contexto da conversa '{conversation_id}' carregado ({len(self.conversation_context)} chars).")
+            else:
+                logger.debug(f"Conversa '{conversation_id}' não possui contexto definido")
+
+        except Exception as e:
+            logger.warning(f"Falha ao carregar contexto da conversa: {e}")
 
     def _resolve_persona_placeholders(self) -> None:
         """Resolve placeholders dinâmicos no conteúdo da persona."""
@@ -636,6 +700,14 @@ class PromptEngine:
             <![CDATA[{screenplay_cdata}]]>
         </screenplay>"""
 
+        # Monta a seção do contexto da conversa se disponível
+        conversation_context_section = ""
+        if hasattr(self, 'conversation_context') and self.conversation_context:
+            conversation_context_cdata = self._escape_xml_cdata(self.conversation_context)
+            conversation_context_section = f"""        <conversation_context>
+            <![CDATA[{conversation_context_cdata}]]>
+        </conversation_context>"""
+
         # Monta o prompt XML final
         final_prompt = f"""<prompt>
     <system_context>
@@ -647,7 +719,7 @@ class PromptEngine:
         </instructions>
         <playbook>
             <![CDATA[{playbook_cdata}]]>
-        </playbook>{screenplay_section}
+        </playbook>{screenplay_section}{conversation_context_section}
     </system_context>
     <conversation_history>
 {history_xml}
