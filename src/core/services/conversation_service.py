@@ -103,6 +103,26 @@ class ConversationService:
         if len(title) < 3 or len(title) > 100:
             raise ValueError("O título deve ter entre 3 e 100 caracteres")
 
+        # 🔥 NOVO: Calcular display_order automaticamente
+        # Buscar o maior display_order das conversas existentes para o mesmo screenplay_id
+        query_filter = {}
+        if screenplay_id:
+            query_filter["screenplay_id"] = screenplay_id
+
+        # Buscar conversa com maior display_order
+        max_order_conversation = self.conversations.find_one(
+            query_filter,
+            {"display_order": 1},
+            sort=[("display_order", -1)]
+        )
+
+        # Se existe conversa com display_order, incrementa; senão, inicia em 0
+        display_order = 0
+        if max_order_conversation and "display_order" in max_order_conversation:
+            display_order = max_order_conversation["display_order"] + 1
+
+        logger.info(f"🔢 [CREATE] Calculando display_order para nova conversa: {display_order}")
+
         conversation_doc = {
             "conversation_id": conversation_id,
             "title": title,
@@ -112,7 +132,8 @@ class ConversationService:
             "participants": [active_agent] if active_agent else [],
             "messages": [],
             "screenplay_id": screenplay_id,
-            "context": context  # Campo de contexto em markdown (pode ser null)
+            "context": context,  # Campo de contexto em markdown (pode ser null)
+            "display_order": display_order  # 🔥 NOVO: Ordem de exibição inicial
         }
 
         try:
@@ -467,6 +488,47 @@ class ConversationService:
         except Exception as e:
             logger.error(f"❌ Erro ao atualizar contexto: {e}", exc_info=True)
             return False
+
+    def update_conversation_order(self, order_updates: List[Dict[str, Any]]) -> int:
+        """
+        🔥 NOVO: Atualiza a ordem de exibição das conversas.
+
+        Args:
+            order_updates: Lista de dicionários com {conversation_id: str, display_order: int}
+
+        Returns:
+            int: Número de conversas atualizadas
+        """
+        try:
+            updated_count = 0
+
+            for update in order_updates:
+                conversation_id = update.get("conversation_id")
+                display_order = update.get("display_order")
+
+                if not conversation_id or display_order is None:
+                    logger.warning(f"⚠️ Update inválido ignorado: {update}")
+                    continue
+
+                result = self.conversations.update_one(
+                    {"conversation_id": conversation_id},
+                    {
+                        "$set": {
+                            "display_order": display_order,
+                            "updated_at": datetime.utcnow().isoformat()
+                        }
+                    }
+                )
+
+                if result.matched_count > 0:
+                    updated_count += 1
+
+            logger.info(f"✅ Ordem atualizada para {updated_count}/{len(order_updates)} conversas")
+            return updated_count
+
+        except Exception as e:
+            logger.error(f"❌ Erro ao atualizar ordem das conversas: {e}", exc_info=True)
+            raise
 
     # ==========================================
     # LEGACY: Compatibilidade com modelo antigo
