@@ -26,7 +26,7 @@ class MongoTaskClient:
             logger.critical(f"❌ Falha ao conectar com MongoDB: {e}")
             raise
 
-    def submit_task(self, agent_id: str, cwd: str, timeout: int = 600, provider: str = "claude", prompt: str = None, instance_id: str = None, is_councilor_execution: bool = False, councilor_config: dict = None) -> str:
+    def submit_task(self, agent_id: str, cwd: str, timeout: int = 600, provider: str = "claude", prompt: str = None, instance_id: str = None, is_councilor_execution: bool = False, councilor_config: dict = None, conversation_id: str = None) -> str:
         """
         Insere uma nova tarefa na coleção e retorna seu ID.
 
@@ -39,6 +39,7 @@ class MongoTaskClient:
             instance_id: ID da instância (SAGA-004: para separação de contextos)
             is_councilor_execution: Flag indicando se é execução de conselheiro
             councilor_config: Configuração do conselheiro (se aplicável)
+            conversation_id: ID da conversa para contexto
 
         Returns:
             str: ID da task inserida
@@ -49,6 +50,7 @@ class MongoTaskClient:
         logger.info(f"   - agent_id: {agent_id}")
         logger.info(f"   - provider: {provider}")
         logger.info(f"   - instance_id: {instance_id}")
+        logger.info(f"   - conversation_id: {conversation_id}")
         logger.info(f"   - cwd: {cwd}")
         logger.info(f"   - timeout: {timeout}")
         
@@ -68,6 +70,7 @@ class MongoTaskClient:
             "timeout": timeout,
             "status": "pending",
             "instance_id": instance_id,  # SAGA-004: ID da instância para separação de contextos
+            "conversation_id": conversation_id,  # ID da conversa para contexto
             "context": {},  # SAGA-004: Context object for additional metadata
             "created_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc),

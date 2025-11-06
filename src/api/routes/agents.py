@@ -21,6 +21,7 @@ class AgentExecuteRequest(BaseModel):
     provider: Optional[str] = "claude"
     instance_id: Optional[str] = None  # SAGA-003: Instance ID for isolated context
     context_mode: Optional[str] = "stateless"  # SAGA-003: "stateful" or "stateless"
+    conversation_id: Optional[str] = None  # Conversation ID for context
 
 @router.get("/", response_model=AgentListResponse, summary="Listar todos os agentes")
 def list_agents():
@@ -151,15 +152,16 @@ def execute_agent(agent_id: str, request: AgentExecuteRequest):
         logger.info(f"✅ [AGENTS] Provider final: {provider}")
 
         # Build XML prompt
-        # Note: Histórico por instance_id será gerenciado automaticamente
-        # pelo TaskExecutionService ao salvar no MongoDB
+        # Note: Se conversation_id for fornecido, o histórico será buscado da conversa
+        # Caso contrário, usa o comportamento legado (histórico por agent_id)
         xml_prompt = discovery_service.get_full_prompt(
             agent_id=agent_id,
             current_message=request.user_input,
             meta=False,
             new_agent_id=None,
             include_history=(request.context_mode != "stateless"),
-            save_to_file=False
+            save_to_file=False,
+            conversation_id=request.conversation_id  # 🔥 Pass conversation_id to get history
         )
 
         # Submete a tarefa
@@ -169,7 +171,8 @@ def execute_agent(agent_id: str, request: AgentExecuteRequest):
             timeout=request.timeout,
             provider=provider,
             prompt=xml_prompt,
-            instance_id=request.instance_id  # SAGA-004: Pass instance_id to task
+            instance_id=request.instance_id,  # SAGA-004: Pass instance_id to task
+            conversation_id=request.conversation_id  # Pass conversation_id to task
         )
 
         # Aguarda o resultado

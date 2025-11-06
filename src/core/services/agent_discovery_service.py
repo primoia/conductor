@@ -91,6 +91,39 @@ class AgentDiscoveryService:
         """Carrega o histórico de conversas de um agente."""
         return self._storage.load_history(agent_id)
 
+    def get_conversation_history_by_conversation_id(self, conversation_id: str) -> List[dict]:
+        """
+        Carrega o histórico de uma conversa específica pelo conversation_id.
+        Retorna as mensagens no formato esperado pelo PromptEngine.
+        """
+        try:
+            from src.core.services.conversation_service import ConversationService
+            conversation_service = ConversationService()
+
+            # Get messages from conversation
+            messages = conversation_service.get_conversation_messages(conversation_id)
+
+            # Convert to format expected by PromptEngine: [{"prompt": user_input, "response": ai_response}]
+            history = []
+            user_message = None
+
+            for msg in messages:
+                if msg.get('type') == 'user':
+                    user_message = msg.get('content', '')
+                elif msg.get('type') == 'bot' and user_message:
+                    history.append({
+                        "prompt": user_message,
+                        "response": msg.get('content', '')
+                    })
+                    user_message = None
+
+            return history
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"❌ Erro ao buscar histórico da conversa {conversation_id}: {e}")
+            return []
+
     def clear_conversation_history(self, agent_id: str) -> bool:
         """Limpa o histórico de conversas de um agente."""
         try:
@@ -285,16 +318,16 @@ class AgentDiscoveryService:
         """Lista todas as definições de agente (compatibilidade com AgentService legado)."""
         return self.discover_agents()
 
-    def get_full_prompt(self, agent_id: str, sample_message: str = "Mensagem de exemplo", meta: bool = False, new_agent_id: str = None, current_message: str = None, include_history: bool = True, save_to_file: bool = False) -> str:
+    def get_full_prompt(self, agent_id: str, sample_message: str = "Mensagem de exemplo", meta: bool = False, new_agent_id: str = None, current_message: str = None, include_history: bool = True, save_to_file: bool = False, conversation_id: str = None) -> str:
         """
         Gera o prompt completo que será usado pelo LLM, combinando:
         - Persona do agente
         - Instruções específicas
         - Histórico da conversa
         - Mensagem atual do usuário (incluindo a última mensagem do REPL se fornecida)
-        
+
         Esta é a função unificada usada tanto para exibir o prompt quanto para enviá-lo ao LLM.
-        
+
         Args:
             agent_id: ID do agente
             sample_message: Mensagem de amostra (default "Mensagem de exemplo")
@@ -302,7 +335,8 @@ class AgentDiscoveryService:
             new_agent_id: ID do novo agente (para meta agents)
             current_message: Mensagem atual do REPL (sobrescreve sample_message se fornecida)
             save_to_file: Se True, salva o prompt em arquivo .md
-        
+            conversation_id: ID da conversa (se fornecido, busca histórico da conversa ao invés do agente)
+
         Returns:
             String com o prompt completo
         """
@@ -337,7 +371,12 @@ class AgentDiscoveryService:
 
             # Get conversation history (last interactions saved) - only if requested
             if include_history:
-                conversation_history = self.get_conversation_history(agent_id)
+                # If conversation_id is provided, get history from conversation
+                if conversation_id:
+                    conversation_history = self.get_conversation_history_by_conversation_id(conversation_id)
+                else:
+                    # Fallback to agent-based history (legacy behavior)
+                    conversation_history = self.get_conversation_history(agent_id)
             else:
                 conversation_history = []
 
