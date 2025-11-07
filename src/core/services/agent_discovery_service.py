@@ -318,7 +318,7 @@ class AgentDiscoveryService:
         """Lista todas as definições de agente (compatibilidade com AgentService legado)."""
         return self.discover_agents()
 
-    def get_full_prompt(self, agent_id: str, sample_message: str = "Mensagem de exemplo", meta: bool = False, new_agent_id: str = None, current_message: str = None, include_history: bool = True, save_to_file: bool = False, conversation_id: str = None) -> str:
+    def get_full_prompt(self, agent_id: str, sample_message: str = "Mensagem de exemplo", meta: bool = False, new_agent_id: str = None, current_message: str = None, include_history: bool = True, save_to_file: bool = False, conversation_id: str = None, screenplay_id: str = None, instance_id: str = None) -> str:
         """
         Gera o prompt completo que será usado pelo LLM, combinando:
         - Persona do agente
@@ -366,17 +366,22 @@ class AgentDiscoveryService:
             prompt_format = config_service.get_prompt_format()
 
             # Create and configure the PromptEngine - SEMPRE usa o real, não mock
-            prompt_engine = PromptEngine(agent_home_path, prompt_format)
-            prompt_engine.load_context()
+            prompt_engine = PromptEngine(
+                agent_home_path,
+                prompt_format,
+                instance_id=instance_id,
+                screenplay_id=screenplay_id
+            )
+            prompt_engine.load_context(conversation_id=conversation_id)  # ← Pass conversation_id to load conversation context and history
 
-            # Get conversation history (last interactions saved) - only if requested
-            if include_history:
-                # If conversation_id is provided, get history from conversation
-                if conversation_id:
-                    conversation_history = self.get_conversation_history_by_conversation_id(conversation_id)
-                else:
-                    # Fallback to agent-based history (legacy behavior)
-                    conversation_history = self.get_conversation_history(agent_id)
+            # PromptEngine agora carrega o histórico automaticamente do conversation_id via load_context()
+            # Não precisamos mais buscar manualmente, mas mantemos para compatibilidade/fallback
+            if include_history and conversation_id:
+                # O histórico já foi carregado pelo PromptEngine.load_context()
+                conversation_history = []  # Deixar vazio, PromptEngine usa cache interno
+            elif include_history and not conversation_id:
+                # Fallback: buscar histórico legado se não tem conversation_id
+                conversation_history = self.get_conversation_history(agent_id)
             else:
                 conversation_history = []
 

@@ -190,8 +190,9 @@ class TaskExecutionService:
         # Criar engine de prompt com formato configurado
         prompt_format = self._config.get_prompt_format()
         instance_id = self._current_task.context.get("instance_id") if hasattr(self, '_current_task') and self._current_task else None
+        conversation_id = self._current_task.context.get("conversation_id") if hasattr(self, '_current_task') and self._current_task else None
         prompt_engine = PromptEngine(agent_home_path=agent_home_path, prompt_format=prompt_format, instance_id=instance_id)
-        prompt_engine.load_context()
+        prompt_engine.load_context(conversation_id=conversation_id)  # ← Pass conversation_id to load screenplay and conversation context
         
         # Filtrar ferramentas permitidas
         allowed_tools = self._tools.get_allowed_tools(

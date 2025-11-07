@@ -19,9 +19,15 @@ class PromptEngine:
     Responsável por carregar, processar e construir prompts.
     """
 
-    def __init__(self, agent_home_path: str, prompt_format: str = "xml", instance_id: Optional[str] = None):
+    def __init__(self, agent_home_path: str, prompt_format: str = "xml", instance_id: Optional[str] = None, screenplay_id: Optional[str] = None):
         """
         Inicializa o PromptEngine com o caminho para o diretório principal do agente.
+
+        Args:
+            agent_home_path: Caminho para o diretório do agente
+            prompt_format: Formato do prompt ("xml" ou "text")
+            instance_id: ID da instância do agente (para contexto isolado)
+            screenplay_id: ID do screenplay (opcional, se não fornecido busca pela instance)
         """
         self.agent_home_path = Path(agent_home_path)
         self.agent_config: Dict[str, Any] = {}
@@ -31,6 +37,7 @@ class PromptEngine:
         self.prompt_format = prompt_format  # "xml" or "text"
         self.is_mongodb = str(agent_home_path).startswith("mongodb://")
         self.instance_id = instance_id
+        self.screenplay_id = screenplay_id  # Store screenplay_id directly
         self.screenplay_content: str = ""
         self.conversation_context: str = ""
 
@@ -40,6 +47,7 @@ class PromptEngine:
             self.agent_id = str(agent_home_path).split("/")[-1]
         else:
             self.agent_id = None
+        self.conversation_history_cache = []  # Cache do histórico de conversas
 
         logger.debug(f"PromptEngine inicializado para o caminho: {agent_home_path} (MongoDB: {self.is_mongodb}, Format: {self.prompt_format})")
 
@@ -49,7 +57,7 @@ class PromptEngine:
         Esta é a principal função de inicialização.
 
         Args:
-            conversation_id: ID da conversa para carregar contexto específico
+            conversation_id: ID da conversa para carregar contexto específico e histórico de mensagens
         """
         self._load_agent_config()
         self._validate_agent_config()
@@ -58,6 +66,7 @@ class PromptEngine:
         self._resolve_persona_placeholders()
         self._load_screenplay_context()
         self._load_conversation_context(conversation_id)
+        self._load_conversation_history(conversation_id)  # ← NOVO: Carregar histórico de mensagens
 
     def build_prompt(self, conversation_history: List[Dict], message: str, include_history: bool = True) -> str:
         """Constrói o prompt final usando o contexto já carregado."""
@@ -65,6 +74,11 @@ class PromptEngine:
             raise ValueError(
                 "Contexto não foi carregado. Chame load_context() primeiro."
             )
+
+        # Se conversation_history estiver vazio mas temos cache, usar o cache
+        if not conversation_history and self.conversation_history_cache:
+            conversation_history = self.conversation_history_cache
+            logger.debug(f"Usando histórico do cache: {len(conversation_history)} mensagens")
 
         if include_history:
             formatted_history = self._format_history(conversation_history)
@@ -327,30 +341,54 @@ class PromptEngine:
         return "\n".join(formatted_sections)
 
     def _load_screenplay_context(self) -> None:
-        """Carrega o contexto do screenplay associado à instância atual."""
+        """Carrega o contexto do screenplay associado à instância atual ou pelo ID direto."""
         self.screenplay_content = ""
-        if not self.instance_id:
+
+        # Determinar screenplay_id
+        screenplay_id = self.screenplay_id  # Primeiro tenta usar o ID direto
+
+        if not screenplay_id and self.instance_id:
+            # Se não tem screenplay_id direto, busca pela instance
+            try:
+                import os
+                from pymongo import MongoClient
+
+                mongo_uri = os.getenv("MONGO_URI")
+                if not mongo_uri:
+                    logger.debug("MONGO_URI não configurada, pulando carregamento do screenplay")
+                    return
+
+                client = MongoClient(mongo_uri)
+                db = client.conductor_state
+
+                instance_doc = db.agent_instances.find_one({"instance_id": self.instance_id})
+                if instance_doc and "screenplay_id" in instance_doc:
+                    screenplay_id = instance_doc["screenplay_id"]
+                else:
+                    logger.debug(f"Nenhum screenplay_id associado à instância {self.instance_id}")
+                    return
+            except Exception as e:
+                logger.warning(f"Falha ao buscar screenplay_id pela instância: {e}")
+                return
+
+        if not screenplay_id:
+            logger.debug("Nenhum screenplay_id disponível para carregar contexto")
             return
 
+        # Carregar screenplay do MongoDB
         try:
             import os
             from pymongo import MongoClient
             from bson.objectid import ObjectId
-            
+
             mongo_uri = os.getenv("MONGO_URI")
             if not mongo_uri:
-                logger.debug("MONGO_URI não configurada, pulando carregamento do screenplay")
+                logger.debug("MONGO_URI não configurada")
                 return
-                
+
             client = MongoClient(mongo_uri)
             db = client.conductor_state
 
-            instance_doc = db.agent_instances.find_one({"instance_id": self.instance_id})
-            if not instance_doc or "screenplay_id" not in instance_doc:
-                logger.debug(f"Nenhum screenplay_id associado à instância {self.instance_id}")
-                return
-
-            screenplay_id = instance_doc["screenplay_id"]
             screenplay_doc = db.screenplays.find_one({
                 "_id": ObjectId(screenplay_id),
                 "isDeleted": {"$ne": True}
@@ -358,7 +396,9 @@ class PromptEngine:
 
             if screenplay_doc and "content" in screenplay_doc:
                 self.screenplay_content = screenplay_doc["content"]
-                logger.info(f"Contexto do screenplay '{screenplay_id}' carregado.")
+                logger.info(f"✅ Contexto do screenplay '{screenplay_id}' carregado ({len(self.screenplay_content)} chars).")
+            else:
+                logger.debug(f"Screenplay '{screenplay_id}' não encontrado ou sem conteúdo")
 
         except Exception as e:
             logger.warning(f"Falha ao carregar contexto do screenplay: {e}")
@@ -418,6 +458,57 @@ class PromptEngine:
 
         except Exception as e:
             logger.warning(f"Falha ao carregar contexto da conversa: {e}")
+
+    def _load_conversation_history(self, conversation_id: Optional[str] = None) -> None:
+        """
+        Carrega o histórico completo de mensagens da conversa do MongoDB.
+        Este histórico é usado no build_prompt() para incluir todas as mensagens anteriores.
+
+        Args:
+            conversation_id: ID da conversa para buscar mensagens
+        """
+        self.conversation_history_cache = []
+
+        if not conversation_id:
+            logger.debug("Nenhum conversation_id fornecido, histórico vazio")
+            return
+
+        try:
+            import os
+            from pymongo import MongoClient
+
+            mongo_uri = os.getenv("MONGO_URI")
+            if not mongo_uri:
+                logger.debug("MONGO_URI não configurada, não é possível carregar histórico")
+                return
+
+            client = MongoClient(mongo_uri)
+            db = client.conductor_state
+
+            # Buscar conversa
+            conversation_doc = db.conversations.find_one({"conversation_id": conversation_id})
+            if not conversation_doc:
+                logger.debug(f"Conversa '{conversation_id}' não encontrada")
+                return
+
+            # Carregar mensagens da conversa
+            messages = conversation_doc.get("messages", [])
+
+            # Filtrar mensagens não deletadas
+            active_messages = [msg for msg in messages if not msg.get("isDeleted", False)]
+
+            # Converter formato das mensagens para o esperado pelo _format_history()
+            # Formato esperado: [{"role": "user", "content": "...", "timestamp": ...}, {"role": "assistant", "content": "..."}]
+            self.conversation_history_cache = active_messages
+
+            logger.info(f"✅ Histórico de conversa '{conversation_id}' carregado: {len(active_messages)} mensagens")
+            if active_messages:
+                logger.debug(f"   - Primeira mensagem: {active_messages[0].get('role', 'unknown')} - {active_messages[0].get('content', '')[:50]}...")
+                logger.debug(f"   - Última mensagem: {active_messages[-1].get('role', 'unknown')} - {active_messages[-1].get('content', '')[:50]}...")
+
+        except Exception as e:
+            logger.warning(f"Falha ao carregar histórico da conversa: {e}")
+            self.conversation_history_cache = []
 
     def _resolve_persona_placeholders(self) -> None:
         """Resolve placeholders dinâmicos no conteúdo da persona."""
@@ -487,6 +578,31 @@ class PromptEngine:
         # Retrocompatibilidade: mensagens sem o campo isDeleted são tratadas como ativas
         active_history = [turn for turn in history if not turn.get("isDeleted", False)]
 
+        # 🔥 NOVO: Remover a última mensagem se for um "user" sem resposta do assistant
+        # Isso acontece quando o input do usuário já foi inserido no history, mas o resultado ainda não foi processado
+        if active_history:
+            last_turn = active_history[-1]
+
+            # Verificar se é uma mensagem de usuário (role-based ou legacy format)
+            is_user_message = (
+                last_turn.get("role") == "user" or
+                last_turn.get("type") == "user" or
+                bool(last_turn.get("user_input") or last_turn.get("prompt") or last_turn.get("user"))
+            )
+
+            # Verificar se a resposta do assistant está vazia
+            has_empty_response = not bool(
+                last_turn.get("ai_response") or
+                last_turn.get("response") or
+                last_turn.get("assistant") or
+                last_turn.get("output") or
+                last_turn.get("summary")
+            )
+
+            if is_user_message and has_empty_response:
+                logger.info(f"🔍 [HISTORY] Removendo última mensagem do usuário sem resposta do assistant")
+                active_history = active_history[:-1]
+
         # Limitar histórico para evitar "Argument list too long"
         # Manter apenas as últimas 100 interações para contexto
         MAX_HISTORY_TURNS = 100
@@ -512,7 +628,7 @@ class PromptEngine:
                 turn.get("user_input", "") or
                 turn.get("prompt", "") or
                 turn.get("user", "") or
-                ""
+                turn.get("content", "") if turn.get("role") == "user" or turn.get("type") == "user" else ""
             )
 
             # Get AI response with fallbacks
@@ -522,8 +638,14 @@ class PromptEngine:
                 turn.get("assistant", "") or
                 turn.get("output", "") or
                 turn.get("summary", "") or  # ← Fallback para summary
-                ""
+                turn.get("content", "") if turn.get("role") in ["assistant", "ai", "bot"] or turn.get("type") in ["assistant", "ai", "bot"] else ""
             )
+
+            # 🔥 NOVO: Não incluir turns com assistant vazio no histórico (formato texto)
+            # Isso acontece quando o input do usuário foi inserido mas a resposta ainda não foi processada
+            if not ai_response:
+                logger.debug(f"🔍 [HISTORY_TEXT] Pulando turn sem resposta do assistant")
+                continue
 
             # Truncar mensagens muito longas
             MAX_MESSAGE_LENGTH = 1000
@@ -577,6 +699,32 @@ class PromptEngine:
         # Retrocompatibilidade: mensagens sem o campo isDeleted são tratadas como ativas
         active_history = [turn for turn in history if not turn.get("isDeleted", False)]
 
+        # 🔥 NOVO: Remover a última mensagem se for um "user" sem resposta do assistant
+        # Isso acontece quando o input do usuário já foi inserido no history, mas o resultado ainda não foi processado
+        if active_history:
+            last_turn = active_history[-1]
+
+            # Verificar se é uma mensagem de usuário (role-based ou legacy format)
+            is_user_message = (
+                last_turn.get("role") == "user" or
+                last_turn.get("type") == "user" or
+                bool(last_turn.get("user_input") or last_turn.get("prompt") or last_turn.get("user"))
+            )
+
+            # Verificar se a resposta do assistant está vazia
+            has_empty_response = not bool(
+                last_turn.get("content") if last_turn.get("role") or last_turn.get("type") else
+                last_turn.get("ai_response") or
+                last_turn.get("response") or
+                last_turn.get("assistant") or
+                last_turn.get("output") or
+                last_turn.get("summary")
+            )
+
+            if is_user_message and has_empty_response:
+                logger.info(f"🔍 [HISTORY_XML] Removendo última mensagem do usuário sem resposta do assistant")
+                active_history = active_history[:-1]
+
         MAX_HISTORY_TURNS = 100
         recent_history = (
             active_history[-MAX_HISTORY_TURNS:]
@@ -594,35 +742,49 @@ class PromptEngine:
             logger.warning("Could not sort history by timestamp, keeping original order")
         
         xml_turns = []
-        
+
         # Process history in pairs (user + assistant) for ConversationService format
-        if recent_history and recent_history[0].get("role"):
+        # Suporte para "role" OU "type" (conversas usam "type", tasks usam "role")
+        if recent_history and (recent_history[0].get("role") or recent_history[0].get("type")):
             # ConversationService format: process in pairs
             i = 0
             while i < len(recent_history):
                 turn = recent_history[i]
-                
+
+                # Suporte para "role" ou "type"
+                msg_role = turn.get("role") or turn.get("type")
+
                 # DEBUG: Log history structure
-                logger.debug(f"History turn {i}: keys={list(turn.keys())}, role={turn.get('role')}")
-                
-                if turn.get("role") == "user":
+                logger.debug(f"History turn {i}: keys={list(turn.keys())}, role/type={msg_role}")
+
+                if msg_role == "user":
                     user_input = turn.get("content", "")
                     ai_response = ""
-                    
+
                     # Look for corresponding assistant response
-                    if i + 1 < len(recent_history) and recent_history[i + 1].get("role") == "assistant":
-                        ai_response = recent_history[i + 1].get("content", "")
-                        i += 2  # Skip both user and assistant
+                    if i + 1 < len(recent_history):
+                        next_role = recent_history[i + 1].get("role") or recent_history[i + 1].get("type")
+                        if next_role in ["assistant", "ai", "bot"]:
+                            ai_response = recent_history[i + 1].get("content", "")
+                            i += 2  # Skip both user and assistant
+                        else:
+                            i += 1  # Only skip user
                     else:
                         i += 1  # Only skip user
-                    
+
+                    # 🔥 NOVO: Não incluir turns com assistant vazio no histórico
+                    # Isso acontece quando o input do usuário foi inserido mas a resposta ainda não foi processada
+                    if not ai_response:
+                        logger.debug(f"🔍 [HISTORY_XML] Pulando turn sem resposta do assistant")
+                        continue
+
                     # Get timestamp from user turn
                     timestamp = turn.get("timestamp", "")
                     timestamp_attr = f' timestamp="{timestamp}"' if timestamp else ""
-                    
+
                     user_input = self._escape_xml_cdata(user_input)
                     ai_response = self._escape_xml_cdata(ai_response)
-                    
+
                     xml_turns.append(f"""    <turn{timestamp_attr}>
             <user><![CDATA[{user_input}]]></user>
             <assistant><![CDATA[{ai_response}]]></assistant>
@@ -652,6 +814,12 @@ class PromptEngine:
                     ""
                 )
 
+                # 🔥 NOVO: Não incluir turns com assistant vazio no histórico (formato legacy)
+                # Isso acontece quando o input do usuário foi inserido mas a resposta ainda não foi processada
+                if not ai_response:
+                    logger.debug(f"🔍 [HISTORY_XML_LEGACY] Pulando turn sem resposta do assistant")
+                    continue
+
                 user_input = self._escape_xml_cdata(user_input)
                 ai_response = self._escape_xml_cdata(ai_response)
 
@@ -670,6 +838,16 @@ class PromptEngine:
         """Constrói o prompt final usando uma estrutura XML otimizada."""
         if not self.persona_content or not self.agent_config:
             raise ValueError("Contexto não foi carregado. Chame load_context() primeiro.")
+
+        # DEBUG: Log estado do histórico
+        logger.info(f"🔍 [BUILD_XML] conversation_history recebido: {len(conversation_history) if conversation_history else 0} mensagens")
+        logger.info(f"🔍 [BUILD_XML] conversation_history_cache: {len(self.conversation_history_cache) if self.conversation_history_cache else 0} mensagens")
+        logger.info(f"🔍 [BUILD_XML] include_history: {include_history}")
+
+        # Se conversation_history estiver vazio mas temos cache, usar o cache
+        if not conversation_history and self.conversation_history_cache:
+            conversation_history = self.conversation_history_cache
+            logger.info(f"✅ [BUILD_XML] Usando histórico do cache para XML: {len(conversation_history)} mensagens")
 
         # Carrega e escapa os conteúdos
         persona_cdata = self._escape_xml_cdata(self.persona_content)
