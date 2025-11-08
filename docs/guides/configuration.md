@@ -31,7 +31,15 @@ This guide explains the purpose and parameters of each configuration file within
 - `storage`: Configuration for data storage backend.
   - `type`: Storage type (`filesystem` or `mongodb`).
   - `path`: Path for filesystem storage (default: `.conductor_workspace`).
+  - `connection_string`: MongoDB connection string (required when `type: mongodb`).
+  - `database`: MongoDB database name (default: `conductor_state`).
+- `ai_providers`: AI provider configuration.
+  - `default_providers`: Default providers for different tasks.
+    - `chat`: Default chat provider (e.g., `cursor-agent`, `claude`, `gemini`).
+    - `generation`: Default generation provider.
+  - `fallback_provider`: Fallback provider if primary fails.
 - `tool_plugins`: List of directories containing custom tool plugins.
+- `timeout`: Default timeout in seconds for long-running operations (default: 600 / 10 minutes).
 
 ## `config/teams/` Directory
 

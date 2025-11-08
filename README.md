@@ -19,11 +19,13 @@ Conductor is a multi-agent framework that provides a robust platform for AI-assi
 ## ✨ Key Features
 
 - 💬 **Interactive Sessions:** Engage in conversations with AI agents to refine ideas and co-create solutions.
+- 🗨️ **Conversation Management:** Track and manage multi-agent conversations with persistent history and context.
 - 🤖 **Multi-Provider AI:** Configure different AI models for different agents to leverage the best tool for the job.
 - 📂 **Environment-Oriented Architecture:** Safely manage and operate on multiple projects and environments.
 - 🛠️ **Scoped Tool System:** Grant agents secure and controlled access to the file system.
 - 🧬 **Metaprogramming:** Use agents to create and manage other agents, enabling a self-improving system.
 - 📋 **Plan-Based Execution:** Automate complex coding tasks by defining a sequence of steps in a YAML workflow.
+- ⚡ **Parallel Execution:** Run multiple agent tasks concurrently for improved performance.
 
 ### 💡 A Practical Example
 
@@ -77,6 +79,10 @@ ai_providers:
 # Add directories for your custom tools
 tool_plugins:
   - custom_tools/
+
+# Timeout configuration (in seconds)
+# Default: 600 seconds (10 minutes) for long-running AI operations
+timeout: 600
 ```
 
 ### 2. Quick Start
@@ -97,6 +103,7 @@ conductor --agent AgentCreator_Agent --chat --interactive
 # Install agent templates
 conductor --install list
 conductor --install web_development
+conductor --install portfolio
 ```
 
 ## 🎯 How to Use Conductor
@@ -241,6 +248,25 @@ conductor --agent AgentCreator_Agent --chat --interactive
 | **Stateless** (`--input`) | Quick tasks, automation, CI/CD | `conductor --agent CodeReviewer --input "review code"` |
 | **Contextual** (`--chat --input`) | Iterative work, related questions | `conductor --agent AgentCreator --chat --input "continue building"` |
 | **Interactive** (`--chat --interactive`) | Development, experimentation | `conductor --agent AgentCreator --chat --interactive` |
+
+### 🗨️ Conversation Management
+
+Conductor provides robust conversation management for tracking multi-agent interactions:
+
+**Key Features:**
+- **Persistent History:** All conversations are stored with complete context
+- **Multi-Agent Collaboration:** Multiple agents can participate in a single conversation thread
+- **Conversation Retrieval:** Access and continue previous conversations by ID
+- **Title & Context Editing:** Update conversation metadata for better organization
+
+**When Using MongoDB Storage:**
+```bash
+# Conversations are automatically tracked and managed
+# Access conversation history through the API or CLI
+conductor --agent MyAgent --chat --conversation-id <id> --input "Continue from where we left off"
+```
+
+> **💡 Note:** Conversation management is automatically enabled when using MongoDB storage. It provides seamless collaboration between multiple agents working on the same task.
 
 ## 📚 Documentation
 

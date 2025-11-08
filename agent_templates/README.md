@@ -10,6 +10,7 @@ agent_templates/
 ├── web_development/      # Web development (React, Angular, etc.)
 ├── backend_development/  # Backend development (APIs, databases, etc.)
 ├── data_science/         # Data science and analysis
+├── portfolio/            # Portfolio and career development
 ├── devops/              # DevOps and infrastructure
 └── mobile_development/   # Mobile development
 ```
@@ -60,6 +61,10 @@ Backend development specialists:
 ### 📊 Data Science
 Data analysis specialists:
 - **DataAnalyst_Agent**: Data analysis with Python/R
+
+### 📁 Portfolio
+Career and portfolio development:
+- **PortfolioAssistant_Agent**: Professional portfolio creation and management
 
 ### 🚀 DevOps
 *Under development*

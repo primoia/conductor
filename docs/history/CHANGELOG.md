@@ -1,5 +1,56 @@
 # 📈 CHANGELOG - Conductor Multi-Agent System
 
+## 🚀 [v1.1.0] - 2025-11-07 - "Enhanced Architecture & Conversation Management"
+
+### ✨ **Major Features**
+
+#### 🗨️ **Conversation Management System**
+- **Global Conversations:** Track multi-agent conversations with persistent history
+- **Conversation Retrieval:** Access conversation history by `conversation_id`
+- **Multi-Agent Collaboration:** Multiple agents can participate in a single conversation thread
+- **Title & Context Editing:** Update conversation metadata for better organization
+- **Soft Delete Support:** Screenplay conversations filtered with soft delete logic
+
+#### ⚡ **Performance & Infrastructure Improvements**
+- **Parallel Execution:** Watcher parallelization for concurrent agent task processing
+- **Increased Timeout:** Default timeout raised from 5 to 10 minutes (600s) for long-running AI operations
+- **Enhanced Prompt Engine:** Improved service architecture with better prompt handling
+- **MongoDB Enhancements:** Agent statistics tracking and improved task client
+
+#### 📦 **New Agent Templates**
+- **Portfolio Template:** Added PortfolioAssistant_Agent for professional portfolio management
+
+### 🏗️ **Architecture Improvements**
+- **Refactored Prompt Engine:** Better separation of concerns and service architecture
+- **Agent Discovery Service:** Enhanced conversation history retrieval capabilities
+- **Conversation Service:** Comprehensive API routes for conversation management
+- **MongoDB Task Client:** Improved execution tracking and councilor fields
+
+### 🔧 **Technical Improvements**
+- **API Routes:** New `/conversations` endpoints for managing global conversations
+- **Database Optimization:** Corrected MongoDB database name from 'conductor' to 'conductor_state'
+- **Reduced Logging:** Minimized excessive debug logging for cleaner output
+- **Configuration Updates:** Added `timeout` configuration parameter in `config.yaml`
+
+### 🐛 **Bug Fixes**
+- ✅ Fixed GlobalConfig.get() error in configuration handling
+- ✅ Added soft delete filter for screenplay conversations
+- ✅ Resolved MongoDB connection and configuration issues
+- ✅ Fixed instance_id handling in API routes
+
+### 📊 **Migration & Compatibility**
+- Migration scripts for history-to-conversations transition
+- Task normalization with conversation_id support
+- Backward compatibility maintained for existing agents
+
+### 🔮 **Next Phase (v1.2)**
+- [ ] **Enhanced Parallel Processing:** Distributed task execution
+- [ ] **Advanced Analytics:** Conversation insights and agent performance metrics
+- [ ] **Real-time Collaboration:** WebSocket support for live multi-agent sessions
+- [ ] **Conversation Export:** Export conversations in multiple formats
+
+---
+
 ## 🚀 [v1.0.0] - 2025-01-09 - "BREAKTHROUGH RELEASE"
 
 ### ✨ **Major Features**
@@ -96,6 +147,6 @@ Status: ✅ PRODUCTION READY
 
 ---
 
-**Status**: ✅ Phase 1 Complete - Ready for Kafka Migration  
-**Next Release**: v1.1.0 (Real Test Execution)  
+**Status**: ✅ v1.1.0 Released - Conversation Management Active
+**Next Release**: v1.2.0 (Enhanced Parallel Processing & Analytics)
 **Target**: Event-Driven Architecture (v2.0.0)
