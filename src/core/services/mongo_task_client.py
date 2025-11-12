@@ -26,7 +26,7 @@ class MongoTaskClient:
             logger.critical(f"❌ Falha ao conectar com MongoDB: {e}")
             raise
 
-    def submit_task(self, agent_id: str, cwd: str, timeout: int = 600, provider: str = "claude", prompt: str = None, instance_id: str = None, is_councilor_execution: bool = False, councilor_config: dict = None) -> str:
+    def submit_task(self, task_id: str, agent_id: str, cwd: str, timeout: int = 600, provider: str = "claude", prompt: str = None, instance_id: str = None, is_councilor_execution: bool = False, councilor_config: dict = None, conversation_id: str = None, screenplay_id: str = None) -> str:
         """
         Insere uma nova tarefa na coleção e retorna seu ID.
 
@@ -36,9 +36,11 @@ class MongoTaskClient:
             timeout: Timeout em segundos
             provider: "claude" ou "gemini"
             prompt: Prompt XML completo (persona + playbook + history + user_input)
-            instance_id: ID da instância (SAGA-004: para separação de contextos)
+            instance_id: ID da instância (REQUIRED: para separação de contextos)
             is_councilor_execution: Flag indicando se é execução de conselheiro
             councilor_config: Configuração do conselheiro (se aplicável)
+            conversation_id: ID da conversa para contexto (REQUIRED)
+            screenplay_id: ID do screenplay para contexto do projeto (REQUIRED)
 
         Returns:
             str: ID da task inserida
@@ -49,6 +51,8 @@ class MongoTaskClient:
         logger.info(f"   - agent_id: {agent_id}")
         logger.info(f"   - provider: {provider}")
         logger.info(f"   - instance_id: {instance_id}")
+        logger.info(f"   - conversation_id: {conversation_id}")
+        logger.info(f"   - screenplay_id: {screenplay_id}")
         logger.info(f"   - cwd: {cwd}")
         logger.info(f"   - timeout: {timeout}")
         
@@ -57,17 +61,48 @@ class MongoTaskClient:
         caller = stack[-2] if len(stack) > 1 else None
         if caller:
             logger.info(f"   - Chamado por: {caller.filename}:{caller.lineno} em {caller.name}()")
+
+        # 🔥 VALIDAÇÕES OBRIGATÓRIAS - NÃO PERMITIR INSERIR SEM ESSES CAMPOS
+        # Exceção: Conselheiros (councilor_execution) podem executar sem conversation_id/screenplay_id
+        validation_errors = []
+
         if not prompt:
-            raise ValueError("Campo 'prompt' é obrigatório")
+            validation_errors.append("❌ Campo 'prompt' é obrigatório e não pode ser None ou vazio")
+
+        # Para execuções normais (não conselheiros), todos os campos são obrigatórios
+        if not is_councilor_execution:
+            if not instance_id:
+                validation_errors.append("❌ Campo 'instance_id' é obrigatório e não pode ser None. Cada execução deve ter um instance_id único.")
+
+            if not conversation_id:
+                validation_errors.append("❌ Campo 'conversation_id' é obrigatório e não pode ser None. Cada execução deve estar associada a uma conversa.")
+
+            if not screenplay_id:
+                validation_errors.append("❌ Campo 'screenplay_id' é obrigatório e não pode ser None. Cada execução deve estar associada a um screenplay (contexto do projeto).")
+
+        if validation_errors:
+            error_message = "\n".join([
+                "🚨 ERRO: Tentativa de inserir task na coleção MongoDB com campos obrigatórios faltando:",
+                *validation_errors,
+                "\n📍 Stack trace:",
+                f"   Chamado por: {caller.filename}:{caller.lineno} em {caller.name}()" if caller else "   Desconhecido",
+                f"\n💡 Dica: Para chat/execuções normais, esses campos são OBRIGATÓRIOS.",
+                f"   Apenas conselheiros (is_councilor_execution=True) podem executar sem conversation_id/screenplay_id."
+            ])
+            logger.error(error_message)
+            raise ValueError(error_message)
 
         task_document = {
+            "_id": ObjectId(task_id),  # 🔥 Use task_id from gateway
             "agent_id": agent_id,
             "provider": provider,
             "prompt": prompt,  # 🔥 CAMPO PRINCIPAL: Prompt XML completo
             "cwd": cwd,
             "timeout": timeout,
             "status": "pending",
-            "instance_id": instance_id,  # SAGA-004: ID da instância para separação de contextos
+            "instance_id": instance_id,  # 🔥 REQUIRED: ID da instância para separação de contextos
+            "conversation_id": conversation_id,  # 🔥 REQUIRED: ID da conversa para contexto
+            "screenplay_id": screenplay_id,  # 🔥 REQUIRED: ID do screenplay para contexto do projeto
             "context": {},  # SAGA-004: Context object for additional metadata
             "created_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc),
@@ -81,7 +116,6 @@ class MongoTaskClient:
         }
 
         result = self.collection.insert_one(task_document)
-        task_id = str(result.inserted_id)
         logger.info(f"📤 Tarefa submetida ao MongoDB com ID: {task_id}")
         return task_id
 

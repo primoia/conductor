@@ -68,6 +68,8 @@ class ConductorExecuteRequest(BaseModel):
     input_file: Optional[str] = None
     output_file: Optional[str] = None
     instance_id: Optional[str] = None  # For stateful execution with isolated context
+    conversation_id: Optional[str] = None  # Conversation ID for context (REQUIRED for chat)
+    screenplay_id: Optional[str] = None  # Screenplay ID for project context (REQUIRED for chat)
 
     # Modos de execução
     chat: bool = False
@@ -279,29 +281,42 @@ def _execute_agent_container_mongodb(request: ConductorExecuteRequest) -> Dict[s
         # Construir prompt completo usando PromptEngine (mesma forma que o CLI faz)
         agent_home = repository.get_agent_home_path(agent_id)
 
-        prompt_engine = PromptEngine(agent_home_path=agent_home, prompt_format="xml", instance_id=request.instance_id)
-        prompt_engine.load_context()
+        prompt_engine = PromptEngine(
+            agent_home_path=agent_home,
+            prompt_format="xml",
+            instance_id=request.instance_id,
+            screenplay_id=request.screenplay_id  # ← Pass screenplay_id directly
+        )
+        prompt_engine.load_context(conversation_id=request.conversation_id)  # ← Pass conversation_id to load conversation context and history
 
+        # PromptEngine agora carrega o histórico automaticamente do conversation_id
+        # Não precisa mais passar conversation_history manualmente
         full_prompt = prompt_engine.build_prompt_with_format(
-            conversation_history=conversation_history,
+            conversation_history=[],  # ← Deixar vazio, PromptEngine usa o cache interno
             message=user_input,
             include_history=True
         )
 
         logger.info(f"Submetendo tarefa via MongoDB: agent={agent_id}, instance={request.instance_id or 'global'}...")
 
+        # 🔍 DEBUG: Verificar se o prompt está correto
+        logger.info(f"🔍 [CONDUCTOR_CLI] Prompt construído:")
+        logger.info(f"   - Tamanho: {len(full_prompt)} chars")
+        logger.info(f"   - Tem tags XML: {'<persona>' in full_prompt}")
+        logger.info(f"   - Primeiros 200 chars: {full_prompt[:200]}")
+
         # 🔍 LOG DETALHADO PARA RASTREAR PROVIDER
         logger.info("🔍 [CONDUCTOR_CLI] Determinando provider:")
         logger.info(f"   - request.ai_provider: {request.ai_provider}")
         logger.info(f"   - agent_definition: {agent_definition}")
         logger.info(f"   - agent_ai_provider: {getattr(agent_definition, 'ai_provider', 'N/A')}")
-        
+
         # Determinar provider com fallback hierárquico
         provider = container.get_ai_provider(
             agent_definition=agent_definition,
             cli_provider=request.ai_provider
         )
-        
+
         logger.info(f"✅ [CONDUCTOR_CLI] Provider final: {provider}")
         logger.info(f"   - cli_provider: {request.ai_provider}")
         logger.info(f"   - agent_ai_provider: {getattr(agent_definition, 'ai_provider', 'N/A')}")
@@ -314,7 +329,9 @@ def _execute_agent_container_mongodb(request: ConductorExecuteRequest) -> Dict[s
             cwd=request.cwd or "/app",
             timeout=request.timeout or 600,
             provider=provider,
-            instance_id=request.instance_id  # SAGA-004: Pass instance_id to task
+            instance_id=request.instance_id,  # 🔥 REQUIRED: Pass instance_id to task
+            conversation_id=request.conversation_id,  # 🔥 REQUIRED: Pass conversation_id to task
+            screenplay_id=request.screenplay_id  # 🔥 REQUIRED: Pass screenplay_id to task
         )
 
         # Aguardar resultado

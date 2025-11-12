@@ -8,6 +8,7 @@ Welcome to the technical documentation for Conductor. This is the central hub fo
 
 -   **[🏛️ Architecture](architecture/):** High-level decisions, design patterns, and the fundamental structure of the framework.
 -   **[✨ Features](features/):** Detailed documentation on Conductor's main capabilities.
+    -   **[Conversation Management](features/conversation-management.md):** Track and manage multi-agent conversations with persistent history.
 -   **[🏁 Guides & Tutorials](guides/):** Step-by-step instructions for common tasks.
     -   **[Use Cases](guides/use-cases.md):** An excellent starting point to understand what Conductor can do.
     -   **[Storage Migration](guides/storage-migration.md):** Complete guide for migrating between filesystem and MongoDB backends.

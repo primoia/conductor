@@ -93,6 +93,7 @@ class ConversationSummary(BaseModel):
     message_count: int
     participant_count: int
     screenplay_id: Optional[str] = None
+    display_order: Optional[int] = None  # 🔥 NOVO: Ordem de exibição customizada
 
 
 # ==========================================
@@ -258,15 +259,22 @@ def list_conversations(
         # Mapear para sumários
         summaries = []
         for conv in conversations:
-            summaries.append(ConversationSummary(
-                conversation_id=conv['conversation_id'],
-                title=conv['title'],
-                created_at=conv['created_at'],
-                updated_at=conv['updated_at'],
-                message_count=len(conv.get('messages', [])),
-                participant_count=len(conv.get('participants', [])),
-                screenplay_id=conv.get('screenplay_id')
-            ))
+            summary_dict = {
+                'conversation_id': conv['conversation_id'],
+                'title': conv['title'],
+                'created_at': conv['created_at'],
+                'updated_at': conv['updated_at'],
+                'message_count': len(conv.get('messages', [])),
+                'participant_count': len(conv.get('participants', []))
+            }
+
+            # Adicionar campos opcionais
+            if 'screenplay_id' in conv:
+                summary_dict['screenplay_id'] = conv['screenplay_id']
+            if 'display_order' in conv:
+                summary_dict['display_order'] = conv['display_order']
+
+            summaries.append(ConversationSummary(**summary_dict))
 
         return {
             "total": len(summaries),
@@ -409,6 +417,49 @@ def update_conversation_context(
     except Exception as e:
         logger.error(f"❌ Erro ao atualizar contexto: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar contexto: {str(e)}")
+
+
+@router.patch("/reorder", summary="Atualizar ordem das conversas")
+def reorder_conversations(
+    order_updates: dict
+):
+    """
+    🔥 NOVO: Atualiza a ordem de exibição das conversas.
+
+    Permite que o usuário reordene conversas via drag & drop,
+    persistindo a ordem customizada no MongoDB.
+
+    Args:
+        order_updates: Dicionário com chave "order_updates" contendo array de
+                      {conversation_id: str, display_order: int}
+
+    Returns:
+        Confirmação de sucesso com número de conversas atualizadas
+    """
+    try:
+        updates = order_updates.get("order_updates", [])
+
+        if not updates or not isinstance(updates, list):
+            raise HTTPException(
+                status_code=400,
+                detail="Campo 'order_updates' é obrigatório e deve ser uma lista"
+            )
+
+        logger.info(f"🔄 [REORDER] Atualizando ordem de {len(updates)} conversas")
+
+        updated_count = conversation_service.update_conversation_order(updates)
+
+        return {
+            "success": True,
+            "message": f"Ordem atualizada para {updated_count} conversas",
+            "updated_count": updated_count
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erro ao atualizar ordem das conversas: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar ordem: {str(e)}")
 
 
 @router.post("/migrate-screenplays", summary="Migrar roteiros antigos para ter conversas")
