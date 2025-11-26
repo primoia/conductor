@@ -62,13 +62,23 @@ class DIContainer:
         working_directory: str = None,
         timeout: int = None,
         is_admin_agent: bool = False,
+        mcp_config: str = None,
     ) -> LLMClient:
-        """Get LLM client instance for the specified provider."""
+        """
+        Get LLM client instance for the specified provider.
+
+        Args:
+            ai_provider: The AI provider to use (e.g., "claude", "gemini")
+            working_directory: Working directory for the LLM client
+            timeout: Timeout in seconds for long-running operations
+            is_admin_agent: Whether this is an admin agent with unrestricted access
+            mcp_config: Path to MCP configuration file (only used for Claude CLI)
+        """
         if timeout is None:
             timeout = self.settings.default_timeout
 
         return create_llm_client(
-            ai_provider, working_directory, timeout, is_admin_agent
+            ai_provider, working_directory, timeout, is_admin_agent, mcp_config
         )
 
 

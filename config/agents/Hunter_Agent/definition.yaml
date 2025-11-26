@@ -1,0 +1,23 @@
+name: "Hunter_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "B2B prospecting agent that searches and qualifies leads using intelligent web scraping and MCP tools"
+author: "PrimoIA"
+tags: ["prospecting", "lead-generation", "b2b", "web-scraping", "qualification"]
+capabilities:
+  - "search_prospects"
+  - "qualify_leads"
+  - "extract_contacts"
+  - "analyze_icp_fit"
+  - "generate_search_queries"
+  - "score_leads"
+allowed_tools:
+  - "Read"
+  - "Write"
+  - "Bash"
+  - "mcp__prospector__fetch_page"
+  - "mcp__prospector__search_site"
+  - "mcp__prospector__extract_contacts"
+mcp_config: "/mnt/ramdisk/primoia-main/primoia/infrastructure/primoia-data-prospector/mcp-server/mcp-config.json"
+timeout: 600
+model: "claude"

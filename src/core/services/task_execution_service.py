@@ -159,32 +159,36 @@ class TaskExecutionService:
             else:
                 working_directory = agent_home_path  # Use agent directory for filesystem agents
             timeout = 600  # Default timeout - 10 minutes for long-running operations
-            
+
             if hasattr(self, '_current_task') and self._current_task:
                 project_path = self._current_task.context.get("project_path")
                 if project_path and os.path.exists(project_path):
                     working_directory = project_path
-                
+
                 # Para agentes meta que criam outros agentes, usar diretório raiz do projeto
                 # em vez do diretório do agente atual
-                if (self._current_task.context.get("meta", False) or 
+                if (self._current_task.context.get("meta", False) or
                     self._current_task.context.get("new_agent_id") or
                     agent_definition.tags and "meta" in agent_definition.tags):
                     # Usar diretório raiz do projeto para agentes meta
                     project_root = os.path.dirname(os.path.dirname(os.path.dirname(agent_home_path)))
                     if os.path.exists(project_root):
                         working_directory = project_root
-                
+
                 # Usar timeout do contexto se fornecido
                 context_timeout = self._current_task.context.get("timeout")
                 if context_timeout and isinstance(context_timeout, int):
                     timeout = context_timeout
-            
+
+            # Extract MCP config from agent definition if available
+            mcp_config = getattr(agent_definition, 'mcp_config', None)
+
             llm_client = create_llm_client(
                 ai_provider=ai_provider,
                 working_directory=working_directory,
                 timeout=timeout,
-                is_admin_agent=True
+                is_admin_agent=True,
+                mcp_config=mcp_config
             )
         
         # Criar engine de prompt com formato configurado

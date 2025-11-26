@@ -54,15 +54,21 @@ class ClaudeCLIClient(BaseCLIClient):
         working_directory: str = None,
         timeout: int = 600,  # 10 minutes timeout for long-running operations
         is_admin_agent: bool = False,
+        mcp_config: str = None,  # Path to MCP configuration file
     ):
         super().__init__(working_directory, timeout, is_admin_agent)
         self.claude_command = "claude"
-        logger.debug(f"ClaudeCLIClient initialized (admin: {is_admin_agent})")
+        self.mcp_config = mcp_config  # Store MCP config path for use in invoke()
+        logger.debug(f"ClaudeCLIClient initialized (admin: {is_admin_agent}, mcp_config: {mcp_config})")
 
     def invoke(self, prompt: str) -> str:
         """Invoke Claude CLI with the given prompt."""
         try:
             cmd = [self.claude_command, "--print", "--dangerously-skip-permissions"]
+
+            # Add MCP config if specified
+            if self.mcp_config:
+                cmd.extend(["--mcp-config", self.mcp_config])
 
             # Add available tools if genesis_agent is available
             if hasattr(self, "genesis_agent") and hasattr(
@@ -230,45 +236,54 @@ def create_llm_client(
     working_directory: str = None,
     timeout: int = 600,  # 10 minutes timeout for long-running operations
     is_admin_agent: bool = False,
+    mcp_config: str = None,  # Path to MCP configuration file
 ) -> LLMClient:
     """
     Factory function to create LLM clients based on provider.
-    
+
     When running locally (not in Docker), uses local Claude Code CLI regardless of provider.
     When running in Docker, uses API-based clients with credentials.
+
+    Args:
+        ai_provider: The AI provider to use (e.g., "claude", "gemini")
+        working_directory: Working directory for the LLM client
+        timeout: Timeout in seconds for long-running operations
+        is_admin_agent: Whether this is an admin agent with unrestricted access
+        mcp_config: Path to MCP configuration file (only used for Claude CLI)
     """
     # Check if running locally (not in Docker)
     is_docker = (
-        os.path.exists("/.dockerenv") or 
+        os.path.exists("/.dockerenv") or
         os.getenv("DOCKER_CONTAINER") == "true"
     )
-    
+
     # If running locally, prefer Claude Code CLI (if available)
     if not is_docker:
         # Check if Claude Code is available
         try:
-            result = subprocess.run(["claude", "--version"], 
-                                  capture_output=True, 
-                                  text=True, 
+            result = subprocess.run(["claude", "--version"],
+                                  capture_output=True,
+                                  text=True,
                                   timeout=5)
             if result.returncode == 0:
                 logger.info(
-                    f"🏠 Local environment detected - Using Claude Code CLI (timeout: {timeout}s, admin: {is_admin_agent})"
+                    f"🏠 Local environment detected - Using Claude Code CLI (timeout: {timeout}s, admin: {is_admin_agent}, mcp: {mcp_config is not None})"
                 )
-                return ClaudeCLIClient(working_directory, timeout, is_admin_agent)
+                return ClaudeCLIClient(working_directory, timeout, is_admin_agent, mcp_config)
         except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
             logger.debug(f"Claude Code CLI not available: {e}")
-    
+
     # Fallback to provider-specific clients (for Docker or when Claude Code is not available)
     if ai_provider == "claude":
         logger.info(
-            f"🐳 Creating Claude CLI client with timeout: {timeout}s, admin: {is_admin_agent}"
+            f"🐳 Creating Claude CLI client with timeout: {timeout}s, admin: {is_admin_agent}, mcp: {mcp_config is not None}"
         )
-        return ClaudeCLIClient(working_directory, timeout, is_admin_agent)
+        return ClaudeCLIClient(working_directory, timeout, is_admin_agent, mcp_config)
     elif ai_provider == "gemini":
         logger.info(
             f"🐳 Creating Gemini CLI client with timeout: {timeout}s, admin: {is_admin_agent}"
         )
+        # Note: Gemini doesn't support MCP config, so we don't pass it
         return GeminiCLIClient(working_directory, timeout, is_admin_agent)
     else:
         raise LLMClientError(f"Unsupported AI provider: {ai_provider}")
