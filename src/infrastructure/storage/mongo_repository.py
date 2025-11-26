@@ -32,18 +32,23 @@ class MongoStateRepository(IStateRepository):
         self.sessions_collection = self.db["sessions"]
 
         # Try to create indexes, but don't fail if it doesn't work
-        try:
-            # Criar índice TTL na coleção de sessões, se não existir
-            self.sessions_collection.create_index("createdAt", expireAfterSeconds=86400)
+        # Silently ignore IndexKeySpecsConflict (code 86) - index already exists
+        self._safe_create_index(self.sessions_collection, "createdAt", expireAfterSeconds=86400)
+        self._safe_create_index(self.agents_collection, "agent_id")
+        self._safe_create_index(self.history_collection, "agent_id")
+        self._safe_create_index(self.sessions_collection, "agent_id")
 
-            # Criar índices para otimização
-            self.agents_collection.create_index("agent_id")
-            self.history_collection.create_index("agent_id")
-            self.sessions_collection.create_index("agent_id")
+    def _safe_create_index(self, collection, key, **kwargs):
+        """Create index silently, ignoring if it already exists."""
+        try:
+            collection.create_index(key, **kwargs)
         except Exception as e:
-            print(f"⚠️  Aviso: Não foi possível criar índices no MongoDB: {e}")
-            print("   O sistema continuará funcionando, mas pode ter performance reduzida")
-            # Continue anyway - indexes are optional for basic operation
+            # Ignore IndexKeySpecsConflict (code 86) - index already exists with same name
+            if hasattr(e, 'code') and e.code == 86:
+                pass  # Index already exists, ignore silently
+            else:
+                print(f"⚠️  Aviso: Não foi possível criar índice no MongoDB: {e}")
+                print("   O sistema continuará funcionando, mas pode ter performance reduzida")
 
     def load_definition(self, agent_id: str) -> Dict:
         """Carrega a definição do agente como dicionário."""

@@ -52,22 +52,25 @@ class ConversationService:
 
     def _ensure_indexes(self):
         """Cria índices para otimização de queries."""
+        indexes = [
+            ("conversation_id", {"unique": True}),
+            ("participants.agent_id", {}),
+            ("updated_at", {}),
+            ("screenplay_id", {}),
+        ]
+        for key, kwargs in indexes:
+            self._safe_create_index(self.conversations, key, **kwargs)
+
+    def _safe_create_index(self, collection, key, **kwargs):
+        """Create index silently, ignoring if it already exists."""
         try:
-            # Índice para conversation_id (chave primária)
-            self.conversations.create_index("conversation_id", unique=True)
-
-            # Índice para buscar conversas por participante
-            self.conversations.create_index("participants.agent_id")
-
-            # Índice para ordenação por data
-            self.conversations.create_index("updated_at")
-
-            # Índice para buscar conversas por screenplay_id
-            self.conversations.create_index("screenplay_id")
-
-            logger.info("✅ Índices criados na collection conversations")
+            collection.create_index(key, **kwargs)
         except Exception as e:
-            logger.warning(f"⚠️ Falha ao criar índices: {e}")
+            # Ignore IndexKeySpecsConflict (code 86) - index already exists
+            if hasattr(e, 'code') and e.code == 86:
+                pass  # Index already exists, ignore silently
+            else:
+                logger.warning(f"⚠️ Falha ao criar índice {key}: {e}")
 
     # ==========================================
     # NOVO MODELO: Conversas Globais
