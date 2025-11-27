@@ -112,7 +112,8 @@ class AgentDefinition:
     allowed_tools: List[str] = field(default_factory=list)
     agent_id: Optional[str] = None  # Optional field for compatibility
     ai_provider: Optional[str] = None  # AI provider for this agent (uses global config if None)
-    mcp_config: Optional[str] = None  # Path to MCP configuration file (for Claude CLI only)
+    mcp_config: Optional[str] = None  # DEPRECATED: Path to MCP configuration file (use mcp_configs instead)
+    mcp_configs: List[str] = field(default_factory=list)  # List of MCP names (e.g., ["prospector", "database"])
 
 @dataclass(frozen=True)
 class AgentPersona:

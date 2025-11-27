@@ -49,8 +49,9 @@ class Commands:
 class AgentFields:
     """Campos válidos para AgentDefinition."""
     VALID_FIELDS = {
-        'name', 'version', 'schema_version', 'description', 'author', 
-        'tags', 'capabilities', 'allowed_tools', 'ai_provider'
+        'name', 'version', 'schema_version', 'description', 'author',
+        'tags', 'capabilities', 'allowed_tools', 'ai_provider',
+        'mcp_config', 'mcp_configs'  # MCP configuration fields
     }
     REQUIRED_FIELDS = {
         'name', 'version', 'schema_version', 'description', 'author'

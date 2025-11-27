@@ -54,12 +54,14 @@ class ClaudeCLIClient(BaseCLIClient):
         working_directory: str = None,
         timeout: int = 600,  # 10 minutes timeout for long-running operations
         is_admin_agent: bool = False,
-        mcp_config: str = None,  # Path to MCP configuration file
+        mcp_config: str = None,  # Path to MCP configuration file (deprecated)
+        mcp_configs: list = None,  # List of MCP names (e.g., ["prospector", "database"])
     ):
         super().__init__(working_directory, timeout, is_admin_agent)
         self.claude_command = "claude"
         self.mcp_config = mcp_config  # Store MCP config path for use in invoke()
-        logger.debug(f"ClaudeCLIClient initialized (admin: {is_admin_agent}, mcp_config: {mcp_config})")
+        self.mcp_configs = mcp_configs or []  # Store MCP names for dynamic config generation
+        logger.debug(f"ClaudeCLIClient initialized (admin: {is_admin_agent}, mcp_config: {mcp_config}, mcp_configs: {mcp_configs})")
 
     def invoke(self, prompt: str) -> str:
         """Invoke Claude CLI with the given prompt."""
@@ -236,7 +238,8 @@ def create_llm_client(
     working_directory: str = None,
     timeout: int = 600,  # 10 minutes timeout for long-running operations
     is_admin_agent: bool = False,
-    mcp_config: str = None,  # Path to MCP configuration file
+    mcp_config: str = None,  # Path to MCP configuration file (deprecated)
+    mcp_configs: list = None,  # List of MCP names (e.g., ["prospector", "database"])
 ) -> LLMClient:
     """
     Factory function to create LLM clients based on provider.
@@ -249,7 +252,8 @@ def create_llm_client(
         working_directory: Working directory for the LLM client
         timeout: Timeout in seconds for long-running operations
         is_admin_agent: Whether this is an admin agent with unrestricted access
-        mcp_config: Path to MCP configuration file (only used for Claude CLI)
+        mcp_config: Path to MCP configuration file (deprecated, use mcp_configs)
+        mcp_configs: List of MCP names - the watcher will generate the config dynamically
     """
     # Check if running locally (not in Docker)
     is_docker = (
@@ -267,18 +271,18 @@ def create_llm_client(
                                   timeout=5)
             if result.returncode == 0:
                 logger.info(
-                    f"🏠 Local environment detected - Using Claude Code CLI (timeout: {timeout}s, admin: {is_admin_agent}, mcp: {mcp_config is not None})"
+                    f"🏠 Local environment detected - Using Claude Code CLI (timeout: {timeout}s, admin: {is_admin_agent}, mcp: {mcp_config is not None}, mcp_configs: {mcp_configs})"
                 )
-                return ClaudeCLIClient(working_directory, timeout, is_admin_agent, mcp_config)
+                return ClaudeCLIClient(working_directory, timeout, is_admin_agent, mcp_config, mcp_configs)
         except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
             logger.debug(f"Claude Code CLI not available: {e}")
 
     # Fallback to provider-specific clients (for Docker or when Claude Code is not available)
     if ai_provider == "claude":
         logger.info(
-            f"🐳 Creating Claude CLI client with timeout: {timeout}s, admin: {is_admin_agent}, mcp: {mcp_config is not None}"
+            f"🐳 Creating Claude CLI client with timeout: {timeout}s, admin: {is_admin_agent}, mcp: {mcp_config is not None}, mcp_configs: {mcp_configs}"
         )
-        return ClaudeCLIClient(working_directory, timeout, is_admin_agent, mcp_config)
+        return ClaudeCLIClient(working_directory, timeout, is_admin_agent, mcp_config, mcp_configs)
     elif ai_provider == "gemini":
         logger.info(
             f"🐳 Creating Gemini CLI client with timeout: {timeout}s, admin: {is_admin_agent}"

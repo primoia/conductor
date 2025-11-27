@@ -18,6 +18,13 @@ allowed_tools:
   - "mcp__prospector__fetch_page"
   - "mcp__prospector__search_site"
   - "mcp__prospector__extract_contacts"
-mcp_config: "/mnt/ramdisk/primoia-main/primoia/infrastructure/primoia-data-prospector/mcp-server/mcp-config.json"
+  - "mcp__database__find_documents"
+  - "mcp__database__insert_document"
+  - "mcp__database__update_document"
+# mcp_config is deprecated - use mcp_configs instead
+# mcp_config: "/mnt/ramdisk/primoia-main/primoia/infrastructure/primoia-data-prospector/mcp-server/mcp-config.json"
+mcp_configs:
+  - "prospector"
+  - "database"
 timeout: 600
 model: "claude"

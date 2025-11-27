@@ -181,14 +181,21 @@ class TaskExecutionService:
                     timeout = context_timeout
 
             # Extract MCP config from agent definition if available
+            # mcp_config: legacy path to MCP config file (deprecated)
+            # mcp_configs: list of MCP names (e.g., ["prospector", "database"])
             mcp_config = getattr(agent_definition, 'mcp_config', None)
+            mcp_configs = getattr(agent_definition, 'mcp_configs', [])
 
+            # If mcp_configs is provided, it will be used by the watcher to generate
+            # the MCP config JSON dynamically. The mcp_config path takes precedence
+            # for backward compatibility.
             llm_client = create_llm_client(
                 ai_provider=ai_provider,
                 working_directory=working_directory,
                 timeout=timeout,
                 is_admin_agent=True,
-                mcp_config=mcp_config
+                mcp_config=mcp_config,
+                mcp_configs=mcp_configs
             )
         
         # Criar engine de prompt com formato configurado

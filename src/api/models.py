@@ -23,6 +23,8 @@ class AgentDetailResponse(BaseModel):
     capabilities: List[str] = Field(default_factory=list)
     allowed_tools: List[str] = Field(default_factory=list)
     agent_id: Optional[str] = None
+    ai_provider: Optional[str] = None
+    mcp_configs: List[str] = Field(default_factory=list, description="List of MCP names (e.g., ['prospector', 'database'])")
 
 class ValidationResult(BaseModel):
     """Modelo para resultado de validação"""
