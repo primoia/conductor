@@ -34,18 +34,6 @@ except ImportError:
 import json
 import tempfile
 
-# ============================================================================
-# MCP_PORTS: Mapeamento de MCP names para portas
-# Deve estar sincronizado com conductor-gateway/src/mcps/registry.py
-# ============================================================================
-MCP_PORTS = {
-    "prospector": int(os.environ.get("MCP_PROSPECTOR_PORT", "5007")),
-    "database": int(os.environ.get("MCP_DATABASE_PORT", "5008")),
-    "conductor": int(os.environ.get("MCP_CONDUCTOR_PORT", "5009")),
-}
-
-# Host onde os MCPs estão rodando (gateway)
-MCP_HOST = os.environ.get("MCP_HOST", "localhost")
 
 # Configuração de logging
 logging.basicConfig(
@@ -147,6 +135,49 @@ class UniversalMongoWatcher:
         except Exception as e:
             logger.warning(f"⚠️  Erro ao criar índices: {e}")
 
+    def get_agent(self, agent_id: str) -> Optional[Dict]:
+        """
+        Busca um agent pelo agent_id na collection agents.
+
+        Args:
+            agent_id: ID do agente (ex: "Hunter_Agent")
+
+        Returns:
+            Dict com dados do agent ou None se não encontrado
+        """
+        try:
+            agents_collection = self.db["agents"]
+            agent = agents_collection.find_one({"agent_id": agent_id})
+            if agent:
+                logger.debug(f"🔍 Agent '{agent_id}' encontrado no MongoDB")
+            else:
+                logger.warning(f"⚠️ Agent '{agent_id}' não encontrado na collection agents")
+            return agent
+        except Exception as e:
+            logger.error(f"❌ Erro ao buscar agent '{agent_id}': {e}")
+            return None
+
+    def get_mcp_config_for_agent(self, agent_id: str) -> Optional[str]:
+        """
+        Obtém configuração MCP para um agent.
+
+        Args:
+            agent_id: ID do agente
+
+        Returns:
+            Caminho do arquivo temporário de config ou None
+        """
+        agent = self.get_agent(agent_id)
+        if not agent:
+            return None
+
+        mcp_servers = agent.get("mcp_servers")
+        if mcp_servers:
+            logger.info(f"🔌 [MCP] Carregando {len(mcp_servers)} MCP(s) do agent '{agent_id}'")
+            return self.write_mcp_config(mcp_servers)
+
+        return None
+
     def _signal_handler(self, signum, frame):
         """Handler para sinais de shutdown (SIGTERM, SIGINT)"""
         logger.info(f"🛑 Sinal {signum} recebido. Iniciando graceful shutdown...")
@@ -220,35 +251,18 @@ class UniversalMongoWatcher:
                 )
             }
 
-    def generate_mcp_config(self, mcp_configs: List[str], host: str = None) -> Optional[str]:
+    def write_mcp_config(self, mcp_servers: Dict[str, Any]) -> Optional[str]:
         """
-        Gera arquivo temporário de configuração MCP para Claude CLI.
+        Escreve configuração MCP normalizada em arquivo temporário para Claude CLI.
 
         Args:
-            mcp_configs: Lista de nomes de MCP (ex: ["prospector", "database"])
-            host: Host onde os MCPs estão rodando (padrão: MCP_HOST)
+            mcp_servers: Dict normalizado de MCP servers (já no formato final)
+                        Ex: {"prospector": {"url": "http://localhost:5007/sse", ...}}
 
         Returns:
-            str: Caminho do arquivo temporário de configuração, ou None se lista vazia
+            str: Caminho do arquivo temporário de configuração, ou None se vazio
         """
-        if not mcp_configs:
-            return None
-
-        host = host or MCP_HOST
-        mcp_servers = {}
-
-        for mcp_name in mcp_configs:
-            if mcp_name in MCP_PORTS:
-                port = MCP_PORTS[mcp_name]
-                mcp_servers[mcp_name] = {
-                    "url": f"http://{host}:{port}/sse"
-                }
-                logger.info(f"🔌 [MCP] Adicionando MCP '{mcp_name}' em http://{host}:{port}/sse")
-            else:
-                logger.warning(f"⚠️  [MCP] MCP '{mcp_name}' não encontrado em MCP_PORTS, ignorando")
-
         if not mcp_servers:
-            logger.warning("⚠️  [MCP] Nenhum MCP válido encontrado para configurar")
             return None
 
         config = {"mcpServers": mcp_servers}
@@ -258,7 +272,7 @@ class UniversalMongoWatcher:
         try:
             with os.fdopen(fd, 'w') as f:
                 json.dump(config, f, indent=2)
-            logger.info(f"📄 [MCP] Config gerada em {temp_path}: {json.dumps(config)}")
+            logger.info(f"📄 [MCP] Config escrita em {temp_path} com {len(mcp_servers)} servidor(es)")
             return temp_path
         except Exception as e:
             logger.error(f"❌ [MCP] Erro ao criar arquivo de config: {e}")
@@ -394,7 +408,7 @@ class UniversalMongoWatcher:
 
     def execute_llm_request(self, provider: str, prompt: str, cwd: str,
                               timeout: int = 600,
-                              mcp_configs: List[str] = None) -> tuple[str, int, float]:
+                              mcp_config_path: str = None) -> tuple[str, int, float]:
         """
         Executar request para LLM (Claude, Gemini ou Cursor-Agent) baseado no provider.
 
@@ -403,13 +417,12 @@ class UniversalMongoWatcher:
             prompt: Prompt XML completo já formatado
             cwd: Diretório de trabalho
             timeout: Timeout em segundos
-            mcp_configs: Lista de nomes de MCP para configurar (ex: ["prospector", "database"])
+            mcp_config_path: Caminho para arquivo de config MCP (gerado por get_mcp_config_for_agent)
 
         Returns:
             tuple: (result, exit_code, duration)
         """
         start_time = time.time()
-        mcp_config_path = None  # Track temp file for cleanup
 
         try:
             # Verificar se diretório existe
@@ -425,7 +438,7 @@ class UniversalMongoWatcher:
             logger.info(f"   USER: {os.environ.get('USER', 'N/A')}")
             logger.info(f"   HOME: {os.environ.get('HOME', 'N/A')}")
             logger.info(f"   PATH: {os.environ.get('PATH', 'N/A')[:200]}...")
-            logger.info(f"   mcp_configs: {mcp_configs}")
+            logger.info(f"   mcp_config_path: {mcp_config_path}")
 
             # Verificar se cursor-agent existe no PATH
             import shutil
@@ -436,12 +449,10 @@ class UniversalMongoWatcher:
             if provider == "claude":
                 command = ["claude", "--print", "--dangerously-skip-permissions"]
 
-                # Gerar config MCP se especificado
-                if mcp_configs:
-                    mcp_config_path = self.generate_mcp_config(mcp_configs)
-                    if mcp_config_path:
-                        command.extend(["--mcp-config", mcp_config_path])
-                        logger.info(f"🔌 [MCP] Claude CLI receberá --mcp-config {mcp_config_path}")
+                # Usar MCP config se fornecido (já gerado por get_mcp_config_for_agent)
+                if mcp_config_path:
+                    command.extend(["--mcp-config", mcp_config_path])
+                    logger.info(f"🔌 [MCP] Claude CLI receberá --mcp-config {mcp_config_path}")
             elif provider == "gemini":
                 # Usar a mesma implementação da GeminiCLIClient
                 # Verificar se o prompt é muito longo para evitar "Argument list too long"
@@ -581,7 +592,6 @@ class UniversalMongoWatcher:
         provider = request.get("provider", "claude")
         cwd = request.get("cwd", ".")
         timeout = request.get("timeout", 600)  # ✅ Alinhado com default da API (600s = 10 minutos)
-        mcp_configs = request.get("mcp_configs", [])  # Lista de MCPs (ex: ["prospector", "database"])
 
         # Buscar campo 'prompt' com XML completo
         prompt = request.get("prompt", "")
@@ -592,6 +602,9 @@ class UniversalMongoWatcher:
             self._update_metrics(agent_id, False, 0.0)
             return False
 
+        # 🔌 MCP Config: Buscar do Agent (source of truth)
+        mcp_config_path = self.get_mcp_config_for_agent(agent_id)
+
         logger.info("=" * 80)
         logger.info(f"📨 [{thread_name}] PROCESSANDO NOVA TASK")
         logger.info(f"   ID: {request_id}")
@@ -600,7 +613,7 @@ class UniversalMongoWatcher:
         logger.info(f"   Provider: {provider}")
         logger.info(f"   CWD: {cwd}")
         logger.info(f"   Timeout: {timeout}s")
-        logger.info(f"   MCP Configs: {mcp_configs}")
+        logger.info(f"   MCP Config: {mcp_config_path or 'Nenhum'}")
         logger.info(f"   Prompt length: {len(prompt)} chars")
         logger.info("=" * 80)
 
@@ -615,7 +628,7 @@ class UniversalMongoWatcher:
             prompt=prompt,
             cwd=cwd,
             timeout=timeout,
-            mcp_configs=mcp_configs
+            mcp_config_path=mcp_config_path
         )
 
         # Salvar resultado
