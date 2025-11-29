@@ -323,7 +323,12 @@ def _execute_agent_container_mongodb(request: ConductorExecuteRequest) -> Dict[s
         logger.info(f"   - provider_final: {provider}")
 
         # Submeter tarefa via MongoDB
+        # Generate task_id before calling submit_task
+        import uuid
+        generated_task_id = f"task_{agent_id}_{int(datetime.now().timestamp() * 1000)}_{uuid.uuid4().hex[:8]}"
+
         task_id = task_client.submit_task(
+            task_id=generated_task_id,  # 🔥 FIX: Pass task_id as first argument
             agent_id=agent_id,
             prompt=full_prompt,
             cwd=request.cwd or "/app",

@@ -25,6 +25,9 @@ class AgentExecuteRequest(BaseModel):
     conversation_id: Optional[str] = None  # REQUIRED: Conversation ID for context
     screenplay_id: Optional[str] = None  # REQUIRED: Screenplay ID for project context
     wait_for_result: Optional[bool] = True  # If False, returns task_id immediately without waiting
+    # Councilor execution fields
+    is_councilor_execution: Optional[bool] = False  # Flag for councilor executions
+    councilor_config: Optional[Dict[str, Any]] = None  # Councilor configuration (if applicable)
 
 @router.get("/", response_model=AgentListResponse, summary="Listar todos os agentes")
 def list_agents():
@@ -194,7 +197,9 @@ def execute_agent(agent_id: str, request: AgentExecuteRequest):
             prompt=xml_prompt,
             instance_id=request.instance_id,  # 🔥 REQUIRED: Pass instance_id to task
             conversation_id=request.conversation_id,  # 🔥 REQUIRED: Pass conversation_id to task
-            screenplay_id=request.screenplay_id  # 🔥 REQUIRED: Pass screenplay_id to task
+            screenplay_id=request.screenplay_id,  # 🔥 REQUIRED: Pass screenplay_id to task
+            is_councilor_execution=request.is_councilor_execution,  # Councilor flag
+            councilor_config=request.councilor_config  # Councilor config (if applicable)
         )
 
         # Check if caller wants to wait for result or get task_id immediately
