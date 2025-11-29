@@ -147,6 +147,75 @@ class UniversalMongoWatcher:
         except Exception as e:
             logger.warning(f"⚠️  Erro ao criar índices: {e}")
 
+    def get_agent(self, agent_id: str) -> Optional[Dict]:
+        """Busca um agent pelo agent_id na collection agents."""
+        try:
+            agents_collection = self.db["agents"]
+            return agents_collection.find_one({"agent_id": agent_id})
+        except Exception as e:
+            logger.error(f"❌ Erro ao buscar agent '{agent_id}': {e}")
+            return None
+
+    def emit_task_event(self, event_type: str, task_data: Dict):
+        """
+        Emite evento de task para o Gateway via HTTP.
+        O Gateway então faz broadcast via WebSocket para todos os clientes.
+
+        Args:
+            event_type: Tipo do evento (task_started, task_completed, task_error)
+            task_data: Dados da task do MongoDB
+        """
+        try:
+            agent_id = task_data.get("agent_id", "unknown")
+
+            # Buscar dados do agente
+            agent_data = self.get_agent(agent_id) or {}
+            definition = agent_data.get("definition", {})
+            agent_name = definition.get("name", agent_id)
+            agent_emoji = definition.get("emoji", "🤖")
+
+            # Extrair resultado resumido (primeiros 200 chars)
+            result = task_data.get("result", "")
+            result_summary = (result[:200] + "...") if len(result) > 200 else result
+
+            # Montar payload do evento
+            payload = {
+                "type": event_type,
+                "data": {
+                    "task_id": str(task_data.get("_id", "")),
+                    "agent_id": agent_id,
+                    "agent_name": agent_name,
+                    "agent_emoji": agent_emoji,
+                    "instance_id": task_data.get("instance_id"),
+                    "conversation_id": task_data.get("conversation_id"),
+                    "screenplay_id": task_data.get("screenplay_id"),
+                    "status": task_data.get("status", "unknown"),
+                    "duration_ms": int((task_data.get("duration") or 0) * 1000),
+                    "exit_code": task_data.get("exit_code"),
+                    "result_summary": result_summary,
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+            }
+
+            # Log payload para debug
+            logger.info(f"📡 [EVENT] Payload: screenplay_id={payload['data'].get('screenplay_id')}, conversation_id={payload['data'].get('conversation_id')}, instance_id={payload['data'].get('instance_id')}")
+
+            # Enviar para o Gateway
+            url = f"{self.gateway_url}/api/internal/task-event"
+            response = requests.post(url, json=payload, timeout=5)
+
+            if response.status_code == 200:
+                logger.info(f"📡 [EVENT] Evento {event_type} emitido para {agent_name}")
+            else:
+                logger.warning(f"⚠️ [EVENT] Falha ao emitir evento: {response.status_code}")
+
+        except requests.exceptions.Timeout:
+            logger.warning(f"⏰ [EVENT] Timeout ao emitir evento {event_type}")
+        except requests.exceptions.ConnectionError:
+            logger.warning(f"🔌 [EVENT] Gateway não disponível para emitir evento {event_type}")
+        except Exception as e:
+            logger.warning(f"⚠️ [EVENT] Erro ao emitir evento {event_type}: {e}")
+
     def _signal_handler(self, signum, frame):
         """Handler para sinais de shutdown (SIGTERM, SIGINT)"""
         logger.info(f"🛑 Sinal {signum} recebido. Iniciando graceful shutdown...")
@@ -609,6 +678,10 @@ class UniversalMongoWatcher:
             logger.warning(f"⚠️  [{thread_name}] Task {request_id} já está sendo processada")
             return False
 
+        # 📡 Emitir evento task_started
+        request["status"] = "processing"
+        self.emit_task_event("task_started", request)
+
         # Executar LLM request
         result, exit_code, duration = self.execute_llm_request(
             provider=provider,
@@ -645,11 +718,26 @@ class UniversalMongoWatcher:
                     logger.warning(f"⚠️  [{thread_name}] Falha ao atualizar estatísticas do agente (não-crítico)")
             else:
                 logger.warning(f"⚠️  [{thread_name}] Task não possui instance_id, estatísticas não serão atualizadas")
+
+            # 📡 Emitir evento task_completed ou task_error
+            request["status"] = "completed" if exit_code == 0 else "error"
+            request["result"] = result
+            request["duration"] = duration
+            request["exit_code"] = exit_code
+            event_type = "task_completed" if exit_code == 0 else "task_error"
+            self.emit_task_event(event_type, request)
+
         else:
             logger.error(f"❌ [{thread_name}] FALHA AO SALVAR RESULTADO NO MONGODB")
             logger.error(f"   ID: {request_id}")
             logger.error(f"   Agent ID: {agent_id}")
             logger.error(f"   Instance ID: {instance_id}")
+
+            # 📡 Emitir evento task_error mesmo quando falha salvar
+            request["status"] = "error"
+            request["result"] = "Falha ao salvar resultado no MongoDB"
+            self.emit_task_event("task_error", request)
+
         logger.info("=" * 80)
 
         return success
