@@ -682,9 +682,6 @@ class UniversalMongoWatcher:
         request["status"] = "processing"
         self.emit_task_event("task_picked", request)
 
-        # 📡 Emitir evento task_started (mantido para compatibilidade)
-        self.emit_task_event("task_started", request)
-
         # Executar LLM request
         result, exit_code, duration = self.execute_llm_request(
             provider=provider,
