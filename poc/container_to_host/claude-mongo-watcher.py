@@ -678,8 +678,11 @@ class UniversalMongoWatcher:
             logger.warning(f"⚠️  [{thread_name}] Task {request_id} já está sendo processada")
             return False
 
-        # 📡 Emitir evento task_started
+        # 📡 Emitir evento task_picked (watcher pegou o job da fila)
         request["status"] = "processing"
+        self.emit_task_event("task_picked", request)
+
+        # 📡 Emitir evento task_started (mantido para compatibilidade)
         self.emit_task_event("task_started", request)
 
         # Executar LLM request
