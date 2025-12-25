@@ -9,6 +9,7 @@ from src.core.domain import AgentDefinition, TaskDTO, TaskResultDTO, HistoryEntr
 from src.core.agent_executor import AgentExecutor, PlaceholderLLMClient
 from src.infrastructure.llm.cli_client import create_llm_client
 from src.core.prompt_engine import PromptEngine
+from src.infrastructure.discovery_service import DiscoveryService
 
 
 class TaskExecutionService:
@@ -19,11 +20,13 @@ class TaskExecutionService:
         agent_storage_service: AgentStorageService,
         tool_service: ToolManagementService,
         config_service: ConfigurationService,
+        discovery_service: DiscoveryService = None,
         container=None
     ):
         self._storage = agent_storage_service.get_storage()
         self._tools = tool_service
         self._config = config_service
+        self._discovery_service = discovery_service
         self._container = container
 
     def execute_task(self, task: TaskDTO) -> TaskResultDTO:
@@ -185,6 +188,29 @@ class TaskExecutionService:
             # mcp_configs: list of MCP names (e.g., ["prospector", "database"])
             mcp_config = getattr(agent_definition, 'mcp_config', None)
             mcp_configs = getattr(agent_definition, 'mcp_configs', [])
+
+            # AUTO-DISCOVERY: Generate MCP config from Docker sidecars
+            if self._discovery_service:
+                # Generate config to a temporary file or a standard location
+                # We use a standard location so it can be reused or debugged
+                generated_config_path = f"/tmp/primoia_mcp_config_{uuid.uuid4()}.json"
+                
+                # Use mcp_configs as whitelist if provided
+                whitelist = mcp_configs if mcp_configs else None
+                
+                self._discovery_service.generate_mcp_config(generated_config_path, whitelist=whitelist)
+                
+                # If mcp_config was not explicitly set, use the generated one
+                if not mcp_config:
+                    mcp_config = generated_config_path
+                else:
+                    # If user provided a config, we might want to merge it or warn
+                    # For now, let's prioritize the generated one if we want auto-discovery
+                    # Or maybe we should only do this if a flag is set?
+                    # The Master Plan implies auto-discovery is the default now.
+                    # So we override or use it.
+                    # Let's use the generated one as the primary config for now.
+                    mcp_config = generated_config_path
 
             # If mcp_configs is provided, it will be used by the watcher to generate
             # the MCP config JSON dynamically. The mcp_config path takes precedence

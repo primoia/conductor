@@ -210,3 +210,29 @@ def migrate_storage(request: MigrationRequest):
     except Exception as e:
         logger.error(f"Erro na migração: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/mcp/sidecars", summary="Listar MCP sidecars descobertos")
+def list_mcp_sidecars():
+    """
+    Retorna a lista de MCP sidecars descobertos na rede Docker.
+    """
+    try:
+        discovery_service = container.get_discovery_service()
+        sidecars = discovery_service.scan_network()
+        
+        return {
+            "count": len(sidecars),
+            "sidecars": [
+                {
+                    "name": s.name,
+                    "url": s.url,
+                    "port": s.port,
+                    "container_id": s.container_id
+                }
+                for s in sidecars
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Erro ao listar sidecars MCP: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

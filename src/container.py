@@ -8,7 +8,9 @@ from src.core.conductor_service import ConductorService
 from src.core.services.configuration_service import ConfigurationService
 from src.core.services.storage_service import StorageService
 from src.core.services.agent_storage_service import AgentStorageService
+from src.core.services.agent_storage_service import AgentStorageService
 from src.core.services.agent_discovery_service import AgentDiscoveryService
+from src.infrastructure.discovery_service import DiscoveryService
 from src.core.services.tool_management_service import ToolManagementService
 from src.core.services.task_execution_service import TaskExecutionService
 from src.core.services.session_management_service import SessionManagementService
@@ -42,6 +44,7 @@ class DIContainer:
         self._storage_service = None
         self._agent_storage_service = None
         self._agent_discovery_service = None
+        self._discovery_service = None
         self._tool_management_service = None
         self._task_execution_service = None
         self._session_management_service = None
@@ -109,11 +112,18 @@ class DIContainer:
             self._agent_discovery_service = AgentDiscoveryService(storage_service)
         return self._agent_discovery_service
 
+    def get_discovery_service(self) -> DiscoveryService:
+        """Get singleton DiscoveryService instance."""
+        if self._discovery_service is None:
+            self._discovery_service = DiscoveryService()
+        return self._discovery_service
+
     def get_tool_management_service(self) -> ToolManagementService:
         """Get singleton ToolManagementService instance."""
         if self._tool_management_service is None:
             config_service = self.get_configuration_service()
-            self._tool_management_service = ToolManagementService(config_service)
+            discovery_service = self.get_discovery_service()
+            self._tool_management_service = ToolManagementService(config_service, discovery_service)
         return self._tool_management_service
 
     def get_task_execution_service(self) -> TaskExecutionService:
@@ -122,8 +132,9 @@ class DIContainer:
             config_service = self.get_configuration_service()
             agent_storage_service = self.get_agent_storage_service()
             tool_service = self.get_tool_management_service()
+            discovery_service = self.get_discovery_service()
             self._task_execution_service = TaskExecutionService(
-                agent_storage_service, tool_service, config_service
+                agent_storage_service, tool_service, config_service, discovery_service, self
             )
         return self._task_execution_service
 
