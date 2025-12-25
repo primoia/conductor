@@ -25,6 +25,17 @@ class AgentDetailResponse(BaseModel):
     agent_id: Optional[str] = None
     ai_provider: Optional[str] = None
     mcp_configs: List[str] = Field(default_factory=list, description="List of MCP names (e.g., ['prospector', 'database'])")
+    emoji: Optional[str] = None
+    color: Optional[str] = None
+
+class AgentCreationRequest(BaseModel):
+    """Modelo normalizado para criação de novo agente (web e terminal)"""
+    name: str = Field(..., description="Nome do agente (deve terminar com _Agent)")
+    description: str = Field(..., min_length=10, max_length=200, description="Descrição do propósito do agente (10-200 chars)")
+    emoji: str = Field(default="🤖", description="Emoji representativo")
+    tags: List[str] = Field(default_factory=list, description="Tags para busca e organização")
+    persona_content: str = Field(..., min_length=50, description="Persona do agente em Markdown (mín 50 chars, deve começar com #)")
+    mcp_configs: List[str] = Field(default_factory=list, description="Lista de sidecars MCP habilitados")
 
 class ValidationResult(BaseModel):
     """Modelo para resultado de validação"""

@@ -114,6 +114,8 @@ class AgentDefinition:
     ai_provider: Optional[str] = None  # AI provider for this agent (uses global config if None)
     mcp_config: Optional[str] = None  # DEPRECATED: Path to MCP configuration file (use mcp_configs instead)
     mcp_configs: List[str] = field(default_factory=list)  # List of MCP names (e.g., ["prospector", "database"])
+    emoji: Optional[str] = None  # UI Emoji
+    color: Optional[str] = None  # UI Color
 
 @dataclass(frozen=True)
 class AgentPersona:

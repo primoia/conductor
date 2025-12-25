@@ -7,7 +7,8 @@ import logging
 
 # Importar da arquitetura existente
 from src.container import container  # Usar instância global do container DI
-from src.api.models import AgentListResponse, AgentSummary, AgentDetailResponse, ValidationResult
+from src.container import container  # Usar instância global do container DI
+from src.api.models import AgentListResponse, AgentSummary, AgentDetailResponse, ValidationResult, AgentCreationRequest
 from src.core.services.mongo_task_client import MongoTaskClient
 
 logger = logging.getLogger(__name__)
@@ -123,6 +124,83 @@ def validate_agent(agent_id: str = Path(..., description="ID do agente a ser val
             warnings=[],
             agent_id=agent_id
         )
+
+@router.post("/", response_model=Dict[str, Any], summary="Criar novo agente")
+def create_agent(request: AgentCreationRequest):
+    """
+    Cria um novo agente no sistema (normalizado para web e terminal).
+
+    Campos obrigatórios:
+    - name: deve terminar com _Agent
+    - description: 10-200 caracteres
+    - persona_content: mínimo 50 chars, deve começar com # (Markdown)
+
+    Campos opcionais:
+    - emoji: default 🤖
+    - tags: lista para busca/organização
+    - mcp_configs: lista de sidecars MCP
+    """
+    try:
+        storage_service = container.get_storage_service()
+        repository = storage_service.get_repository()
+        discovery_service = container.get_agent_discovery_service()
+
+        # Validar nome (deve terminar com _Agent)
+        if not request.name.endswith('_Agent'):
+            raise HTTPException(status_code=400, detail="Nome deve terminar com '_Agent'")
+
+        # Validar persona (deve começar com #)
+        if not request.persona_content.strip().startswith('#'):
+            raise HTTPException(status_code=400, detail="Persona deve começar com cabeçalho Markdown (#)")
+
+        # O agent_id é o próprio nome (já normalizado)
+        agent_id = request.name
+
+        # Verificar se já existe
+        if discovery_service.agent_exists(agent_id):
+            raise HTTPException(status_code=409, detail=f"Agente '{agent_id}' já existe")
+
+        # Preparar dados da definição (normalizado)
+        definition_data = {
+            "name": request.name,
+            "version": "1.0.0",
+            "schema_version": "1.0",
+            "description": request.description,
+            "author": "PrimoIA",
+            "tags": request.tags if request.tags else [],
+            "capabilities": [],  # Deprecated - mantido para compatibilidade
+            "allowed_tools": [],  # Deprecated - mantido para compatibilidade
+            "mcp_configs": request.mcp_configs if request.mcp_configs else [],
+            "emoji": request.emoji,
+        }
+
+        # Salvar definição (cria diretório automaticamente)
+        if not repository.save_definition(agent_id, definition_data):
+            raise HTTPException(status_code=500, detail="Falha ao salvar definição do agente")
+
+        # Usar persona fornecida pelo usuário (não gerar default)
+        if not repository.save_persona(agent_id, request.persona_content):
+            raise HTTPException(status_code=500, detail="Falha ao salvar persona do agente")
+
+        # Limpar cache de descoberta
+        discovery_service.clear_cache()
+
+        logger.info(f"✅ Agente criado com sucesso: {agent_id}")
+        logger.info(f"   - Tags: {request.tags}")
+        logger.info(f"   - MCP configs: {request.mcp_configs}")
+
+        return {
+            "status": "success",
+            "message": "Agente criado com sucesso",
+            "agent_id": agent_id,
+            "path": repository.get_agent_home_path(agent_id)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao criar agente: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/{agent_id}/execute", response_model=Dict[str, Any], summary="Executar um agente")
 def execute_agent(agent_id: str, request: AgentExecuteRequest):

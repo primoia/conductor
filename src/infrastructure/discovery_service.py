@@ -1,4 +1,3 @@
-import subprocess
 import logging
 import json
 import os
@@ -6,6 +5,14 @@ from typing import List, Dict, Optional
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+# Try to import docker library, fall back gracefully if not available
+try:
+    import docker
+    DOCKER_AVAILABLE = True
+except ImportError:
+    DOCKER_AVAILABLE = False
+    logger.warning("Docker library not available. MCP sidecar discovery will be disabled.")
 
 @dataclass
 class DiscoveredSidecar:
@@ -17,41 +24,53 @@ class DiscoveredSidecar:
 class DiscoveryService:
     """
     Service responsible for discovering MCP sidecars running in the Docker environment.
+    Uses the Python docker library to communicate with Docker daemon via socket.
     """
+
+    def __init__(self):
+        self._client = None
+
+    def _get_docker_client(self):
+        """Get or create Docker client instance."""
+        if not DOCKER_AVAILABLE:
+            return None
+        if self._client is None:
+            try:
+                self._client = docker.from_env()
+            except Exception as e:
+                logger.error(f"Failed to create Docker client: {e}")
+                return None
+        return self._client
 
     def scan_network(self) -> List[DiscoveredSidecar]:
         """
         Scans the Docker network for containers that look like MCP sidecars.
-        
+
         Returns:
             List[DiscoveredSidecar]: A list of discovered sidecars.
         """
         sidecars = []
+
+        client = self._get_docker_client()
+        if not client:
+            logger.warning("Docker client not available, returning empty sidecar list")
+            return sidecars
+
         try:
-            # Run docker ps to get container info
-            # Format: Names|Ports|ID
-            cmd = ["docker", "ps", "--format", "{{.Names}}|{{.Ports}}|{{.ID}}"]
-            result = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode("utf-8")
-            
-            for line in result.splitlines():
-                if not line.strip():
-                    continue
-                
-                parts = line.split("|")
-                if len(parts) < 3:
-                    continue
-                    
-                name, ports_str, container_id = parts[0], parts[1], parts[2]
-                
-                # Filter by name convention (must contain 'sidecar' or be a known mcp service)
-                # The master plan says they are named '*sidecar*'
+            # Get all running containers
+            containers = client.containers.list()
+
+            for container in containers:
+                name = container.name
+                container_id = container.short_id
+
+                # Filter by name convention (must contain 'sidecar' or 'mcp')
                 if "sidecar" not in name.lower() and "mcp" not in name.lower():
                     continue
-                
-                # Extract port mapped to 9000
-                # Example port string: "0.0.0.0:9001->9000/tcp, :::9001->9000/tcp"
-                port = self._extract_port(ports_str)
-                
+
+                # Extract port mapped to container port 9000
+                port = self._extract_port_from_container(container)
+
                 if port:
                     url = f"http://localhost:{port}/sse"
                     sidecars.append(DiscoveredSidecar(
@@ -61,13 +80,33 @@ class DiscoveryService:
                         container_id=container_id
                     ))
                     logger.info(f"Discovered MCP Sidecar: {name} at {url}")
-                    
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to execute docker command: {e.output.decode('utf-8')}")
+
         except Exception as e:
             logger.error(f"Error during discovery scan: {e}")
-            
+
         return sidecars
+
+    def _extract_port_from_container(self, container) -> Optional[int]:
+        """
+        Extract the host port that maps to container port 9000.
+
+        Args:
+            container: Docker container object
+
+        Returns:
+            Host port number or None if not found
+        """
+        try:
+            ports = container.ports
+            # ports is a dict like {'9000/tcp': [{'HostIp': '0.0.0.0', 'HostPort': '9001'}]}
+            port_bindings = ports.get('9000/tcp')
+            if port_bindings and len(port_bindings) > 0:
+                host_port = port_bindings[0].get('HostPort')
+                if host_port:
+                    return int(host_port)
+        except Exception as e:
+            logger.debug(f"Failed to extract port from container {container.name}: {e}")
+        return None
 
     def generate_mcp_config(self, output_path: str = "/tmp/mcp_config.json", whitelist: List[str] = None) -> str:
         """

@@ -51,7 +51,8 @@ class AgentFields:
     VALID_FIELDS = {
         'name', 'version', 'schema_version', 'description', 'author',
         'tags', 'capabilities', 'allowed_tools', 'ai_provider',
-        'mcp_config', 'mcp_configs'  # MCP configuration fields
+        'mcp_config', 'mcp_configs',  # MCP configuration fields
+        'emoji', 'color'  # UI fields
     }
     REQUIRED_FIELDS = {
         'name', 'version', 'schema_version', 'description', 'author'

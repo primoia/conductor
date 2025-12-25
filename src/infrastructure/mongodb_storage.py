@@ -32,7 +32,12 @@ class MongoDbStorage(IAgentStorage):
             author=data['author'],
             tags=data.get('tags', []),
             capabilities=data.get('capabilities', []),
-            allowed_tools=data.get('allowed_tools', [])
+            allowed_tools=data.get('allowed_tools', []),
+            agent_id=data.get('agent_id'),
+            ai_provider=data.get('ai_provider'),
+            mcp_configs=data.get('mcp_configs', []),
+            emoji=data.get('emoji'),
+            color=data.get('color'),
         )
 
     def save_definition(self, agent_id: str, definition: AgentDefinition):
@@ -45,7 +50,12 @@ class MongoDbStorage(IAgentStorage):
             'author': definition.author,
             'tags': definition.tags,
             'capabilities': definition.capabilities,
-            'allowed_tools': definition.allowed_tools
+            'allowed_tools': definition.allowed_tools,
+            'agent_id': definition.agent_id,
+            'ai_provider': definition.ai_provider,
+            'mcp_configs': definition.mcp_configs,
+            'emoji': definition.emoji,
+            'color': definition.color,
         }
 
         success = self.repository.save_definition(agent_id, data)
