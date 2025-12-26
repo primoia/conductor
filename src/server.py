@@ -27,6 +27,7 @@ from src.api.routes.sessions import router as sessions_router
 from src.api.routes.templates import router as templates_router
 from src.api.routes.conductor_cli import router as conductor_cli_router
 from src.api.routes.conversations import router as conversations_router  # 🔥 NOVO: Rotas de conversas
+from src.api.routes.navigation import router as navigation_router  # Navigation state persistence
 
 # Configura o logging e a aplicação FastAPI
 logging.basicConfig(level=logging.INFO)
@@ -50,6 +51,7 @@ app.include_router(system_router)
 app.include_router(sessions_router)
 app.include_router(templates_router)
 app.include_router(conversations_router)  # 🔥 NOVO: Rotas de conversas globais
+app.include_router(navigation_router)  # Navigation state persistence
 
 @app.on_event("startup")
 def startup_event():
