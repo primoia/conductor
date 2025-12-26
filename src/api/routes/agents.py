@@ -42,9 +42,15 @@ def list_agents():
         conductor_service = container.get_conductor_service()
         agents = conductor_service.discover_agents()
 
-        # Usar mesma estrutura de resposta do endpoint atual
+        # Retornar dados completos do agente
         agent_summaries = [
-            AgentSummary(id=agent.agent_id, name=getattr(agent, 'name', 'N/A'))
+            AgentSummary(
+                id=agent.agent_id,
+                name=getattr(agent, 'name', agent.agent_id),
+                emoji=getattr(agent, 'emoji', '🤖') or '🤖',
+                description=getattr(agent, 'description', '') or '',
+                tags=getattr(agent, 'tags', []) or []
+            )
             for agent in agents
         ]
 

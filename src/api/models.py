@@ -3,9 +3,12 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 
 class AgentSummary(BaseModel):
-    """Modelo baseado na resposta atual do endpoint /agents"""
-    id: str = Field(..., description="ID único do agente")
+    """Modelo para listagem de agentes"""
+    id: str = Field(..., description="agent_id - identificador único do agente")
     name: str = Field(..., description="Nome de exibição do agente")
+    emoji: str = Field(default="🤖", description="Emoji do agente")
+    description: str = Field(default="", description="Descrição curta do agente")
+    tags: List[str] = Field(default_factory=list, description="Tags para busca")
 
 class AgentListResponse(BaseModel):
     """Modelo baseado na estrutura atual da API"""
