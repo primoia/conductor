@@ -231,19 +231,25 @@ class UniversalMongoWatcher:
         Returns:
             bool: True se pode processar, False caso contrário
         """
-        if self.fifo_mode == "strict":
-            # Modo strict: apenas uma task por vez em todo o sistema
-            with self.processing_agents_lock:
-                return len(self.processing_agents) == 0
+        # FIFO DESABILITADO - Permitir execução paralela sem restrições
+        # TODO: Implementar FIFO por agent_id + cwd para evitar conflitos no mesmo diretório
+        # enquanto permite paralelismo em diretórios diferentes
+        return True
 
-        elif self.fifo_mode == "per_agent":
-            # Modo per_agent: uma task por agente
-            with self.processing_agents_lock:
-                return agent_id not in self.processing_agents
-
-        else:  # "relaxed"
-            # Modo relaxed: sem restrição FIFO
-            return True
+        # --- CÓDIGO FIFO ORIGINAL (comentado) ---
+        # if self.fifo_mode == "strict":
+        #     # Modo strict: apenas uma task por vez em todo o sistema
+        #     with self.processing_agents_lock:
+        #         return len(self.processing_agents) == 0
+        #
+        # elif self.fifo_mode == "per_agent":
+        #     # Modo per_agent: uma task por agente
+        #     with self.processing_agents_lock:
+        #         return agent_id not in self.processing_agents
+        #
+        # else:  # "relaxed"
+        #     # Modo relaxed: sem restrição FIFO
+        #     return True
 
     def _mark_agent_processing(self, agent_id: str):
         """Marca um agente como processando"""
@@ -462,7 +468,7 @@ class UniversalMongoWatcher:
             return False
 
     def execute_llm_request(self, provider: str, prompt: str, cwd: str,
-                              timeout: int = 600,
+                              timeout: int = 1800,
                               mcp_configs: List[str] = None) -> tuple[str, int, float]:
         """
         Executar request para LLM (Claude, Gemini ou Cursor-Agent) baseado no provider.
@@ -649,7 +655,7 @@ class UniversalMongoWatcher:
 
         provider = request.get("provider", "claude")
         cwd = request.get("cwd", ".")
-        timeout = request.get("timeout", 600)  # ✅ Alinhado com default da API (600s = 10 minutos)
+        timeout = request.get("timeout", 1800)  # ✅ Alinhado com default da API (1800s = 30 minutos)
         mcp_configs = request.get("mcp_configs", [])  # Lista de MCPs (ex: ["prospector", "database"])
 
         # Buscar campo 'prompt' com XML completo
@@ -795,10 +801,11 @@ class UniversalMongoWatcher:
                         for request in requests:
                             agent_id = request.get("agent_id", "unknown")
 
-                            # Verificar se podemos processar este agente (FIFO)
-                            if not self._can_process_agent(agent_id):
-                                logger.info(f"⏸️  Agente {agent_id} já está processando, aguardando...")
-                                continue
+                            # FIFO DESABILITADO - Sem verificação de agente processando
+                            # TODO: Reimplementar com FIFO por agent_id + cwd
+                            # if not self._can_process_agent(agent_id):
+                            #     logger.info(f"⏸️  Agente {agent_id} já está processando, aguardando...")
+                            #     continue
 
                             # Verificar se há workers disponíveis
                             with self.futures_lock:

@@ -59,8 +59,8 @@ For more information, visit: https://github.com/cezarfuhr/conductor
                            help='Clear conversation history before execution')
         parser.add_argument('--simulate', action='store_true',
                            help='Simulation mode (no real AI calls)')
-        parser.add_argument('--timeout', type=int, default=600,
-                           help='Timeout in seconds for AI operations (default: 10 minutes)')
+        parser.add_argument('--timeout', type=int, default=1800,
+                           help='Timeout in seconds for AI operations (default: 30 minutes)')
         parser.add_argument('--output', choices=['text', 'json'], default='text',
                            help='Output format (text or json). When json, prints TaskResultDTO as JSON')
         
@@ -107,7 +107,7 @@ For more information, visit: https://github.com/cezarfuhr/conductor
         exec_parser.add_argument('--environment', help='Environment context (for project agents)')
         exec_parser.add_argument('--project', help='Project context (for project agents)')
         exec_parser.add_argument('--project-path', help='Working directory for the agent (default: agent home)')
-        exec_parser.add_argument('--timeout', type=int, default=600, help='Timeout in seconds for AI operations (default: 10 minutes)')
+        exec_parser.add_argument('--timeout', type=int, default=1800, help='Timeout in seconds for AI operations (default: 30 minutes)')
         exec_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['execute_agent_command']).execute_agent_command(args))
         
         # Legacy validate-config command
@@ -144,7 +144,7 @@ For more information, visit: https://github.com/cezarfuhr/conductor
         repl_parser.add_argument('--meta', action='store_true', help='Meta-agent mode (for framework management)')
         repl_parser.add_argument('--new-agent-id', help='ID for new agent creation (meta-agent mode)')
         repl_parser.add_argument('--simulate', action='store_true', help='Simulation mode (no real API calls)')
-        repl_parser.add_argument('--timeout', type=int, default=600, help='Timeout in seconds for AI operations (default: 10 minutes)')
+        repl_parser.add_argument('--timeout', type=int, default=1800, help='Timeout in seconds for AI operations (default: 30 minutes)')
         repl_parser.set_defaults(func=lambda args: __import__('src.cli.conductor', fromlist=['repl_command']).repl_command(args))
         
         # Legacy chat command
@@ -199,8 +199,8 @@ For more information, visit: https://github.com/cezarfuhr/conductor
         parser.add_argument(
             "--timeout",
             type=int,
-            default=600,
-            help="Timeout in seconds for AI operations (default: 10 minutes)",
+            default=1800,
+            help="Timeout in seconds for AI operations (default: 30 minutes)",
         )
         parser.add_argument(
             "--state-provider",

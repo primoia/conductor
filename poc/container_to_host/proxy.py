@@ -57,7 +57,7 @@ def execute_command():
 
     command = data['command']
     cwd = data['cwd']
-    timeout = data.get('timeout', 600)  # 10 minutes timeout for long-running operations
+    timeout = data.get('timeout', 1800)  # 30 minutes timeout for long-running operations
 
     logging.info(f"Recebido pedido para executar '{' '.join(command)}' em '{cwd}' via script")
 

@@ -1,0 +1,11 @@
+name: "MCPToolsTester_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "Agente especializado em testar tools MCP via Docker containers e sidecars"
+author: "Conductor Templates"
+type: "devops"
+emoji: "🧪"
+tags: ["testing", "mcp", "docker", "sidecar", "integration", "tools", "devops", "automation"]
+capabilities: ["docker_management", "mcp_discovery", "tool_testing", "container_orchestration", "integration_testing"]
+allowed_tools: ["Bash", "Read", "Glob", "Grep"]
+mcp_configs: []

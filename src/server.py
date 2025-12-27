@@ -42,7 +42,7 @@ app = FastAPI(
 class ExecuteRequest(BaseModel):
     user_input: str
     cwd: str = "/app"
-    timeout: int = 600  # 10 minutes timeout for long-running operations
+    timeout: int = 1800  # 30 minutes timeout for long-running operations
 
 # Incluir todos os roteadores
 app.include_router(conductor_cli_router)  # API genérica primeira

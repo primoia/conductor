@@ -34,7 +34,7 @@ class Defaults:
     AGENT_VERSION = "1.0.0"
     SCHEMA_VERSION = "1.0"
     AGENT_AUTHOR = "Unknown"
-    TIMEOUT_SECONDS = 600  # 10 minutes timeout for long-running operations
+    TIMEOUT_SECONDS = 1800  # 30 minutes timeout for long-running operations
     MAX_SUGGESTIONS = 3
     SIMILARITY_THRESHOLD = 0.6
 

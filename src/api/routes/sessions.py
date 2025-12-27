@@ -14,13 +14,13 @@ router = APIRouter(prefix="/sessions", tags=["Sessions"])
 class SessionStartRequest(BaseModel):
     agent_id: str
     initial_input: str = None
-    timeout: int = 600  # 10 minutes timeout for long-running operations
+    timeout: int = 1800  # 30 minutes timeout for long-running operations
 
 
 class ExecuteContextualRequest(BaseModel):
     agent_id: str
     input_text: str
-    timeout: int = 600  # 10 minutes timeout for long-running operations
+    timeout: int = 1800  # 30 minutes timeout for long-running operations
     clear_history: bool = False
 
 

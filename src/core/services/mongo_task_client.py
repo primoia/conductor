@@ -26,7 +26,7 @@ class MongoTaskClient:
             logger.critical(f"❌ Falha ao conectar com MongoDB: {e}")
             raise
 
-    def submit_task(self, task_id: str, agent_id: str, cwd: str, timeout: int = 600, provider: str = "claude", prompt: str = None, instance_id: str = None, is_councilor_execution: bool = False, councilor_config: dict = None, conversation_id: str = None, screenplay_id: str = None) -> str:
+    def submit_task(self, task_id: str, agent_id: str, cwd: str, timeout: int = 1800, provider: str = "claude", prompt: str = None, instance_id: str = None, is_councilor_execution: bool = False, councilor_config: dict = None, conversation_id: str = None, screenplay_id: str = None) -> str:
         """
         Insere uma nova tarefa na coleção e retorna seu ID.
 
@@ -119,7 +119,7 @@ class MongoTaskClient:
         logger.info(f"📤 Tarefa submetida ao MongoDB com ID: {task_id}")
         return task_id
 
-    def get_task_result(self, task_id: str, poll_interval: float = 2.0, timeout: int = 600) -> dict:
+    def get_task_result(self, task_id: str, poll_interval: float = 2.0, timeout: int = 1800) -> dict:
         """
         Verifica o status de uma tarefa via polling até que ela seja concluída
         ou o tempo limite seja atingido.

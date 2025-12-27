@@ -28,7 +28,7 @@ class ConductorCLI:
         meta: bool = False,
         new_agent_id: str = None,
         simulate: bool = False,
-        timeout: int = 600,  # 10 minutes timeout for long-running operations
+        timeout: int = 1800,  # 30 minutes timeout for long-running operations
         debug_mode: bool = False,
         ai_provider: str = None,
     ):

@@ -19,7 +19,7 @@ class BaseCLIClient(LLMClient):
     def __init__(
         self,
         working_directory: str = None,
-        timeout: int = 600,  # 10 minutes timeout for long-running operations
+        timeout: int = 1800,  # 30 minutes timeout for long-running operations
         is_admin_agent: bool = False,
     ):
         self.working_directory = working_directory or os.getcwd()
@@ -52,7 +52,7 @@ class ClaudeCLIClient(BaseCLIClient):
     def __init__(
         self,
         working_directory: str = None,
-        timeout: int = 600,  # 10 minutes timeout for long-running operations
+        timeout: int = 1800,  # 30 minutes timeout for long-running operations
         is_admin_agent: bool = False,
         mcp_config: str = None,  # Path to MCP configuration file (deprecated)
         mcp_configs: list = None,  # List of MCP names (e.g., ["prospector", "database"])
@@ -116,7 +116,7 @@ class GeminiCLIClient(BaseCLIClient):
     def __init__(
         self,
         working_directory: str = None,
-        timeout: int = 600,  # 10 minutes timeout for long-running operations
+        timeout: int = 1800,  # 30 minutes timeout for long-running operations
         is_admin_agent: bool = False,
     ):
         super().__init__(working_directory, timeout, is_admin_agent)
@@ -236,7 +236,7 @@ class GeminiCLIClient(BaseCLIClient):
 def create_llm_client(
     ai_provider: str,
     working_directory: str = None,
-    timeout: int = 600,  # 10 minutes timeout for long-running operations
+    timeout: int = 1800,  # 30 minutes timeout for long-running operations
     is_admin_agent: bool = False,
     mcp_config: str = None,  # Path to MCP configuration file (deprecated)
     mcp_configs: list = None,  # List of MCP names (e.g., ["prospector", "database"])

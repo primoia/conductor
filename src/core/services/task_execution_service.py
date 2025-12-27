@@ -161,7 +161,7 @@ class TaskExecutionService:
                 working_directory = os.getcwd()  # Use current directory for MongoDB agents
             else:
                 working_directory = agent_home_path  # Use agent directory for filesystem agents
-            timeout = 600  # Default timeout - 10 minutes for long-running operations
+            timeout = 1800  # Default timeout - 30 minutes for long-running operations
 
             if hasattr(self, '_current_task') and self._current_task:
                 project_path = self._current_task.context.get("project_path")
