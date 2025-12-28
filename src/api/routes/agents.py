@@ -244,13 +244,17 @@ def execute_agent(agent_id: str, request: AgentExecuteRequest):
 
         # Build XML prompt
         # Note: Se conversation_id for fornecido, o histórico será buscado da conversa
-        # IMPORTANTE: Se tem conversation_id, SEMPRE incluir histórico (ignora context_mode)
+        # IMPORTANTE: Conselheiros NÃO incluem histórico (cada execução é independente)
+        # mas SALVAM resultados na conversa para visualização posterior
         # context_mode="stateless" só se aplica quando NÃO há conversation_id
-        include_history = bool(request.conversation_id) or (request.context_mode != "stateless")
+        include_history = (
+            bool(request.conversation_id) or (request.context_mode != "stateless")
+        ) and not request.is_councilor_execution
 
         logger.info(f"🔍 [AGENTS] Decisão de histórico:")
         logger.info(f"   - conversation_id presente: {bool(request.conversation_id)}")
         logger.info(f"   - context_mode: {request.context_mode}")
+        logger.info(f"   - is_councilor_execution: {request.is_councilor_execution}")
         logger.info(f"   - include_history final: {include_history}")
 
         xml_prompt = discovery_service.get_full_prompt(
