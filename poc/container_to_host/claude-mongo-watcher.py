@@ -316,6 +316,7 @@ class UniversalMongoWatcher:
             if mcp_name in MCP_PORTS:
                 port = MCP_PORTS[mcp_name]
                 mcp_servers[mcp_name] = {
+                    "type": "sse",
                     "url": f"http://{host}:{port}/sse"
                 }
                 logger.info(f"🔌 [MCP] Adicionando MCP '{mcp_name}' em http://{host}:{port}/sse")
@@ -469,7 +470,8 @@ class UniversalMongoWatcher:
 
     def execute_llm_request(self, provider: str, prompt: str, cwd: str,
                               timeout: int = 1800,
-                              mcp_configs: List[str] = None) -> tuple[str, int, float]:
+                              mcp_configs: List[str] = None,
+                              agent_id: str = None) -> tuple[str, int, float]:
         """
         Executar request para LLM (Claude, Gemini ou Cursor-Agent) baseado no provider.
 
@@ -479,6 +481,7 @@ class UniversalMongoWatcher:
             cwd: Diretório de trabalho
             timeout: Timeout em segundos
             mcp_configs: Lista de nomes de MCP para configurar (ex: ["prospector", "database"])
+            agent_id: ID do agente (para lógica específica de MCPs)
 
         Returns:
             tuple: (result, exit_code, duration)
@@ -500,6 +503,8 @@ class UniversalMongoWatcher:
             logger.info(f"   USER: {os.environ.get('USER', 'N/A')}")
             logger.info(f"   HOME: {os.environ.get('HOME', 'N/A')}")
             logger.info(f"   PATH: {os.environ.get('PATH', 'N/A')[:200]}...")
+            logger.info(f"   agent_id: {agent_id}")
+            logger.info(f"   provider: {provider}")
             logger.info(f"   mcp_configs: {mcp_configs}")
 
             # Verificar se cursor-agent existe no PATH
@@ -507,12 +512,40 @@ class UniversalMongoWatcher:
             cursor_path = shutil.which("cursor-agent")
             logger.info(f"   cursor-agent path: {cursor_path if cursor_path else '❌ NÃO ENCONTRADO'}")
 
+            # 🧪 TESTE HARDCODED: MCP para PrimoiaCRM_Agent
+            if agent_id == "PrimoiaCRM_Agent" and provider == "claude":
+                logger.info("=== 🧪 TESTE HARDCODED: Configurando MCP para PrimoiaCRM_Agent ===")
+                # Credenciais: admin:Admin@123456 -> base64: YWRtaW46QWRtaW5AMTIzNDU2
+                mcp_config = {
+                    "mcpServers": {
+                        "crm": {
+                            "type": "sse",
+                            "url": "http://localhost:9201/sse?auth=YWRtaW46QWRtaW5AMTIzNDU2"
+                        }
+                    }
+                }
+
+                # Criar arquivo temporário com a config MCP
+                fd, mcp_config_path = tempfile.mkstemp(suffix=".json", prefix="mcp_crm_config_")
+                try:
+                    with os.fdopen(fd, 'w') as f:
+                        json.dump(mcp_config, f, indent=2)
+                    logger.info(f"📄 [MCP-CRM] Config hardcoded criada em {mcp_config_path}")
+                    logger.info(f"📄 [MCP-CRM] Conteúdo: {json.dumps(mcp_config, indent=2)}")
+                except Exception as e:
+                    logger.error(f"❌ [MCP-CRM] Erro ao criar arquivo de config: {e}")
+                    mcp_config_path = None
+
             # Montar comando baseado no provider
             if provider == "claude":
                 command = ["claude", "--print", "--dangerously-skip-permissions"]
 
-                # Gerar config MCP se especificado
-                if mcp_configs:
+                # 🧪 TESTE: Se já foi criado arquivo MCP hardcoded para CRM, usar ele
+                if agent_id == "PrimoiaCRM_Agent" and mcp_config_path:
+                    command.extend(["--mcp-config", mcp_config_path])
+                    logger.info(f"🔌 [MCP-CRM] Claude CLI receberá --mcp-config {mcp_config_path}")
+                # Caso contrário, gerar config MCP normal se especificado
+                elif mcp_configs:
                     mcp_config_path = self.generate_mcp_config(mcp_configs)
                     if mcp_config_path:
                         command.extend(["--mcp-config", mcp_config_path])
@@ -694,7 +727,8 @@ class UniversalMongoWatcher:
             prompt=prompt,
             cwd=cwd,
             timeout=timeout,
-            mcp_configs=mcp_configs
+            mcp_configs=mcp_configs,
+            agent_id=agent_id
         )
 
         # Salvar resultado
