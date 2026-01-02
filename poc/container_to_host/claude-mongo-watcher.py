@@ -340,6 +340,77 @@ class UniversalMongoWatcher:
             logger.error(f"❌ [MCP] Erro ao criar arquivo de config: {e}")
             return None
 
+    def fetch_mcp_config_from_gateway(
+        self,
+        agent_id: str = None,
+        instance_id: str = None,
+        gateway_url: str = None
+    ) -> Optional[str]:
+        """
+        Busca configuração MCP do Gateway Registry e cria arquivo temporário.
+
+        O Gateway retorna o formato mcpServers pronto para Claude CLI,
+        combinando MCPs do agente template + instância.
+
+        Args:
+            agent_id: ID do agente template
+            instance_id: ID da instância (opcional)
+            gateway_url: URL base do Gateway (padrão: GATEWAY_URL ou localhost:13199)
+
+        Returns:
+            str: Caminho do arquivo temporário de configuração, ou None se erro/vazio
+        """
+        if not agent_id and not instance_id:
+            logger.warning("⚠️  [MCP] Nenhum agent_id ou instance_id fornecido")
+            return None
+
+        # URL do Gateway
+        gateway_url = gateway_url or os.environ.get("GATEWAY_URL", "http://localhost:13199")
+
+        # Montar query params
+        params = []
+        if agent_id:
+            params.append(f"agent_id={agent_id}")
+        if instance_id:
+            params.append(f"instance_id={instance_id}")
+
+        url = f"{gateway_url}/mcp/config?{'&'.join(params)}"
+        logger.info(f"🔌 [MCP] Buscando config do Gateway: {url}")
+
+        try:
+            import requests
+            response = requests.get(url, timeout=10)
+
+            if response.status_code != 200:
+                logger.warning(f"⚠️  [MCP] Gateway retornou {response.status_code}: {response.text}")
+                return None
+
+            mcp_config = response.json()
+
+            # Verificar se há MCPs configurados
+            if not mcp_config.get("mcpServers"):
+                logger.info(f"📭 [MCP] Nenhum MCP configurado para agent={agent_id}, instance={instance_id}")
+                return None
+
+            # Criar arquivo temporário
+            fd, temp_path = tempfile.mkstemp(suffix=".json", prefix="mcp_gateway_config_")
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(mcp_config, f, indent=2)
+                logger.info(f"📄 [MCP] Config do Gateway salva em {temp_path}")
+                logger.info(f"📄 [MCP] MCPs: {list(mcp_config['mcpServers'].keys())}")
+                return temp_path
+            except Exception as e:
+                logger.error(f"❌ [MCP] Erro ao criar arquivo de config: {e}")
+                return None
+
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"⚠️  [MCP] Erro ao conectar no Gateway: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"❌ [MCP] Erro inesperado ao buscar config: {e}")
+            return None
+
     def log_metrics(self):
         """Imprime métricas no log"""
         metrics = self.get_metrics()
@@ -471,7 +542,8 @@ class UniversalMongoWatcher:
     def execute_llm_request(self, provider: str, prompt: str, cwd: str,
                               timeout: int = 1800,
                               mcp_configs: List[str] = None,
-                              agent_id: str = None) -> tuple[str, int, float]:
+                              agent_id: str = None,
+                              instance_id: str = None) -> tuple[str, int, float]:
         """
         Executar request para LLM (Claude, Gemini ou Cursor-Agent) baseado no provider.
 
@@ -482,6 +554,7 @@ class UniversalMongoWatcher:
             timeout: Timeout em segundos
             mcp_configs: Lista de nomes de MCP para configurar (ex: ["prospector", "database"])
             agent_id: ID do agente (para lógica específica de MCPs)
+            instance_id: ID da instância do agente (para MCP config do Gateway)
 
         Returns:
             tuple: (result, exit_code, duration)
@@ -512,44 +585,22 @@ class UniversalMongoWatcher:
             cursor_path = shutil.which("cursor-agent")
             logger.info(f"   cursor-agent path: {cursor_path if cursor_path else '❌ NÃO ENCONTRADO'}")
 
-            # 🧪 TESTE HARDCODED: MCP para PrimoiaCRM_Agent
-            if agent_id == "PrimoiaCRM_Agent" and provider == "claude":
-                logger.info("=== 🧪 TESTE HARDCODED: Configurando MCP para PrimoiaCRM_Agent ===")
-                # Credenciais: admin:Admin@123456 -> base64: YWRtaW46QWRtaW5AMTIzNDU2
-                mcp_config = {
-                    "mcpServers": {
-                        "crm": {
-                            "type": "sse",
-                            "url": "http://localhost:9201/sse?auth=YWRtaW46QWRtaW5AMTIzNDU2"
-                        }
-                    }
-                }
-
-                # Criar arquivo temporário com a config MCP
-                fd, mcp_config_path = tempfile.mkstemp(suffix=".json", prefix="mcp_crm_config_")
-                try:
-                    with os.fdopen(fd, 'w') as f:
-                        json.dump(mcp_config, f, indent=2)
-                    logger.info(f"📄 [MCP-CRM] Config hardcoded criada em {mcp_config_path}")
-                    logger.info(f"📄 [MCP-CRM] Conteúdo: {json.dumps(mcp_config, indent=2)}")
-                except Exception as e:
-                    logger.error(f"❌ [MCP-CRM] Erro ao criar arquivo de config: {e}")
-                    mcp_config_path = None
+            # Buscar MCP config do Gateway Registry
+            mcp_config_path = None
+            if provider == "claude":
+                mcp_config_path = self.fetch_mcp_config_from_gateway(
+                    agent_id=agent_id,
+                    instance_id=instance_id
+                )
 
             # Montar comando baseado no provider
             if provider == "claude":
                 command = ["claude", "--print", "--dangerously-skip-permissions"]
 
-                # 🧪 TESTE: Se já foi criado arquivo MCP hardcoded para CRM, usar ele
-                if agent_id == "PrimoiaCRM_Agent" and mcp_config_path:
+                # Usar MCP config do Gateway se disponível
+                if mcp_config_path:
                     command.extend(["--mcp-config", mcp_config_path])
-                    logger.info(f"🔌 [MCP-CRM] Claude CLI receberá --mcp-config {mcp_config_path}")
-                # Caso contrário, gerar config MCP normal se especificado
-                elif mcp_configs:
-                    mcp_config_path = self.generate_mcp_config(mcp_configs)
-                    if mcp_config_path:
-                        command.extend(["--mcp-config", mcp_config_path])
-                        logger.info(f"🔌 [MCP] Claude CLI receberá --mcp-config {mcp_config_path}")
+                    logger.info(f"🔌 [MCP] Claude CLI receberá --mcp-config {mcp_config_path}")
             elif provider == "gemini":
                 # Usar a mesma implementação da GeminiCLIClient
                 # Verificar se o prompt é muito longo para evitar "Argument list too long"
@@ -728,7 +779,8 @@ class UniversalMongoWatcher:
             cwd=cwd,
             timeout=timeout,
             mcp_configs=mcp_configs,
-            agent_id=agent_id
+            agent_id=agent_id,
+            instance_id=instance_id
         )
 
         # Salvar resultado
