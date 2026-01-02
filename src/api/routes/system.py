@@ -212,17 +212,35 @@ def migrate_storage(request: MigrationRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/mcp/sidecars", summary="Listar MCP sidecars descobertos")
+@router.get("/mcp/sidecars", summary="[DEPRECATED] Listar MCP sidecars descobertos")
 def list_mcp_sidecars():
     """
+    DEPRECATED: Use GET /mcp/list do Gateway em vez deste endpoint.
+
+    Este endpoint usa scan de containers Docker que foi descontinuado
+    em favor do sistema MCP On-Demand baseado no mcp_registry.
+
+    Para obter todos os MCPs (incluindo os parados):
+    - GET http://gateway:5006/mcp/list
+
     Retorna a lista de MCP sidecars descobertos na rede Docker.
     """
     try:
+        import warnings
+        warnings.warn(
+            "GET /api/system/mcp/sidecars está deprecated. Use GET /mcp/list do Gateway.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        logger.warning("⚠️  Endpoint /api/system/mcp/sidecars está DEPRECATED. Use /mcp/list do Gateway.")
+
         discovery_service = container.get_discovery_service()
         sidecars = discovery_service.scan_network()
-        
+
         return {
             "count": len(sidecars),
+            "deprecated": True,
+            "message": "Este endpoint está deprecated. Use GET /mcp/list do Gateway.",
             "sidecars": [
                 {
                     "name": s.name,

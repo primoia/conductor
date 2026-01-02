@@ -1,10 +1,27 @@
+"""
+DEPRECATED: Este módulo está sendo substituído pelo mcp_registry do Gateway.
+
+O scan de containers Docker foi descontinuado em favor do sistema MCP On-Demand,
+onde todos os MCPs são cadastrados no mcp_registry e gerenciados pelo Watcher.
+
+Para obter a lista de MCPs disponíveis, use:
+- GET /mcp/list do Gateway (retorna todos os MCPs do registry)
+- MCPContainerService no Watcher (gerencia ciclo de vida dos containers)
+
+Este arquivo será removido em versões futuras.
+"""
+
 import logging
 import json
 import os
+import warnings
 from typing import List, Dict, Optional
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+# DEPRECATED: Docker scan está sendo substituído pelo mcp_registry
+DOCKER_SCAN_DEPRECATED = True
 
 # Try to import docker library, fall back gracefully if not available
 try:
@@ -44,11 +61,20 @@ class DiscoveryService:
 
     def scan_network(self) -> List[DiscoveredSidecar]:
         """
+        DEPRECATED: Use GET /mcp/list do Gateway em vez deste método.
+
         Scans the Docker network for containers that look like MCP sidecars.
+        Este método está sendo descontinuado em favor do mcp_registry.
 
         Returns:
             List[DiscoveredSidecar]: A list of discovered sidecars.
         """
+        warnings.warn(
+            "scan_network() está deprecated. Use GET /mcp/list do Gateway.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
         sidecars = []
 
         client = self._get_docker_client()

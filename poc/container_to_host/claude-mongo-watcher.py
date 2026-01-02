@@ -35,16 +35,16 @@ import json
 import tempfile
 
 # ============================================================================
-# MCP_PORTS: Mapeamento de MCP names para portas
-# Deve estar sincronizado com conductor-gateway/src/mcps/registry.py
+# MCP Container Service - Gerenciamento On-Demand de MCPs
 # ============================================================================
-MCP_PORTS = {
-    "prospector": int(os.environ.get("MCP_PROSPECTOR_PORT", "5007")),
-    "database": int(os.environ.get("MCP_DATABASE_PORT", "5008")),
-    "conductor": int(os.environ.get("MCP_CONDUCTOR_PORT", "5009")),
-}
+try:
+    from mcp_container_service import MCPContainerService
+    MCP_ON_DEMAND_AVAILABLE = True
+except ImportError:
+    MCP_ON_DEMAND_AVAILABLE = False
+    MCPContainerService = None
 
-# Host onde os MCPs estão rodando (gateway)
+# Host onde os MCPs estão rodando (gateway) - usado como fallback
 MCP_HOST = os.environ.get("MCP_HOST", "localhost")
 
 # Configuração de logging
@@ -123,6 +123,14 @@ class UniversalMongoWatcher:
 
             # Criar índices se não existirem
             self._create_indexes()
+
+            # Inicializar MCP Container Service (on-demand)
+            if MCP_ON_DEMAND_AVAILABLE:
+                self.mcp_service = MCPContainerService(self.db)
+                logger.info("✅ MCP Container Service inicializado (on-demand habilitado)")
+            else:
+                self.mcp_service = None
+                logger.warning("⚠️  MCP Container Service não disponível (on-demand desabilitado)")
 
         except Exception as e:
             logger.error(f"❌ Erro ao conectar MongoDB: {e}")
@@ -762,6 +770,39 @@ class UniversalMongoWatcher:
         logger.info(f"   MCP Configs: {mcp_configs}")
         logger.info(f"   Prompt length: {len(prompt)} chars")
         logger.info("=" * 80)
+
+        # ========================================================================
+        # 🔌 MCP ON-DEMAND: Garantir que MCPs necessários estão rodando
+        # ========================================================================
+        if self.mcp_service:
+            try:
+                logger.info(f"🔌 [{thread_name}] Verificando MCPs on-demand para agente '{agent_id}'...")
+                if not self.mcp_service.ensure_mcps_for_agent(agent_id, instance_id, timeout=60):
+                    error_msg = f"Falha ao iniciar MCPs necessários para agente '{agent_id}'"
+                    logger.error(f"❌ [{thread_name}] {error_msg}")
+                    self.complete_request(request_id, error_msg, 1, 0.0)
+                    self._update_metrics(agent_id, False, 0.0)
+
+                    # Emitir evento de erro
+                    request["status"] = "error"
+                    request["result"] = error_msg
+                    self.emit_task_event("task_error", request)
+                    return False
+                logger.info(f"✅ [{thread_name}] MCPs on-demand verificados/iniciados com sucesso")
+            except Exception as e:
+                error_msg = f"Erro ao verificar MCPs on-demand: {e}"
+                logger.error(f"❌ [{thread_name}] {error_msg}")
+                self.complete_request(request_id, error_msg, 1, 0.0)
+                self._update_metrics(agent_id, False, 0.0)
+
+                # Emitir evento de erro
+                request["status"] = "error"
+                request["result"] = error_msg
+                self.emit_task_event("task_error", request)
+                return False
+        else:
+            logger.debug(f"⏭️  [{thread_name}] MCP on-demand desabilitado, pulando verificação")
+        # ========================================================================
 
         # Marcar como processando no MongoDB
         if not self.mark_as_processing(request_id):
