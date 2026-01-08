@@ -494,8 +494,10 @@ class PromptEngine:
             # Carregar mensagens da conversa
             messages = conversation_doc.get("messages", [])
 
-            # Filtrar mensagens não deletadas
-            active_messages = [msg for msg in messages if not msg.get("isDeleted", False)]
+            # Filtrar mensagens não deletadas e não ocultas
+            active_messages = [msg for msg in messages
+                               if not msg.get("isDeleted", False)
+                               and not msg.get("isHidden", False)]
 
             # Converter formato das mensagens para o esperado pelo _format_history()
             # Formato esperado: [{"role": "user", "content": "...", "timestamp": ...}, {"role": "assistant", "content": "..."}]
@@ -574,9 +576,11 @@ class PromptEngine:
         if not history:
             return "Nenhum histórico de conversa para esta tarefa ainda."
 
-        # FILTER: Remove mensagens deletadas (soft delete)
-        # Retrocompatibilidade: mensagens sem o campo isDeleted são tratadas como ativas
-        active_history = [turn for turn in history if not turn.get("isDeleted", False)]
+        # FILTER: Remove mensagens deletadas (soft delete) e ocultas (permanent hide)
+        # Retrocompatibilidade: mensagens sem os campos isDeleted/isHidden são tratadas como ativas
+        active_history = [turn for turn in history
+                         if not turn.get("isDeleted", False)
+                         and not turn.get("isHidden", False)]
 
         # 🔥 NOVO: Remover a última mensagem se for um "user" sem resposta do assistant
         # Isso acontece quando o input do usuário já foi inserido no history, mas o resultado ainda não foi processado
@@ -695,9 +699,11 @@ class PromptEngine:
         if not history:
             return "<history/>"
 
-        # FILTER: Remove mensagens deletadas (soft delete)
-        # Retrocompatibilidade: mensagens sem o campo isDeleted são tratadas como ativas
-        active_history = [turn for turn in history if not turn.get("isDeleted", False)]
+        # FILTER: Remove mensagens deletadas (soft delete) e ocultas (permanent hide)
+        # Retrocompatibilidade: mensagens sem os campos isDeleted/isHidden são tratadas como ativas
+        active_history = [turn for turn in history
+                         if not turn.get("isDeleted", False)
+                         and not turn.get("isHidden", False)]
 
         # 🔥 NOVO: Remover a última mensagem se for um "user" sem resposta do assistant
         # Isso acontece quando o input do usuário já foi inserido no history, mas o resultado ainda não foi processado
