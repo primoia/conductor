@@ -190,12 +190,12 @@ class MCPContainerService:
             return False
 
         try:
-            logger.info(f"🚀 Iniciando MCP '{mcp_name}': docker compose -f {full_path} up -d")
+            logger.info(f"🚀 Iniciando MCP '{mcp_name}': docker compose -f {full_path} up -d --build")
             result = subprocess.run(
-                ["docker", "compose", "-f", full_path, "up", "-d"],
+                ["docker", "compose", "-f", full_path, "up", "-d", "--build"],
                 capture_output=True,
                 text=True,
-                timeout=120,
+                timeout=300,  # Build pode demorar mais
                 cwd=os.path.dirname(full_path)  # Executar no diretório do compose
             )
 
