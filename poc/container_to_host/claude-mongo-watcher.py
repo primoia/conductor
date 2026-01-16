@@ -363,7 +363,7 @@ class UniversalMongoWatcher:
         Args:
             agent_id: ID do agente template
             instance_id: ID da instância (opcional)
-            gateway_url: URL base do Gateway (padrão: GATEWAY_URL ou localhost:13199)
+            gateway_url: URL base do Gateway (padrão: GATEWAY_URL ou localhost:14199)
 
         Returns:
             str: Caminho do arquivo temporário de configuração, ou None se erro/vazio
@@ -373,7 +373,7 @@ class UniversalMongoWatcher:
             return None
 
         # URL do Gateway
-        gateway_url = gateway_url or os.environ.get("GATEWAY_URL", "http://localhost:13199")
+        gateway_url = gateway_url or os.environ.get("GATEWAY_URL", "http://localhost:14199")
 
         # Montar query params
         params = []
