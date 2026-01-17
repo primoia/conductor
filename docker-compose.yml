@@ -25,7 +25,7 @@ services:
       start_period: 30s
 
   mongodb_test:
-    image: mongo:5.0
+    image: mongo:8.0
     container_name: mongodb_e2e_test
     ports:
       - "27018:27017"

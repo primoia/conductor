@@ -196,7 +196,7 @@ services:
     command: ["python", "src/cli/conductor.py", "--list"]
   
   mongodb:
-    image: mongo:7
+    image: mongo:8.0
     environment:
       MONGO_INITDB_DATABASE: conductor_state
     ports:

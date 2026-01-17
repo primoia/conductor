@@ -1,7 +1,7 @@
 # projects/conductor/docker-compose.test.yml
 services:
   mongodb:
-    image: mongo:latest
+    image: mongo:8.0
     container_name: mongodb_conductor_test
     ports:
       - "27019:27017" # Porta diferente para evitar conflito
