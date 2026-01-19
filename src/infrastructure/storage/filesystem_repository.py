@@ -2,6 +2,7 @@
 import os
 import json
 import yaml
+from datetime import datetime
 from src.ports.state_repository import IStateRepository
 from typing import Dict, Any, List
 
@@ -29,11 +30,22 @@ class FileSystemStateRepository(IStateRepository):
         except Exception:
             return {}
 
-    def save_definition(self, agent_id: str, definition_data: Dict) -> bool:
-        """Salva a definição do agente (definition.yaml)."""
+    def save_definition(self, agent_id: str, definition_data: Dict, group: str = None) -> bool:
+        """Salva a definição do agente (definition.yaml).
+
+        Args:
+            agent_id: ID do agente
+            definition_data: Dados da definição
+            group: Grupo/categoria do agente (salvo no definition.yaml)
+        """
         try:
             agent_dir = self._get_agent_dir(agent_id)
             definition_file = os.path.join(agent_dir, "definition.yaml")
+
+            # Incluir group na definição se fornecido
+            if group:
+                definition_data = {**definition_data, "group": group}
+
             with open(definition_file, 'w', encoding='utf-8') as f:
                 yaml.safe_dump(definition_data, f, default_flow_style=False, allow_unicode=True)
             return True
@@ -188,14 +200,58 @@ class FileSystemStateRepository(IStateRepository):
             agents_dir = os.path.join(self.base_path, "agents")
             if not os.path.exists(agents_dir):
                 return []
-            
+
             # Retornar apenas diretórios (cada um representa um agente)
             agents = []
             for item in os.listdir(agents_dir):
                 item_path = os.path.join(agents_dir, item)
                 if os.path.isdir(item_path):
                     agents.append(item)
-            
+
             return sorted(agents)
         except Exception:
             return []
+
+    def get_agent_created_at(self, agent_id: str) -> datetime:
+        """Retorna a data de criação do agente (baseado no timestamp do arquivo definition.yaml)."""
+        try:
+            agent_dir = self._get_agent_dir(agent_id)
+            definition_file = os.path.join(agent_dir, "definition.yaml")
+            if os.path.exists(definition_file):
+                # Usar data de modificação do arquivo como fallback
+                mtime = os.path.getmtime(definition_file)
+                return datetime.fromtimestamp(mtime)
+            return None
+        except Exception:
+            return None
+
+    def get_all_agents_with_created_at(self) -> Dict[str, datetime]:
+        """Retorna um dicionário com agent_id -> created_at para todos os agentes."""
+        try:
+            result = {}
+            for agent_id in self.list_agents():
+                created_at = self.get_agent_created_at(agent_id)
+                result[agent_id] = created_at
+            return result
+        except Exception:
+            return {}
+
+    def get_all_agents_metadata(self) -> Dict[str, Dict]:
+        """Retorna metadados (created_at, group) de todos os agentes.
+
+        Returns:
+            Dict com agent_id -> {'created_at': datetime, 'group': str}
+        """
+        try:
+            result = {}
+            for agent_id in self.list_agents():
+                created_at = self.get_agent_created_at(agent_id)
+                definition = self.load_definition(agent_id)
+                group = definition.get("group", "other")
+                result[agent_id] = {
+                    "created_at": created_at,
+                    "group": group
+                }
+            return result
+        except Exception:
+            return {}

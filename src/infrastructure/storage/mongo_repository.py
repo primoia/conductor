@@ -57,17 +57,69 @@ class MongoStateRepository(IStateRepository):
             return {}
         return doc["definition"]
 
-    def save_definition(self, agent_id: str, definition_data: Dict) -> bool:
-        """Salva a definição do agente."""
+    def save_definition(self, agent_id: str, definition_data: Dict, group: str = None) -> bool:
+        """Salva a definição do agente.
+
+        Args:
+            agent_id: ID do agente
+            definition_data: Dados da definição
+            group: Grupo/categoria do agente (salvo na raiz do documento)
+        """
         try:
+            update_data = {"definition": definition_data}
+            if group:
+                update_data["group"] = group
+
             self.agents_collection.update_one(
                 {"agent_id": agent_id},
-                {"$set": {"definition": definition_data}},
+                {
+                    "$set": update_data,
+                    "$setOnInsert": {"created_at": datetime.utcnow()}  # Só define na criação
+                },
                 upsert=True
             )
             return True
         except Exception:
             return False
+
+    def get_agent_created_at(self, agent_id: str) -> datetime:
+        """Retorna a data de criação do agente."""
+        try:
+            doc = self.agents_collection.find_one({"agent_id": agent_id}, {"created_at": 1})
+            if doc and "created_at" in doc:
+                return doc["created_at"]
+            return None
+        except Exception:
+            return None
+
+    def get_all_agents_with_created_at(self) -> Dict[str, datetime]:
+        """Retorna um dicionário com agent_id -> created_at para todos os agentes."""
+        try:
+            result = {}
+            for doc in self.agents_collection.find({}, {"agent_id": 1, "created_at": 1}):
+                if "agent_id" in doc:
+                    result[doc["agent_id"]] = doc.get("created_at")
+            return result
+        except Exception:
+            return {}
+
+    def get_all_agents_metadata(self) -> Dict[str, Dict]:
+        """Retorna metadados (created_at, group) de todos os agentes.
+
+        Returns:
+            Dict com agent_id -> {'created_at': datetime, 'group': str}
+        """
+        try:
+            result = {}
+            for doc in self.agents_collection.find({}, {"agent_id": 1, "created_at": 1, "group": 1}):
+                if "agent_id" in doc:
+                    result[doc["agent_id"]] = {
+                        "created_at": doc.get("created_at"),
+                        "group": doc.get("group", "other")
+                    }
+            return result
+        except Exception:
+            return {}
 
     def load_persona(self, agent_id: str) -> str:
         """Carrega a persona do agente como string."""

@@ -8,7 +8,7 @@ import logging
 # Importar da arquitetura existente
 from src.container import container  # Usar instância global do container DI
 from src.container import container  # Usar instância global do container DI
-from src.api.models import AgentListResponse, AgentSummary, AgentDetailResponse, ValidationResult, AgentCreationRequest
+from src.api.models import AgentListResponse, AgentSummary, AgentDetailResponse, ValidationResult, AgentCreationRequest, AgentUpdateRequest, VALID_GROUPS
 from src.core.services.mongo_task_client import MongoTaskClient
 
 logger = logging.getLogger(__name__)
@@ -42,17 +42,30 @@ def list_agents():
         conductor_service = container.get_conductor_service()
         agents = conductor_service.discover_agents()
 
+        # Buscar metadados (created_at, group) do MongoDB
+        storage_service = container.get_storage_service()
+        repository = storage_service.get_repository()
+        metadata_map = repository.get_all_agents_metadata()
+
         # Retornar dados completos do agente
-        agent_summaries = [
-            AgentSummary(
-                id=agent.agent_id,
-                name=getattr(agent, 'name', agent.agent_id),
-                emoji=getattr(agent, 'emoji', '🤖') or '🤖',
-                description=getattr(agent, 'description', '') or '',
-                tags=getattr(agent, 'tags', []) or []
+        agent_summaries = []
+        for agent in agents:
+            metadata = metadata_map.get(agent.agent_id, {})
+            created_at = metadata.get("created_at")
+            created_at_str = created_at.isoformat() if created_at else None
+            group = metadata.get("group", "other")
+
+            agent_summaries.append(
+                AgentSummary(
+                    id=agent.agent_id,
+                    name=getattr(agent, 'name', agent.agent_id),
+                    emoji=getattr(agent, 'emoji', '🤖') or '🤖',
+                    description=getattr(agent, 'description', '') or '',
+                    group=group,
+                    tags=getattr(agent, 'tags', []) or [],
+                    created_at=created_at_str
+                )
             )
-            for agent in agents
-        ]
 
         return AgentListResponse(total=len(agent_summaries), agents=agent_summaries)
 
@@ -155,6 +168,13 @@ def create_agent(request: AgentCreationRequest):
         if not request.name.endswith('_Agent'):
             raise HTTPException(status_code=400, detail="Nome deve terminar com '_Agent'")
 
+        # Validar grupo
+        if request.group not in VALID_GROUPS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Grupo inválido: '{request.group}'. Valores válidos: {', '.join(VALID_GROUPS)}"
+            )
+
         # Validar persona (deve começar com #)
         if not request.persona_content.strip().startswith('#'):
             raise HTTPException(status_code=400, detail="Persona deve começar com cabeçalho Markdown (#)")
@@ -181,7 +201,8 @@ def create_agent(request: AgentCreationRequest):
         }
 
         # Salvar definição (cria diretório automaticamente)
-        if not repository.save_definition(agent_id, definition_data):
+        # O grupo é passado separadamente para ser salvo na raiz do documento
+        if not repository.save_definition(agent_id, definition_data, group=request.group):
             raise HTTPException(status_code=500, detail="Falha ao salvar definição do agente")
 
         # Usar persona fornecida pelo usuário (não gerar default)
@@ -207,6 +228,129 @@ def create_agent(request: AgentCreationRequest):
     except Exception as e:
         logger.error(f"Erro ao criar agente: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/{agent_id}", response_model=Dict[str, Any], summary="Atualizar agente existente")
+def update_agent(agent_id: str, request: AgentUpdateRequest):
+    """
+    Atualiza um agente existente no sistema.
+
+    Campos opcionais (apenas os fornecidos serão atualizados):
+    - name: nome de exibição
+    - description: descrição (10-200 chars)
+    - group: grupo/categoria
+    - emoji: emoji representativo
+    - tags: lista de tags
+    - persona_content: persona em Markdown (mín 50 chars)
+    - mcp_configs: lista de sidecars MCP
+    """
+    try:
+        storage_service = container.get_storage_service()
+        repository = storage_service.get_repository()
+        discovery_service = container.get_agent_discovery_service()
+
+        # Verificar se o agente existe
+        if not discovery_service.agent_exists(agent_id):
+            raise HTTPException(status_code=404, detail=f"Agente '{agent_id}' não encontrado")
+
+        # Carregar definição atual
+        current_definition = discovery_service.get_agent_definition(agent_id)
+        if not current_definition:
+            raise HTTPException(status_code=404, detail=f"Definição do agente '{agent_id}' não encontrada")
+
+        # Validar grupo se fornecido
+        if request.group is not None and request.group not in VALID_GROUPS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Grupo inválido: '{request.group}'. Valores válidos: {', '.join(VALID_GROUPS)}"
+            )
+
+        # Validar persona se fornecida
+        if request.persona_content is not None:
+            if not request.persona_content.strip().startswith('#'):
+                raise HTTPException(status_code=400, detail="Persona deve começar com cabeçalho Markdown (#)")
+
+        # Preparar dados da definição (mesclar com existente)
+        definition_data = {
+            "name": request.name if request.name is not None else current_definition.name,
+            "version": current_definition.version,
+            "schema_version": current_definition.schema_version,
+            "description": request.description if request.description is not None else current_definition.description,
+            "author": current_definition.author,
+            "tags": request.tags if request.tags is not None else (current_definition.tags or []),
+            "capabilities": current_definition.capabilities or [],
+            "allowed_tools": current_definition.allowed_tools or [],
+            "mcp_configs": request.mcp_configs if request.mcp_configs is not None else (current_definition.mcp_configs or []),
+            "emoji": request.emoji if request.emoji is not None else (current_definition.emoji or "🤖"),
+        }
+
+        # Determinar grupo para salvar
+        group_to_save = request.group  # Pode ser None se não foi fornecido
+
+        # Salvar definição atualizada
+        if not repository.save_definition(agent_id, definition_data, group=group_to_save):
+            raise HTTPException(status_code=500, detail="Falha ao atualizar definição do agente")
+
+        # Atualizar persona se fornecida
+        if request.persona_content is not None:
+            if not repository.save_persona(agent_id, request.persona_content):
+                raise HTTPException(status_code=500, detail="Falha ao atualizar persona do agente")
+
+        # Limpar cache de descoberta
+        discovery_service.clear_cache()
+
+        logger.info(f"✅ Agente atualizado com sucesso: {agent_id}")
+        logger.info(f"   - Campos atualizados: {[k for k, v in request.model_dump().items() if v is not None]}")
+
+        return {
+            "status": "success",
+            "message": "Agente atualizado com sucesso",
+            "agent_id": agent_id,
+            "updated_fields": [k for k, v in request.model_dump().items() if v is not None]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao atualizar agente: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{agent_id}/persona", response_model=Dict[str, Any], summary="Obter persona do agente")
+def get_agent_persona(agent_id: str = Path(..., description="ID do agente")):
+    """
+    Retorna a persona (conteúdo markdown) de um agente específico.
+    """
+    try:
+        storage_service = container.get_storage_service()
+        repository = storage_service.get_repository()
+        discovery_service = container.get_agent_discovery_service()
+
+        # Verificar se o agente existe
+        if not discovery_service.agent_exists(agent_id):
+            raise HTTPException(status_code=404, detail=f"Agente '{agent_id}' não encontrado")
+
+        # Carregar persona
+        persona_content = repository.load_persona(agent_id)
+        if not persona_content:
+            return {
+                "agent_id": agent_id,
+                "persona_content": "",
+                "has_persona": False
+            }
+
+        return {
+            "agent_id": agent_id,
+            "persona_content": persona_content,
+            "has_persona": True
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao carregar persona do agente: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/{agent_id}/execute", response_model=Dict[str, Any], summary="Executar um agente")
 def execute_agent(agent_id: str, request: AgentExecuteRequest):

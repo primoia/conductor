@@ -10,9 +10,10 @@ class AgentDiscoveryService:
 
     def __init__(self, storage_service: StorageService):
         self._storage = storage_service.get_repository()
-        # Cache simples para descoberta de agentes (5 minutos)
+        # Cache simples para descoberta de agentes (30 segundos)
+        # Reduzido de 5 minutos para melhorar UX ao criar novos agentes
         self._cache = {}
-        self._cache_timeout = 300  # 5 minutos em segundos
+        self._cache_timeout = 30  # 30 segundos
 
     def discover_agents(self) -> List[AgentDefinition]:
         """Descobre e retorna todas as definições de agentes disponíveis."""
