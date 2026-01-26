@@ -28,6 +28,7 @@ from src.api.routes.templates import router as templates_router
 from src.api.routes.conductor_cli import router as conductor_cli_router
 from src.api.routes.conversations import router as conversations_router  # 🔥 NOVO: Rotas de conversas
 from src.api.routes.navigation import router as navigation_router  # Navigation state persistence
+from src.api.routes.mcp_registry import router as mcp_registry_router  # MCP Registry CRUD
 
 # Configura o logging e a aplicação FastAPI
 logging.basicConfig(level=logging.INFO)
@@ -52,6 +53,7 @@ app.include_router(sessions_router)
 app.include_router(templates_router)
 app.include_router(conversations_router)  # 🔥 NOVO: Rotas de conversas globais
 app.include_router(navigation_router)  # Navigation state persistence
+app.include_router(mcp_registry_router)  # MCP Registry CRUD for managing MCP servers
 
 @app.on_event("startup")
 def startup_event():
