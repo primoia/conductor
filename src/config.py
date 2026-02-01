@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     default_timeout: int = 1800  # 30 minutes timeout for long-running operations
     max_conversation_history: int = 50
 
+    # Construction API Configuration (for task observations)
+    construction_api_url: Optional[str] = None
+    observation_timeout_seconds: int = 10
+
     # Logging Configuration
     log_level: str = "INFO"
     json_logging: bool = True

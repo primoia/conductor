@@ -19,6 +19,7 @@ from src.ports.state_repository import IStateRepository as StateRepository
 from src.ports.llm_client import LLMClient
 from src.infrastructure.storage.filesystem_repository import FileSystemStateRepository
 from src.infrastructure.storage.mongo_repository import MongoStateRepository
+from src.infrastructure.storage.mongo_observation_repository import MongoObservationRepository
 from src.infrastructure.llm.cli_client import create_llm_client
 from src.infrastructure.repository_factory import RepositoryFactory
 
@@ -38,6 +39,7 @@ class DIContainer:
         self.settings = settings
         self.config_manager = ConfigManager()
         self._state_repository = None
+        self._observation_repository = None
         self._ai_providers_config = None
         self._conductor_service = None
         self._configuration_service = None
@@ -58,6 +60,15 @@ class DIContainer:
             )
         else:
             return FileSystemStateRepository()
+
+    def get_observation_repository(self) -> MongoObservationRepository:
+        """Get singleton MongoObservationRepository instance."""
+        if self._observation_repository is None:
+            self._observation_repository = MongoObservationRepository(
+                connection_string=self.settings.mongo_uri,
+                db_name=self.settings.mongo_database,
+            )
+        return self._observation_repository
 
     def get_llm_client(
         self,

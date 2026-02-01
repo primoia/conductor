@@ -40,6 +40,7 @@ class PromptEngine:
         self.screenplay_id = screenplay_id  # Store screenplay_id directly
         self.screenplay_content: str = ""
         self.conversation_context: str = ""
+        self.task_state_context: list = []  # World state from task observations
 
         # Extract agent_id from MongoDB path
         if self.is_mongodb:
@@ -67,6 +68,7 @@ class PromptEngine:
         self._load_screenplay_context()
         self._load_conversation_context(conversation_id)
         self._load_conversation_history(conversation_id)  # ← NOVO: Carregar histórico de mensagens
+        self._load_task_state_context()  # ← NOVO: Carregar estado de tasks observadas
 
     def build_prompt(self, conversation_history: List[Dict], message: str, include_history: bool = True) -> str:
         """Constrói o prompt final usando o contexto já carregado."""
@@ -512,6 +514,121 @@ class PromptEngine:
             logger.warning(f"Falha ao carregar histórico da conversa: {e}")
             self.conversation_history_cache = []
 
+    def _load_task_state_context(self) -> None:
+        """
+        Carrega estado de tasks observadas pelo agente via API de observações.
+        O estado é injetado no prompt como <world_state> XML.
+        """
+        self.task_state_context = []
+
+        # Precisa de agent_id para consultar observações
+        agent_id = self.agent_config.get('id') or self.agent_config.get('name') or self.agent_id
+        if not agent_id:
+            logger.debug("Nenhum agent_id disponível para carregar task state context")
+            return
+
+        try:
+            import os
+            import httpx
+
+            # URL da API de observações (Conductor API)
+            conductor_api_url = os.getenv("CONDUCTOR_API_URL", "http://conductor-api:8000")
+            timeout = float(os.getenv("OBSERVATION_TIMEOUT_SECONDS", "10"))
+
+            # Consultar estado consolidado via API síncrona
+            with httpx.Client(timeout=timeout) as client:
+                response = client.get(f"{conductor_api_url}/observations/{agent_id}/state")
+
+                if response.status_code == 200:
+                    state = response.json()
+                    self.task_state_context = state.get('capabilities', [])
+
+                    if self.task_state_context:
+                        logger.info(f"✅ Task state context carregado para '{agent_id}': {len(self.task_state_context)} capabilities")
+                    else:
+                        logger.debug(f"Nenhuma observação encontrada para agente '{agent_id}'")
+                elif response.status_code == 404:
+                    # Agente não tem observações - comportamento normal
+                    logger.debug(f"Agente '{agent_id}' não possui observações registradas")
+                else:
+                    logger.warning(f"Falha ao carregar task state: HTTP {response.status_code}")
+
+        except httpx.TimeoutException:
+            logger.warning(f"Timeout ao consultar observações para agente '{agent_id}'")
+        except httpx.RequestError as e:
+            logger.warning(f"Erro de conexão ao consultar observações: {e}")
+        except Exception as e:
+            logger.warning(f"Falha ao carregar task state context: {e}")
+
+    def _build_world_state_xml(self) -> str:
+        """
+        Constrói a representação XML do world_state para injeção no prompt.
+
+        Returns:
+            String XML do world_state ou string vazia se não houver dados
+        """
+        if not self.task_state_context:
+            return ""
+
+        capabilities_xml = []
+        for cap in self.task_state_context:
+            # Construir XML de subtasks se existirem
+            subtasks_xml = ""
+            if cap.get('subtasks'):
+                subtask_items = []
+                for st in cap['subtasks']:
+                    subtask_items.append(
+                        f'                <subtask id="{st.get("id", 0)}" status="{st.get("status", "unknown")}">'
+                        f'{self._escape_xml_cdata(st.get("name", ""))} ({st.get("progress", 0)}%)</subtask>'
+                    )
+                subtasks_xml = f'\n            <subtasks>\n' + '\n'.join(subtask_items) + '\n            </subtasks>'
+
+            # Extrair dados da source
+            source = cap.get('source', {})
+            source_xml = (
+                f'            <source project_id="{source.get("project_id", 0)}" task_id="{source.get("task_id", 0)}">\n'
+                f'                {self._escape_xml_cdata(source.get("task_name", ""))}\n'
+                f'            </source>'
+            )
+
+            # Montar capability completa
+            cap_xml = f'''        <capability name="{cap.get('name', 'unknown')}" progress="{cap.get('progress', 0)}%" status="{cap.get('status', 'unknown')}">
+            <description>{self._escape_xml_cdata(cap.get('description', ''))}</description>
+{source_xml}{subtasks_xml}
+            <summary><![CDATA[{self._escape_xml_cdata(cap.get('summary', ''))}]]></summary>
+        </capability>'''
+            capabilities_xml.append(cap_xml)
+
+        timestamp = datetime.utcnow().isoformat() + "Z"
+
+        # Seção de referência de tools para que o agente saiba como consultar mais detalhes
+        # Obter URL da Construction API do environment
+        import os
+        construction_api_url = os.getenv("CONSTRUCTION_API_URL", "http://verticals-construction-api-projects:8001")
+
+        tools_reference = f'''        <tools_reference>
+            <documentation>docs/features/WORLD_STATE_OBSERVATIONS.md</documentation>
+            <construction_api base_url="{construction_api_url}" container="verticals-construction-api-projects">
+                <description>API de gerenciamento de projetos e tasks (TODO list)</description>
+                <endpoint method="GET" path="/api/v1/tasks/{{task_id}}" description="Detalhes completos de uma task (nome, descrição, status, datas, responsável, prioridade)" />
+                <endpoint method="GET" path="/api/v1/tasks/{{task_id}}/subtasks" description="Lista subtasks diretas de uma task" />
+                <endpoint method="GET" path="/api/v1/projects/{{project_id}}/tasks" description="Lista todas as tasks de um projeto" />
+                <example>curl {construction_api_url}/api/v1/tasks/42</example>
+            </construction_api>
+            <mcp_tools>
+                <tool name="get_agent_world_state" description="Retorna estado consolidado de todas as capabilities observadas" />
+                <tool name="subscribe_agent_to_task" description="Inscreve o agente para observar uma nova task" />
+                <tool name="unsubscribe_agent_from_task" description="Remove inscrição de uma task" />
+                <tool name="list_agent_observations" description="Lista todas as tasks que o agente observa" />
+            </mcp_tools>
+            <usage_hint>Para detalhes de uma task, faça GET {construction_api_url}/api/v1/tasks/{{task_id}}</usage_hint>
+        </tools_reference>'''
+
+        return f'''        <world_state timestamp="{timestamp}">
+{tools_reference}
+{chr(10).join(capabilities_xml)}
+        </world_state>'''
+
     def _resolve_persona_placeholders(self) -> None:
         """Resolve placeholders dinâmicos no conteúdo da persona."""
         if self.persona_content is None:
@@ -892,6 +1009,11 @@ class PromptEngine:
             <![CDATA[{conversation_context_cdata}]]>
         </conversation_context>"""
 
+        # Monta a seção do world_state se disponível (estado de tasks observadas)
+        world_state_section = ""
+        if hasattr(self, 'task_state_context') and self.task_state_context:
+            world_state_section = "\n" + self._build_world_state_xml()
+
         # Monta o prompt XML final
         final_prompt = f"""<prompt>
     <system_context>
@@ -903,7 +1025,7 @@ class PromptEngine:
         </instructions>
         <playbook>
             <![CDATA[{playbook_cdata}]]>
-        </playbook>{screenplay_section}{conversation_context_section}
+        </playbook>{screenplay_section}{conversation_context_section}{world_state_section}
     </system_context>
     <conversation_history>
 {history_xml}

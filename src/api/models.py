@@ -75,3 +75,80 @@ class ValidationResult(BaseModel):
     errors: List[str] = Field(default_factory=list, description="Lista de erros encontrados")
     warnings: List[str] = Field(default_factory=list, description="Lista de avisos")
     agent_id: str = Field(..., description="ID do agente validado")
+
+
+# ============================================================================
+# Observation Models - Para injeção de estado dinâmico via Task Observations
+# ============================================================================
+
+class ObservationSubscribeRequest(BaseModel):
+    """Request para inscrever agente em uma task"""
+    capability: str = Field(..., description="Nome semântico da capability (ex: 'observability')")
+    project_id: int = Field(..., description="ID do projeto no Construction PM")
+    task_id: int = Field(..., description="ID da task a observar")
+    description: str = Field(default="", description="Descrição para contexto")
+    include_subtasks: bool = Field(default=False, description="Se deve incluir detalhes de subtasks")
+
+
+class ObservationEntry(BaseModel):
+    """Uma observação individual de um agente"""
+    capability: str = Field(..., description="Nome semântico da capability")
+    project_id: int = Field(..., description="ID do projeto no Construction PM")
+    task_id: int = Field(..., description="ID da task observada")
+    description: str = Field(default="", description="Descrição para contexto")
+    include_subtasks: bool = Field(default=False, description="Se inclui subtasks")
+    subscribed_at: str = Field(..., description="Data de inscrição (ISO format)")
+
+
+class ObservationSubscribeResponse(BaseModel):
+    """Response de inscrição em task"""
+    status: str = Field(..., description="Status da operação")
+    agent_id: str = Field(..., description="ID do agente")
+    observation: ObservationEntry = Field(..., description="Observação criada")
+
+
+class ObservationUnsubscribeResponse(BaseModel):
+    """Response de remoção de inscrição"""
+    status: str = Field(..., description="Status da operação")
+    agent_id: str = Field(..., description="ID do agente")
+    task_id: int = Field(..., description="ID da task removida")
+
+
+class ObservationListResponse(BaseModel):
+    """Lista de observações de um agente"""
+    agent_id: str = Field(..., description="ID do agente")
+    observations: List[ObservationEntry] = Field(default_factory=list, description="Lista de observações")
+    count: int = Field(..., description="Total de observações")
+
+
+class SubtaskState(BaseModel):
+    """Estado de uma subtask"""
+    id: int = Field(..., description="ID da subtask")
+    name: str = Field(..., description="Nome da subtask")
+    progress: int = Field(..., description="Progresso (0-100)")
+    status: str = Field(..., description="Status da subtask")
+
+
+class CapabilitySource(BaseModel):
+    """Fonte de dados de uma capability"""
+    project_id: int = Field(..., description="ID do projeto")
+    task_id: int = Field(..., description="ID da task")
+    task_name: str = Field(default="", description="Nome da task")
+
+
+class CapabilityState(BaseModel):
+    """Estado de uma capability observada"""
+    name: str = Field(..., description="Nome da capability")
+    progress: int = Field(..., description="Progresso (0-100)")
+    status: str = Field(..., description="Status (not_started, in_progress, completed, delayed, blocked)")
+    description: str = Field(default="", description="Descrição da capability")
+    source: CapabilitySource = Field(..., description="Fonte dos dados")
+    subtasks: Optional[List[SubtaskState]] = Field(default=None, description="Lista de subtasks (se include_subtasks=true)")
+    summary: str = Field(default="", description="Resumo textual do estado")
+
+
+class AgentWorldStateResponse(BaseModel):
+    """Estado consolidado do mundo para um agente"""
+    agent_id: str = Field(..., description="ID do agente")
+    timestamp: str = Field(..., description="Timestamp da consulta (ISO format)")
+    capabilities: List[CapabilityState] = Field(default_factory=list, description="Lista de capabilities observadas")
