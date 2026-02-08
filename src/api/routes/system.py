@@ -1,6 +1,7 @@
 # src/api/routes/system.py
+import re
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 from pydantic import BaseModel
 import yaml
 import os
@@ -97,10 +98,38 @@ def validate_conductor_system():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _redact_secrets(obj: Any) -> Any:
+    """Recursively redact sensitive values (connection strings, passwords, keys)."""
+    sensitive_patterns = re.compile(
+        r'(mongodb(\+srv)?://[^\s,\}\"]+|'
+        r'postgres(ql)?://[^\s,\}\"]+|'
+        r'redis://[^\s,\}\"]+|'
+        r'amqp://[^\s,\}\"]+)',
+        re.IGNORECASE
+    )
+    sensitive_keys = {'password', 'secret', 'token', 'api_key', 'apikey',
+                      'connection_string', 'conn_string', 'secret_key'}
+
+    if isinstance(obj, dict):
+        result = {}
+        for k, v in obj.items():
+            if any(sk in k.lower() for sk in sensitive_keys):
+                result[k] = '***REDACTED***'
+            else:
+                result[k] = _redact_secrets(v)
+        return result
+    elif isinstance(obj, list):
+        return [_redact_secrets(item) for item in obj]
+    elif isinstance(obj, str):
+        return sensitive_patterns.sub('***REDACTED***', obj)
+    return obj
+
+
 @router.get("/config", summary="Obter configuração do sistema")
 def get_system_config():
     """
     Retorna a configuração atual do sistema (config.yaml).
+    Sensitive values (connection strings, passwords) are redacted.
     """
     try:
         config_path = os.path.join(os.getcwd(), "config.yaml")
@@ -113,7 +142,7 @@ def get_system_config():
 
         return {
             "config_path": config_path,
-            "config": config_content
+            "config": _redact_secrets(config_content)
         }
 
     except HTTPException:
