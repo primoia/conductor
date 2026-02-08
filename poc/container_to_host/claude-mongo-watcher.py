@@ -64,7 +64,7 @@ class UniversalMongoWatcher:
                  database: str = "conductor",
                  collection: str = "tasks",
                  gateway_url: str = "http://localhost:5006",
-                 max_workers: int = 5,
+                 max_workers: int = 10,
                  fifo_mode: str = "per_agent"):
         """
         Inicializa o watcher MongoDB universal com suporte a paralelização
@@ -74,7 +74,7 @@ class UniversalMongoWatcher:
             database: Nome do database
             collection: Nome da collection
             gateway_url: URL do conductor-gateway para atualização de estatísticas
-            max_workers: Número máximo de workers paralelos (padrão: 5)
+            max_workers: Número máximo de workers paralelos (padrão: 10)
             fifo_mode: Modo FIFO - "strict" (uma task por vez), "per_agent" (FIFO por agente),
                       "relaxed" (qualquer task pendente). Padrão: "per_agent"
         """
@@ -1029,7 +1029,7 @@ def main():
                        help="URL do conductor-gateway para atualização de estatísticas (padrão: porta 5006 do Docker)")
     parser.add_argument("--poll-interval", type=float, default=1.0,
                        help="Intervalo entre verificações em segundos (padrão: 1.0)")
-    parser.add_argument("--max-workers", type=int, default=5,
+    parser.add_argument("--max-workers", type=int, default=10,
                        help="Número máximo de workers paralelos (padrão: 5)")
     parser.add_argument("--fifo-mode", choices=["strict", "per_agent", "relaxed"], default="per_agent",
                        help="Modo FIFO: strict (uma task total), per_agent (FIFO por agente), relaxed (sem FIFO)")

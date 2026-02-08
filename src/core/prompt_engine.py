@@ -499,7 +499,8 @@ class PromptEngine:
             # Filtrar mensagens não deletadas e não ocultas
             active_messages = [msg for msg in messages
                                if not msg.get("isDeleted", False)
-                               and not msg.get("isHidden", False)]
+                               and not msg.get("isHidden", False)
+                               and msg.get("status") != "pending"]
 
             # Converter formato das mensagens para o esperado pelo _format_history()
             # Formato esperado: [{"role": "user", "content": "...", "timestamp": ...}, {"role": "assistant", "content": "..."}]
@@ -697,7 +698,8 @@ class PromptEngine:
         # Retrocompatibilidade: mensagens sem os campos isDeleted/isHidden são tratadas como ativas
         active_history = [turn for turn in history
                          if not turn.get("isDeleted", False)
-                         and not turn.get("isHidden", False)]
+                         and not turn.get("isHidden", False)
+                         and turn.get("status") != "pending"]
 
         # 🔥 NOVO: Remover a última mensagem se for um "user" sem resposta do assistant
         # Isso acontece quando o input do usuário já foi inserido no history, mas o resultado ainda não foi processado
@@ -820,7 +822,8 @@ class PromptEngine:
         # Retrocompatibilidade: mensagens sem os campos isDeleted/isHidden são tratadas como ativas
         active_history = [turn for turn in history
                          if not turn.get("isDeleted", False)
-                         and not turn.get("isHidden", False)]
+                         and not turn.get("isHidden", False)
+                         and turn.get("status") != "pending"]
 
         # 🔥 NOVO: Remover a última mensagem se for um "user" sem resposta do assistant
         # Isso acontece quando o input do usuário já foi inserido no history, mas o resultado ainda não foi processado
