@@ -34,6 +34,13 @@ except ImportError:
 import json
 import tempfile
 
+try:
+    import websocket as ws_client  # websocket-client (sync, thread-safe)
+    WS_STREAMING_AVAILABLE = True
+except ImportError:
+    WS_STREAMING_AVAILABLE = False
+    ws_client = None
+
 # ============================================================================
 # MCP Container Service - Gerenciamento On-Demand de MCPs
 # ============================================================================
@@ -63,7 +70,7 @@ class UniversalMongoWatcher:
                  mongo_uri: str = "mongodb://localhost:27017",
                  database: str = "conductor",
                  collection: str = "tasks",
-                 gateway_url: str = "http://localhost:5006",
+                 gateway_url: str = "http://localhost:14199",
                  max_workers: int = 10,
                  fifo_mode: str = "per_agent"):
         """
@@ -187,9 +194,7 @@ class UniversalMongoWatcher:
             result_summary = (result[:200] + "...") if len(result) > 200 else result
 
             # Montar payload do evento
-            payload = {
-                "type": event_type,
-                "data": {
+            event_data = {
                     "task_id": str(task_data.get("_id", "")),
                     "agent_id": agent_id,
                     "agent_name": agent_name,
@@ -202,7 +207,16 @@ class UniversalMongoWatcher:
                     "exit_code": task_data.get("exit_code"),
                     "result_summary": result_summary,
                     "timestamp": datetime.now(timezone.utc).isoformat()
-                }
+            }
+
+            # Include bound MCPs so BFF can start SSE listeners on sidecars
+            bound_mcps = task_data.get("bound_mcps")
+            if bound_mcps:
+                event_data["bound_mcps"] = bound_mcps
+
+            payload = {
+                "type": event_type,
+                "data": event_data
             }
 
             # Log payload para debug
@@ -547,11 +561,76 @@ class UniversalMongoWatcher:
             logger.error(traceback.format_exc())
             return False
 
+    def _open_stream_ws(self, task_context: dict) -> Optional[object]:
+        """Open WebSocket to BFF for real-time event streaming."""
+        if not WS_STREAMING_AVAILABLE:
+            return None
+        try:
+            ws_url = self.gateway_url.replace("http://", "ws://").replace("https://", "wss://")
+            ws_url += "/ws/agent-stream"
+            ws = ws_client.WebSocket()
+            ws.connect(ws_url, timeout=5)
+            # Send stream_start
+            ws.send(json.dumps({
+                "type": "stream_start",
+                "data": task_context
+            }))
+            logger.info(f"📡 [WS-STREAM] Connected to {ws_url}")
+            return ws
+        except Exception as e:
+            logger.warning(f"📡 [WS-STREAM] Could not connect: {e} (falling back to non-streaming)")
+            return None
+
+    def _close_stream_ws(self, ws, task_context: dict, stats: dict = None):
+        """Close WebSocket stream gracefully."""
+        if not ws:
+            return
+        try:
+            ws.send(json.dumps({
+                "type": "stream_end",
+                "data": {**task_context, "stats": stats or {}}
+            }))
+            ws.close()
+            logger.info(f"📡 [WS-STREAM] Disconnected")
+        except Exception:
+            pass
+
+    def _stream_event_to_ws(self, ws, event_wrapper: dict, task_context: dict):
+        """Forward a parsed stream-json event to BFF via WebSocket."""
+        if not ws:
+            return
+
+        # Unwrap stream_event if needed
+        if event_wrapper.get("type") == "stream_event":
+            raw_event = event_wrapper.get("event", {})
+        else:
+            raw_event = event_wrapper
+
+        event_type = raw_event.get("type", "unknown")
+
+        # Build compact payload for broadcast
+        payload = {
+            "type": "agent_stream",
+            "data": {
+                **task_context,
+                "event_type": event_type,
+                "event": raw_event
+            }
+        }
+
+        try:
+            ws.send(json.dumps(payload))
+        except Exception as e:
+            logger.debug(f"📡 [WS-STREAM] Send failed: {e}")
+
     def execute_llm_request(self, provider: str, prompt: str, cwd: str,
                               timeout: int = 1800,
                               mcp_configs: List[str] = None,
                               agent_id: str = None,
-                              instance_id: str = None) -> tuple[str, int, float]:
+                              instance_id: str = None,
+                              task_id: str = None,
+                              conversation_id: str = None,
+                              screenplay_id: str = None) -> tuple[str, int, float]:
         """
         Executar request para LLM (Claude, Gemini ou Cursor-Agent) baseado no provider.
 
@@ -563,6 +642,9 @@ class UniversalMongoWatcher:
             mcp_configs: Lista de nomes de MCP para configurar (ex: ["prospector", "database"])
             agent_id: ID do agente (para lógica específica de MCPs)
             instance_id: ID da instância do agente (para MCP config do Gateway)
+            task_id: ID da task (para streaming context)
+            conversation_id: ID da conversa (para streaming context)
+            screenplay_id: ID do screenplay (para streaming context)
 
         Returns:
             tuple: (result, exit_code, duration)
@@ -603,20 +685,22 @@ class UniversalMongoWatcher:
 
             # Montar comando baseado no provider
             if provider == "claude":
-                command = ["claude", "--print", "--dangerously-skip-permissions"]
+                # Always use stream-json: parsed for clean text + optional WS debug
+                command = ["claude", "--print", "--verbose",
+                           "--output-format", "stream-json",
+                           "--dangerously-skip-permissions"]
 
                 # Usar MCP config do Gateway se disponível
                 if mcp_config_path:
                     command.extend(["--mcp-config", mcp_config_path])
                     logger.info(f"🔌 [MCP] Claude CLI receberá --mcp-config {mcp_config_path}")
             elif provider == "gemini":
-                # Usar a mesma implementação da GeminiCLIClient
                 # Verificar se o prompt é muito longo para evitar "Argument list too long"
                 MAX_PROMPT_LENGTH = 50000
                 if len(prompt) > MAX_PROMPT_LENGTH:
                     logger.warning(f"⚠️  Prompt muito longo ({len(prompt)} chars), truncando para evitar erros de sistema")
                     prompt = prompt[:MAX_PROMPT_LENGTH] + "\n\n[PROMPT TRUNCADO PARA EVITAR ERRO DE SISTEMA]"
-                
+
                 # Gemini CLI usa -p para o prompt e --approval-mode yolo
                 command = ["gemini", "-p", prompt, "--approval-mode", "yolo"]
             elif provider == "cursor-agent":
@@ -630,28 +714,129 @@ class UniversalMongoWatcher:
             logger.info(f"📝 Primeiros 200 chars do prompt: {prompt[:200]}")
             logger.info("=" * 80)
 
-            # Executar comando - todos usam stdin para o prompt
-            logger.info("⏳ Iniciando subprocess.run()...")
-            result = subprocess.run(
-                command,
-                input=prompt,  # Prompt via stdin
-                cwd=cwd,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                env=os.environ.copy()
-            )
+            # Task context for streaming
+            task_context = {
+                "task_id": task_id or "",
+                "agent_id": agent_id or "",
+                "instance_id": instance_id or "",
+                "conversation_id": conversation_id or "",
+                "screenplay_id": screenplay_id or "",
+                "bound_mcps": mcp_configs or []
+            }
 
-            duration = time.time() - start_time
-            output = result.stdout + result.stderr
+            if provider == "claude":
+                # === CLAUDE: Always use Popen + stream-json to extract clean text ===
+                # WebSocket is optional - for real-time debug streaming to frontend
+                stream_ws = None
+                if WS_STREAMING_AVAILABLE:
+                    stream_ws = self._open_stream_ws(task_context)
 
-            logger.info(f"✅ {provider} concluído em {duration:.1f}s - exit code: {result.returncode}")
-            logger.info(f"📤 Stdout length: {len(result.stdout)} chars")
-            logger.info(f"📤 Stderr length: {len(result.stderr)} chars")
-            logger.info(f"📄 Primeiros 500 chars do output:\n{output[:500]}")
-            logger.info("=" * 80)
+                logger.info(f"⏳ Iniciando subprocess.Popen() (ws={'connected' if stream_ws else 'off'})...")
+                process = subprocess.Popen(
+                    command,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    cwd=cwd,
+                    env=os.environ.copy()
+                )
 
-            return output, result.returncode, duration
+                # Send prompt and close stdin
+                process.stdin.write(prompt)
+                process.stdin.close()
+
+                # Read stdout line by line (NDJSON stream)
+                output_lines = []
+                final_text = []
+                stream_stats = {"messages": 0, "tool_calls": 0, "tokens_in": 0, "tokens_out": 0}
+
+                for line in iter(process.stdout.readline, ""):
+                    line = line.strip()
+                    if not line:
+                        continue
+
+                    output_lines.append(line)
+
+                    try:
+                        event_wrapper = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+
+                    # Forward to BFF via WebSocket (if connected)
+                    self._stream_event_to_ws(stream_ws, event_wrapper, task_context)
+
+                    # Track stats and collect final text
+                    # CLI stream-json format: system, assistant, result
+                    evt_type = event_wrapper.get("type", "")
+
+                    if evt_type == "assistant":
+                        message = event_wrapper.get("message", {})
+                        usage = message.get("usage", {})
+                        stream_stats["messages"] += 1
+                        stream_stats["tokens_in"] += usage.get("input_tokens", 0) + usage.get("cache_read_input_tokens", 0)
+                        stream_stats["tokens_out"] += usage.get("output_tokens", 0)
+                        # Extract text and tool_use from content blocks
+                        for block in message.get("content", []):
+                            if block.get("type") == "text":
+                                final_text.append(block.get("text", ""))
+                            elif block.get("type") == "tool_use":
+                                stream_stats["tool_calls"] += 1
+
+                    elif evt_type == "result":
+                        usage = event_wrapper.get("usage", {})
+                        stream_stats["tokens_in"] = usage.get("input_tokens", 0) + usage.get("cache_read_input_tokens", 0)
+                        stream_stats["tokens_out"] = usage.get("output_tokens", 0)
+                        # Use result text as final output if we haven't collected any
+                        result_text = event_wrapper.get("result", "")
+                        if result_text and not final_text:
+                            final_text.append(result_text)
+
+                # Wait for process to finish
+                stderr_output = process.stderr.read()
+                process.wait(timeout=30)
+
+                duration = time.time() - start_time
+                exit_code = process.returncode
+
+                # Close WebSocket with stats
+                self._close_stream_ws(stream_ws, task_context, stream_stats)
+
+                # Reconstruct output: clean text for MongoDB storage
+                output = "\n".join(final_text) if final_text else "\n".join(output_lines)
+                if stderr_output:
+                    output += "\n" + stderr_output
+
+                logger.info(f"✅ {provider} concluído em {duration:.1f}s - exit code: {exit_code} (ws={'on' if stream_ws else 'off'})")
+                logger.info(f"📊 Stream stats: {stream_stats}")
+                logger.info(f"📄 Primeiros 500 chars do output:\n{output[:500]}")
+                logger.info("=" * 80)
+
+                return output, exit_code, duration
+
+            else:
+                # === NON-CLAUDE: subprocess.run (Gemini, cursor-agent) ===
+                logger.info("⏳ Iniciando subprocess.run()...")
+                result = subprocess.run(
+                    command,
+                    input=prompt,
+                    cwd=cwd,
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                    env=os.environ.copy()
+                )
+
+                duration = time.time() - start_time
+                output = result.stdout + result.stderr
+
+                logger.info(f"✅ {provider} concluído em {duration:.1f}s - exit code: {result.returncode}")
+                logger.info(f"📤 Stdout length: {len(result.stdout)} chars")
+                logger.info(f"📤 Stderr length: {len(result.stderr)} chars")
+                logger.info(f"📄 Primeiros 500 chars do output:\n{output[:500]}")
+                logger.info("=" * 80)
+
+                return output, result.returncode, duration
 
         except subprocess.TimeoutExpired:
             duration = time.time() - start_time
@@ -810,7 +995,9 @@ class UniversalMongoWatcher:
             return False
 
         # 📡 Emitir evento task_picked (watcher pegou o job da fila)
+        # Incluir bound_mcps para que o BFF inicie SSE listeners nos sidecars
         request["status"] = "processing"
+        request["bound_mcps"] = mcp_configs if mcp_configs else []
         self.emit_task_event("task_picked", request)
 
         # Executar LLM request
@@ -821,7 +1008,10 @@ class UniversalMongoWatcher:
             timeout=timeout,
             mcp_configs=mcp_configs,
             agent_id=agent_id,
-            instance_id=instance_id
+            instance_id=instance_id,
+            task_id=str(request_id),
+            conversation_id=request.get("conversation_id"),
+            screenplay_id=request.get("screenplay_id")
         )
 
         # Salvar resultado
@@ -1025,8 +1215,8 @@ def main():
                        help="Nome do database")
     parser.add_argument("--collection", default="tasks",
                        help="Nome da collection")
-    parser.add_argument("--gateway-url", default="http://localhost:5006",
-                       help="URL do conductor-gateway para atualização de estatísticas (padrão: porta 5006 do Docker)")
+    parser.add_argument("--gateway-url", default="http://localhost:14199",
+                       help="URL do conductor-gateway BFF (padrão: porta 14199)")
     parser.add_argument("--poll-interval", type=float, default=1.0,
                        help="Intervalo entre verificações em segundos (padrão: 1.0)")
     parser.add_argument("--max-workers", type=int, default=10,
