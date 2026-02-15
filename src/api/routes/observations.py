@@ -20,7 +20,7 @@ router = APIRouter(prefix="/observations", tags=["observations"])
 # MongoDB connection
 from pymongo import MongoClient
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://admin:czrimr@localhost:27017/conductor_state?authSource=admin")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/conductor_state?authSource=admin")
 MONGO_DATABASE = os.getenv("MONGO_DATABASE", "conductor_state")
 CONSTRUCTION_API_URL = os.getenv("CONSTRUCTION_API_URL", "http://verticals-construction-api-projects:8001")
 OBSERVATION_TIMEOUT = float(os.getenv("OBSERVATION_TIMEOUT_SECONDS", "10"))

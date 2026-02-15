@@ -56,7 +56,7 @@ def get_mongo_collections():
     if _screenplay_states is not None:
         return _screenplay_states, _conversation_states
 
-    mongo_uri = os.getenv("MONGO_URI", "mongodb://admin:conductor123@primoia-mongodb:27017/conductor_state?authSource=admin")
+    mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/conductor_state?authSource=admin")
     _mongo_client = MongoClient(mongo_uri)
     db = _mongo_client.conductor_state
 

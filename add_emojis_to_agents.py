@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MONGO_URI = os.getenv('MONGO_URI', 'mongodb://admin:czrimr@localhost:27017/?authSource=admin')
+MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/?authSource=admin')
 DB_NAME = 'conductor_state'
 
 # Mapeamento de emojis por agent_id

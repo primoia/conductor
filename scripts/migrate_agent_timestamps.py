@@ -19,7 +19,7 @@ from bson import ObjectId
 from pymongo import MongoClient
 
 # Configuração padrão
-MONGO_URI = os.getenv('MONGO_URI', 'mongodb://admin:czrimr@localhost:27017/?authSource=admin')
+MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/?authSource=admin')
 DB_NAME = os.getenv('MONGO_DB', 'conductor_state')
 
 

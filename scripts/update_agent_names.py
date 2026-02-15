@@ -11,7 +11,7 @@ import sys
 from datetime import datetime, timezone
 from pymongo import MongoClient
 
-MONGO_URI = os.getenv('MONGO_URI', 'mongodb://admin:czrimr@localhost:27017/?authSource=admin')
+MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/?authSource=admin')
 DB_NAME = os.getenv('MONGO_DB', 'conductor_state')
 
 # Mapeamento manual: agent_id → display_name

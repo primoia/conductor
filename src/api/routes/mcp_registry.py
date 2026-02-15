@@ -126,7 +126,7 @@ def _get_mcp_collection():
     """Get the mcp_registry collection from MongoDB."""
     from pymongo import MongoClient
 
-    mongo_uri = os.getenv('MONGO_URI', 'mongodb://admin:conductor123@primoia-shared-mongo:27017')
+    mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017')
     db_name = os.getenv('MONGO_DATABASE', 'conductor_state')
 
     client = MongoClient(mongo_uri)
