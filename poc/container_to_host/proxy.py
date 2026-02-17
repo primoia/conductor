@@ -44,7 +44,11 @@ def test_command():
 
     except FileNotFoundError:
         logging.error(f"Erro: Diretório de trabalho não encontrado: {cwd}")
-        return jsonify({"status": "error", "stderr": f"Diretório não encontrado: {cwd}"}), 404
+        if cwd == "/app":
+            msg = "⚠️ Diretório de trabalho (CWD) não configurado. Configure o CWD nas propriedades do Screenplay antes de executar o agente."
+        else:
+            msg = f"⚠️ Diretório de trabalho não encontrado: {cwd}. Verifique o CWD configurado nas propriedades do Screenplay."
+        return jsonify({"status": "error", "stderr": msg}), 404
     except Exception as e:
         logging.error(f"Erro inesperado: {e}", exc_info=True)
         return jsonify({"status": "error", "stderr": str(e)}), 500
@@ -94,7 +98,11 @@ def execute_command():
 
     except FileNotFoundError:
         logging.error(f"Erro: Diretório de trabalho não encontrado: {cwd}")
-        return jsonify({"status": "error", "stderr": f"Diretório não encontrado: {cwd}"}), 404
+        if cwd == "/app":
+            msg = "⚠️ Diretório de trabalho (CWD) não configurado. Configure o CWD nas propriedades do Screenplay antes de executar o agente."
+        else:
+            msg = f"⚠️ Diretório de trabalho não encontrado: {cwd}. Verifique o CWD configurado nas propriedades do Screenplay."
+        return jsonify({"status": "error", "stderr": msg}), 404
     except subprocess.TimeoutExpired:
         logging.error(f"Comando excedeu o tempo limite de {timeout} segundos.")
         return jsonify({"status": "error", "stderr": f"Timeout: Comando excedeu {timeout}s."}), 408

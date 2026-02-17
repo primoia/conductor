@@ -655,7 +655,15 @@ class UniversalMongoWatcher:
         try:
             # Verificar se diretório existe
             if not os.path.isdir(cwd):
-                return f"Diretório não encontrado: {cwd}", 1, time.time() - start_time
+                if cwd == "/app":
+                    return (
+                        "⚠️ Diretório de trabalho (CWD) não configurado. "
+                        "Configure o CWD nas propriedades do Screenplay antes de executar o agente."
+                    ), 1, time.time() - start_time
+                return (
+                    f"⚠️ Diretório de trabalho não encontrado: {cwd}. "
+                    "Verifique o CWD configurado nas propriedades do Screenplay."
+                ), 1, time.time() - start_time
 
             # Log do ambiente antes de montar comando
             logger.info("=" * 80)

@@ -69,7 +69,12 @@ while true; do
         # Verificar se o diretório existe
         if [ ! -d "$cwd" ]; then
             echo "❌ Diretório não existe: $cwd"
-            echo "{\"status\": \"error\", \"error\": \"Diretório não encontrado: $cwd\"}" > "$output_file"
+            if [ "$cwd" = "/app" ]; then
+                error_msg="⚠️ Diretório de trabalho (CWD) não configurado. Configure o CWD nas propriedades do Screenplay antes de executar o agente."
+            else
+                error_msg="⚠️ Diretório de trabalho não encontrado: $cwd. Verifique o CWD configurado nas propriedades do Screenplay."
+            fi
+            echo "{\"status\": \"error\", \"error\": \"$error_msg\"}" > "$output_file"
             rm "$request_file"
             continue
         fi
