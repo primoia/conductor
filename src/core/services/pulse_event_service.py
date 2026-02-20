@@ -14,6 +14,7 @@ import asyncio
 import json
 import logging
 import os
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
@@ -141,23 +142,22 @@ class PulseEventService:
                 channel = await connection.channel()
                 await channel.set_qos(prefetch_count=10)
 
-                # Declare dead letter exchange and queue
-                await channel.exchange_declare(
-                    exchange=self.DLQ_EXCHANGE,
-                    exchange_type="fanout",
+                # Declare dead letter exchange and queue (aio-pika v9 API)
+                import aio_pika
+
+                exchange = await channel.declare_exchange(
+                    self.DLQ_EXCHANGE,
+                    type=aio_pika.ExchangeType.FANOUT,
                     durable=True,
                 )
-                queue = await channel.queue_declare(
-                    queue=self.DLQ_QUEUE,
+                queue = await channel.declare_queue(
+                    self.DLQ_QUEUE,
                     durable=True,
                 )
-                await channel.queue_bind(
-                    queue=self.DLQ_QUEUE,
-                    exchange=self.DLQ_EXCHANGE,
-                )
+                await queue.bind(exchange)
 
                 # Consume messages
-                async for message in channel:
+                async for message in queue:
                     if not self._running:
                         break
                     try:
@@ -330,13 +330,19 @@ class PulseEventService:
             )
 
             import httpx
+
+            from bson import ObjectId
+            task_id = str(ObjectId())
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.post(
                     f"{conductor_api_url}/agents/{support_agent_id}/execute",
                     json={
                         "user_input": prompt,
+                        "cwd": "/app",
+                        "task_id": task_id,
                         "context_mode": "stateless",
                         "is_councilor_execution": True,
+                        "wait_for_result": False,
                     },
                 )
                 if resp.status_code < 300:

@@ -1,0 +1,26 @@
+name: "Support_Agent"
+version: "1.0.0"
+schema_version: "1.0"
+description: "System health monitor and autonomous support councilor that responds to infrastructure alerts, DLQ events, and MCP mesh changes"
+author: "PrimoIA"
+tags: ["support", "monitoring", "infrastructure", "autonomous", "councilor"]
+capabilities:
+  - "monitor_system_health"
+  - "analyze_infrastructure_events"
+  - "write_screenplay_logs"
+  - "recommend_mitigations"
+  - "trigger_saga_rollback"
+allowed_tools:
+  - "Read"
+  - "Bash"
+  - "mcp__conductor-api__write_screenplay_log"
+  - "mcp__conductor-api__get_mesh"
+  - "mcp__conductor-api__get_pulse_status"
+  - "mcp__conductor-api__list_pulse_events"
+  - "mcp__conductor-api__execute_saga_rollback"
+  - "mcp__conductor-api__list_sagas"
+  - "mcp__conductor-api__get_saga"
+mcp_configs:
+  - "conductor-api-mcp"
+timeout: 300
+model: "claude"

@@ -6,3 +6,4 @@ pymongo>=4.3
 prompt-toolkit>=3.0.52
 pygments>=2.19.2
 httpx>=0.27.0
+aio-pika>=9.0
