@@ -204,7 +204,7 @@ class PulseEventService:
 
         amqp_url = os.getenv(
             "AMQP_URL",
-            "amqp://admin:admin123@primoia-shared-rabbitmq:5672/",
+            "amqp://admin:PrimoiaSecure2025!RabbitMQ@primoia-shared-rabbitmq:5672/",
         )
 
         try:

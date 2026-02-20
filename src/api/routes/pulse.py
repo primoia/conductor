@@ -19,6 +19,20 @@ from src.core.services.pulse_event_service import pulse_service
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/system/pulse", tags=["Pulse Events"])
 
+# Module-level MongoDB client (connection pool, lazy init)
+_mongo_client = None
+
+
+def _get_screenplay_collection():
+    """Get MongoDB screenplay_logs collection using a shared client."""
+    global _mongo_client
+    if _mongo_client is None:
+        from pymongo import MongoClient
+        mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+        _mongo_client = MongoClient(mongo_uri, serverSelectionTimeoutMS=3000)
+    db_name = os.getenv("MONGO_DATABASE", "conductor_state")
+    return _mongo_client[db_name]["screenplay_logs"]
+
 
 class PulseEventResponse(BaseModel):
     """A single pulse event."""
@@ -100,14 +114,7 @@ def write_screenplay_log(request: ScreenplayLogRequest):
     Living Screenplay. Entries are persisted to MongoDB for audit trail.
     """
     try:
-        from pymongo import MongoClient
-
-        mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
-        db_name = os.getenv("MONGO_DATABASE", "conductor_state")
-
-        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=3000)
-        db = client[db_name]
-        collection = db["screenplay_logs"]
+        collection = _get_screenplay_collection()
 
         now = datetime.now(timezone.utc)
         log_id = f"slog_{int(now.timestamp() * 1000)}"
@@ -123,7 +130,6 @@ def write_screenplay_log(request: ScreenplayLogRequest):
         }
 
         collection.insert_one(doc)
-        client.close()
 
         logger.info(
             "Screenplay log written by %s: [%s] %s",
@@ -150,14 +156,7 @@ def read_screenplay_logs(
 ):
     """Read screenplay log entries, most recent first."""
     try:
-        from pymongo import MongoClient
-
-        mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
-        db_name = os.getenv("MONGO_DATABASE", "conductor_state")
-
-        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=3000)
-        db = client[db_name]
-        collection = db["screenplay_logs"]
+        collection = _get_screenplay_collection()
 
         query: Dict[str, Any] = {}
         if agent_id:
@@ -178,8 +177,6 @@ def read_screenplay_logs(
             for key in ("timestamp", "created_at"):
                 if key in doc and hasattr(doc[key], "isoformat"):
                     doc[key] = doc[key].isoformat()
-
-        client.close()
 
         return {"total": len(docs), "logs": docs}
 

@@ -106,9 +106,9 @@ def dispatch_agent(request: DispatchRequest):
     the full conversation history if `conversation_id` is provided.
     """
     try:
-        from src.core.services.agent_discovery_service import AgentDiscoveryService
+        from src.container import container
 
-        discovery = AgentDiscoveryService()
+        discovery = container.get_agent_discovery_service()
         agent_def = discovery.get_agent_definition(request.target_agent_id)
         if not agent_def:
             raise HTTPException(
