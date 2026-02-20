@@ -1,15 +1,17 @@
 name: "Support_Agent"
-version: "1.0.0"
+version: "1.1.0"
 schema_version: "1.0"
-description: "System health monitor and autonomous support councilor that responds to infrastructure alerts, DLQ events, and MCP mesh changes"
+description: "System health monitor and autonomous support councilor that responds to infrastructure alerts, DLQ events, and MCP mesh changes. Investigates issues and dispatches to specialized agents."
 author: "PrimoIA"
-tags: ["support", "monitoring", "infrastructure", "autonomous", "councilor"]
+tags: ["support", "monitoring", "infrastructure", "autonomous", "councilor", "dispatch"]
 capabilities:
   - "monitor_system_health"
   - "analyze_infrastructure_events"
   - "write_screenplay_logs"
   - "recommend_mitigations"
   - "trigger_saga_rollback"
+  - "create_backlog_tasks"
+  - "dispatch_to_agents"
 allowed_tools:
   - "Read"
   - "Bash"
@@ -20,7 +22,13 @@ allowed_tools:
   - "mcp__conductor-api__execute_saga_rollback"
   - "mcp__conductor-api__list_sagas"
   - "mcp__conductor-api__get_saga"
+  - "mcp__conductor-api__dispatch_agent"
+  - "mcp__primoia-construction-project-manager__create_task"
+  - "mcp__primoia-construction-project-manager__update_task"
+  - "mcp__primoia-construction-project-manager__get_task"
+  - "mcp__primoia-construction-project-manager__list_project_tasks"
 mcp_configs:
   - "conductor-api-mcp"
+  - "primoia-construction-project-manager"
 timeout: 300
 model: "claude"

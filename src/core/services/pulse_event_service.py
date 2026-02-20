@@ -301,59 +301,71 @@ class PulseEventService:
         self._previous_mesh_snapshot = current_snapshot
 
     # ------------------------------------------------------------------
-    # Alert injection
+    # Alert injection via dispatch
     # ------------------------------------------------------------------
 
     async def _inject_alert(self, event: PulseEvent):
         """
-        Inject a critical event into a Support Councilor agent session.
+        Dispatch the event to the appropriate agent via the /agents/dispatch
+        endpoint. The agent receives the event as input with full conversation
+        context, enabling it to investigate and chain to other agents.
 
-        Uses the Conductor API to submit a task to the Support Councilor,
-        effectively making the agent aware of the issue proactively.
+        Info events are not dispatched (handled autonomously or ignored).
         """
+        if event.severity == PulseEvent.SEVERITY_INFO:
+            return
+
         try:
-            conductor_api_url = os.getenv(
-                "CONDUCTOR_API_URL", "http://primoia-conductor-api:8000"
-            )
-            support_agent_id = os.getenv(
-                "SUPPORT_COUNCILOR_AGENT_ID", "Support_Agent"
-            )
-
-            prompt = (
-                f"PROACTIVE SYSTEM ALERT:\n\n"
-                f"{event.to_prompt_text()}\n\n"
-                f"Please analyze this event and determine:\n"
-                f"1. Impact assessment\n"
-                f"2. Recommended actions\n"
-                f"3. Whether to escalate\n"
-                f"Log your findings using the write_screenplay_log tool."
-            )
-
-            import httpx
-
-            from bson import ObjectId
-            task_id = str(ObjectId())
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post(
-                    f"{conductor_api_url}/agents/{support_agent_id}/execute",
-                    json={
-                        "user_input": prompt,
-                        "cwd": "/app",
-                        "task_id": task_id,
-                        "context_mode": "stateless",
-                        "is_councilor_execution": True,
-                        "wait_for_result": False,
-                    },
-                )
-                if resp.status_code < 300:
-                    logger.info("Alert injected into %s for event: %s", support_agent_id, event.title)
-                else:
-                    logger.warning(
-                        "Failed to inject alert (HTTP %d): %s",
-                        resp.status_code, resp.text[:200],
-                    )
+            await self._dispatch_to_agent(event)
         except Exception as e:
-            logger.warning("Could not inject alert: %s", e)
+            logger.warning("Could not dispatch alert: %s", e)
+
+    async def _dispatch_to_agent(self, event: PulseEvent):
+        """Dispatch event to Support_Agent via /agents/dispatch endpoint."""
+        conductor_api_url = os.getenv(
+            "CONDUCTOR_API_URL", "http://primoia-conductor-api:8000"
+        )
+        support_agent_id = os.getenv(
+            "SUPPORT_COUNCILOR_AGENT_ID", "Support_Agent"
+        )
+
+        prompt = (
+            f"PROACTIVE SYSTEM ALERT:\n\n"
+            f"{event.to_prompt_text()}\n\n"
+            f"Investigate this event:\n"
+            f"1. Check MCP mesh health with get_mesh\n"
+            f"2. Review recent events with list_pulse_events\n"
+            f"3. Assess impact and determine root cause\n"
+            f"4. Create a task in the Construction PM backlog via create_task with your findings\n"
+            f"5. If the issue requires infrastructure action, dispatch to DevOps_Agent using dispatch_agent\n"
+            f"6. Log your analysis using write_screenplay_log\n"
+        )
+
+        import httpx
+
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{conductor_api_url}/agents/dispatch",
+                json={
+                    "target_agent_id": support_agent_id,
+                    "input": prompt,
+                },
+            )
+            if resp.status_code < 300:
+                data = resp.json()
+                logger.info(
+                    "Dispatched %s to %s (task=%s, conversation=%s)",
+                    event.title,
+                    support_agent_id,
+                    data.get("task_id"),
+                    data.get("conversation_id"),
+                )
+            else:
+                logger.warning(
+                    "Failed to dispatch alert (HTTP %d): %s",
+                    resp.status_code,
+                    resp.text[:200],
+                )
 
     # ------------------------------------------------------------------
     # Internal

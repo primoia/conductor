@@ -33,6 +33,7 @@ from src.api.routes.observations import router as observations_router  # Task ob
 from src.api.routes.mcp_mesh import router as mcp_mesh_router  # SAGA-016: MCP Mesh topology
 from src.api.routes.pulse import router as pulse_router  # SAGA-016: Pulse event triggers
 from src.api.routes.sagas import router as sagas_router  # SAGA-016: Saga healing & rollback
+from src.api.routes.dispatch import router as dispatch_router  # Agent-to-agent dispatch
 
 # Configura o logging e a aplicação FastAPI
 logging.basicConfig(level=logging.INFO)
@@ -62,6 +63,7 @@ app.include_router(observations_router)  # Task observations for dynamic world_s
 app.include_router(mcp_mesh_router)  # SAGA-016: Live MCP mesh topology
 app.include_router(pulse_router)  # SAGA-016: Pulse event triggers & screenplay logs
 app.include_router(sagas_router)  # SAGA-016: Saga healing & rollback
+app.include_router(dispatch_router)  # Agent-to-agent dispatch
 
 @app.on_event("startup")
 async def startup_event():

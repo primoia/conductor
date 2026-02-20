@@ -1,6 +1,7 @@
 # tests/api/test_pulse.py
 """
 Tests for SAGA-016 Phase 2: Pulse Event Service and API routes.
+Updated for dispatch-based architecture.
 """
 import asyncio
 import pytest
@@ -237,36 +238,108 @@ class TestPulseAPIRoute:
             assert "slog_" in data["log_id"]
 
 
-class TestInjectAlert:
-    """Tests for the _inject_alert method payload structure."""
+class TestInjectAlertDispatch:
+    """Tests for the dispatch-based _inject_alert."""
 
-    def test_inject_alert_sends_correct_payload(self):
-        """Verify _inject_alert includes task_id, cwd, and wait_for_result in the payload."""
+    def test_inject_alert_dispatches_for_critical(self):
+        """Verify _inject_alert calls _dispatch_to_agent for critical events."""
         svc = PulseEventService()
+        svc._dispatch_to_agent = AsyncMock()
+
         event = PulseEvent(
             source="mesh_watcher",
             severity=PulseEvent.SEVERITY_CRITICAL,
             title="MCP sidecar DOWN: test-svc",
-            detail="test-svc changed from healthy to unhealthy",
+            detail="test-svc went down",
+        )
+
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(svc._inject_alert(event))
+
+        svc._dispatch_to_agent.assert_called_once_with(event)
+
+    def test_inject_alert_dispatches_for_warning(self):
+        """Verify _inject_alert calls _dispatch_to_agent for warning events."""
+        svc = PulseEventService()
+        svc._dispatch_to_agent = AsyncMock()
+
+        event = PulseEvent(
+            source="rabbitmq_dlq",
+            severity=PulseEvent.SEVERITY_WARNING,
+            title="Dead-lettered message from billing.payments",
+            detail="payment timeout",
+        )
+
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(svc._inject_alert(event))
+
+        svc._dispatch_to_agent.assert_called_once_with(event)
+
+    def test_inject_alert_skips_info(self):
+        """Verify _inject_alert does NOT dispatch for info events."""
+        svc = PulseEventService()
+        svc._dispatch_to_agent = AsyncMock()
+
+        event = PulseEvent(
+            source="mesh_watcher",
+            severity=PulseEvent.SEVERITY_INFO,
+            title="MCP sidecar discovered: new-svc",
+            detail="new-svc is now online",
+        )
+
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(svc._inject_alert(event))
+
+        svc._dispatch_to_agent.assert_not_called()
+
+    def test_dispatch_to_agent_sends_correct_payload(self):
+        """Verify _dispatch_to_agent POSTs to /agents/dispatch with correct payload."""
+        svc = PulseEventService()
+        event = PulseEvent(
+            source="mesh_watcher",
+            severity=PulseEvent.SEVERITY_CRITICAL,
+            title="MCP sidecar DOWN: billing",
+            detail="billing changed from healthy to unhealthy",
+            metadata={"node": "billing"},
         )
 
         captured_payload = {}
+        captured_url = {}
 
         async def mock_post(self_client, url, **kwargs):
+            captured_url["url"] = url
             captured_payload.update(kwargs.get("json", {}))
             mock_resp = MagicMock()
             mock_resp.status_code = 200
+            mock_resp.json = lambda: {"task_id": "abc123", "conversation_id": "conv-1"}
             return mock_resp
 
         with patch("httpx.AsyncClient.post", new=mock_post):
             loop = asyncio.get_event_loop()
-            loop.run_until_complete(svc._inject_alert(event))
+            loop.run_until_complete(svc._dispatch_to_agent(event))
 
-        # Verify required fields are present
-        assert "task_id" in captured_payload, "task_id missing from inject payload"
-        assert len(captured_payload["task_id"]) == 24, "task_id should be a 24-char ObjectId hex string"
-        assert captured_payload["cwd"] == "/app", "cwd should be '/app'"
-        assert captured_payload["context_mode"] == "stateless"
-        assert captured_payload["is_councilor_execution"] is True
-        assert captured_payload["wait_for_result"] is False
-        assert "user_input" in captured_payload
+        assert "/agents/dispatch" in captured_url["url"]
+        assert captured_payload["target_agent_id"] == "Support_Agent"
+        assert "SYSTEM EVENT" in captured_payload["input"]
+        assert "billing" in captured_payload["input"]
+
+    def test_dispatch_to_agent_handles_failure(self):
+        """Verify _dispatch_to_agent logs warning on failure without raising."""
+        svc = PulseEventService()
+        event = PulseEvent(
+            source="test",
+            severity=PulseEvent.SEVERITY_CRITICAL,
+            title="Test",
+            detail="test",
+        )
+
+        async def mock_post(self_client, url, **kwargs):
+            mock_resp = MagicMock()
+            mock_resp.status_code = 500
+            mock_resp.text = "Internal Server Error"
+            return mock_resp
+
+        with patch("httpx.AsyncClient.post", new=mock_post):
+            # Should not raise
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(svc._dispatch_to_agent(event))
