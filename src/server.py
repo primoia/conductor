@@ -30,6 +30,9 @@ from src.api.routes.conversations import router as conversations_router  # 🔥 
 from src.api.routes.navigation import router as navigation_router  # Navigation state persistence
 from src.api.routes.mcp_registry import router as mcp_registry_router  # MCP Registry CRUD
 from src.api.routes.observations import router as observations_router  # Task observations for world_state
+from src.api.routes.mcp_mesh import router as mcp_mesh_router  # SAGA-016: MCP Mesh topology
+from src.api.routes.pulse import router as pulse_router  # SAGA-016: Pulse event triggers
+from src.api.routes.sagas import router as sagas_router  # SAGA-016: Saga healing & rollback
 
 # Configura o logging e a aplicação FastAPI
 logging.basicConfig(level=logging.INFO)
@@ -56,9 +59,12 @@ app.include_router(conversations_router)  # 🔥 NOVO: Rotas de conversas globai
 app.include_router(navigation_router)  # Navigation state persistence
 app.include_router(mcp_registry_router)  # MCP Registry CRUD for managing MCP servers
 app.include_router(observations_router)  # Task observations for dynamic world_state injection
+app.include_router(mcp_mesh_router)  # SAGA-016: Live MCP mesh topology
+app.include_router(pulse_router)  # SAGA-016: Pulse event triggers & screenplay logs
+app.include_router(sagas_router)  # SAGA-016: Saga healing & rollback
 
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     """Evento que roda na inicialização do servidor."""
     logger.info("🚀 Conductor API iniciando...")
     try:
@@ -66,6 +72,36 @@ def startup_event():
         logger.info("✅ Container de dependências inicializado com sucesso.")
     except Exception as e:
         logger.critical(f"❌ Falha ao inicializar o container de dependências: {e}", exc_info=True)
+
+    # SAGA-016: Start MCP Mesh background sweep
+    try:
+        from src.core.services.mcp_mesh_service import mesh_service
+        await mesh_service.start()
+        logger.info("✅ MCP Mesh Service started.")
+    except Exception as e:
+        logger.warning(f"⚠️ MCP Mesh Service failed to start: {e}")
+
+    # SAGA-016: Start Pulse event listeners
+    try:
+        from src.core.services.pulse_event_service import pulse_service
+        await pulse_service.start()
+        logger.info("✅ Pulse Event Service started.")
+    except Exception as e:
+        logger.warning(f"⚠️ Pulse Event Service failed to start: {e}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on server shutdown."""
+    try:
+        from src.core.services.pulse_event_service import pulse_service
+        await pulse_service.stop()
+    except Exception:
+        pass
+    try:
+        from src.core.services.mcp_mesh_service import mesh_service
+        await mesh_service.stop()
+    except Exception:
+        pass
 
 # As rotas de agentes foram movidas para src/api/routes/agents.py
 

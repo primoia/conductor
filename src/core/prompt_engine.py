@@ -1017,6 +1017,17 @@ class PromptEngine:
         if hasattr(self, 'task_state_context') and self.task_state_context:
             world_state_section = "\n" + self._build_world_state_xml()
 
+        # SAGA-016: Inject live MCP mesh topology for Council agents
+        mesh_section = ""
+        try:
+            from src.core.services.mcp_mesh_service import mesh_service
+            mesh_data = mesh_service.get_mesh()
+            if mesh_data.get("summary", {}).get("total", 0) > 0:
+                mesh_context = mesh_service.get_mesh_context_for_prompt()
+                mesh_section = f"\n        {mesh_context}"
+        except Exception:
+            pass  # Mesh not available yet - graceful degradation
+
         # Monta o prompt XML final
         final_prompt = f"""<prompt>
     <system_context>
@@ -1028,7 +1039,7 @@ class PromptEngine:
         </instructions>
         <playbook>
             <![CDATA[{playbook_cdata}]]>
-        </playbook>{screenplay_section}{conversation_context_section}{world_state_section}
+        </playbook>{screenplay_section}{conversation_context_section}{world_state_section}{mesh_section}
     </system_context>
     <conversation_history>
 {history_xml}
