@@ -580,7 +580,13 @@ class PromptEngine:
                 - Never delegate back to yourself.
                 - Provide enough context in 'input' for the next agent to work autonomously.
                 - Include the remaining pipeline so the chain continues to completion.
-                - If no agent fits a sub-task, do it yourself or ask the human.{depth_note}
+                - If no agent fits a sub-task, do it yourself or ask the human.
+                - SCOPE BOUNDARY: Only perform actions described in YOUR agent
+                  description. Git operations (commit, push, branch) belong to
+                  the agent whose description covers Git/DevOps. Code writing
+                  belongs to the code executor. Content creation belongs to the
+                  content specialist. If a sub-task falls outside your
+                  description, delegate — even if you technically could do it.{depth_note}
             </instructions>
         </delegation>"""
 
@@ -636,7 +642,12 @@ Rules:
 - Never delegate back to yourself.
 - Provide enough context for the next agent to work autonomously.
 - Include the remaining pipeline so the chain continues to completion.
-- If no agent fits a sub-task, do it yourself or ask the human.{depth_note}
+- If no agent fits a sub-task, do it yourself or ask the human.
+- SCOPE BOUNDARY: Only perform actions described in YOUR agent description.
+  Git operations (commit, push, branch) belong to the Git/DevOps agent.
+  Code writing belongs to the code executor. Content creation belongs to the
+  content specialist. If a sub-task falls outside your description, delegate
+  — even if you technically could do it.{depth_note}
 """
 
     def _load_conversation_history(self, conversation_id: Optional[str] = None) -> None:
