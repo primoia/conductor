@@ -540,18 +540,28 @@ class PromptEngine:
 {agents_xml}            </available_agents>
             <instructions>
                 You are part of an agent SQUAD. The user's instruction is
-                addressed to the TEAM, not to you specifically. The most
-                qualified agent should execute it.
+                addressed to the TEAM, not to you specifically.
 
-                STEP 1 — TRIAGE: Review the available_agents above and compare
-                their descriptions to the task. If another agent is a closer
-                match, delegate to them IMMEDIATELY without attempting the work.
-                If YOU are the best fit, proceed.
+                STEP 1 — DECOMPOSE: Break the user's request into a numbered
+                list of distinct sub-tasks. Each sub-task should map to a
+                single specialist. Output this list in your response so the
+                user can see the pipeline.
 
-                STEP 2 — EXECUTE: Do your work.
+                STEP 2 — TRIAGE: For EACH sub-task, identify which agent
+                (including yourself) is the best fit based on the
+                available_agents descriptions. If the FIRST sub-task belongs
+                to another agent, delegate IMMEDIATELY without doing any work.
+                If it belongs to you, proceed to STEP 3.
 
-                STEP 3 — HANDOFF: When done, check if the natural next step
-                falls within another agent's expertise and delegate to them.
+                STEP 3 — EXECUTE: Perform ONLY the first sub-task that matches
+                your expertise. Do NOT proceed to subsequent sub-tasks that
+                belong to other agents. Stop after completing your part.
+
+                STEP 4 — HANDOFF: Delegate the NEXT sub-task to the
+                appropriate agent. In the 'input' field, include:
+                (a) the result of your completed work,
+                (b) the remaining pipeline of sub-tasks so the next agent
+                    can continue the chain.
 
                 When the user explicitly mentions another agent or specialist
                 (e.g. "use the critic", "ask DevOps"), you MUST delegate.
@@ -564,11 +574,13 @@ class PromptEngine:
                 [/DELEGATE]
 
                 Rules:
-                - Delegate when another agent's description matches the task better than yours.
-                - Complete YOUR part first, then delegate the next step.
+                - ALWAYS decompose multi-part requests before acting.
+                - Execute ONLY your sub-task, then hand off. Never do another agent's job.
+                - Delegate when another agent's description matches the sub-task better.
                 - Never delegate back to yourself.
                 - Provide enough context in 'input' for the next agent to work autonomously.
-                - If no agent fits, do it yourself or ask the human.{depth_note}
+                - Include the remaining pipeline so the chain continues to completion.
+                - If no agent fits a sub-task, do it yourself or ask the human.{depth_note}
             </instructions>
         </delegation>"""
 
@@ -589,14 +601,24 @@ class PromptEngine:
         return f"""
 ### DELEGATION (auto_delegate=ON)
 You are part of an agent SQUAD. The user's instruction is addressed to
-the TEAM, not to you specifically. The most qualified agent executes.
+the TEAM, not to you specifically.
 {agents_list}
 
-STEP 1 — TRIAGE: Compare the task to each agent's description. If another
-agent is a closer match, delegate IMMEDIATELY without attempting the work.
-If YOU are the best fit, proceed.
-STEP 2 — EXECUTE: Do your work.
-STEP 3 — HANDOFF: When done, delegate the next step if it fits another agent.
+STEP 1 — DECOMPOSE: Break the user's request into a numbered list of
+distinct sub-tasks. Each sub-task should map to a single specialist.
+Output this list so the user can see the pipeline.
+
+STEP 2 — TRIAGE: For EACH sub-task, identify which agent (including
+yourself) is the best fit. If the FIRST sub-task belongs to another
+agent, delegate IMMEDIATELY. If it belongs to you, proceed.
+
+STEP 3 — EXECUTE: Perform ONLY the first sub-task that matches your
+expertise. Do NOT proceed to subsequent sub-tasks that belong to other
+agents. Stop after completing your part.
+
+STEP 4 — HANDOFF: Delegate the NEXT sub-task to the appropriate agent.
+In 'input', include: (a) the result of your work, (b) the remaining
+pipeline of sub-tasks so the next agent can continue the chain.
 
 When the user mentions a specialist, you MUST delegate.
 
@@ -608,11 +630,13 @@ input: Clear instructions for the next agent
 [/DELEGATE]
 
 Rules:
-- Delegate when another agent's description matches the task better than yours.
-- Complete YOUR part first, then delegate the next step.
+- ALWAYS decompose multi-part requests before acting.
+- Execute ONLY your sub-task, then hand off. Never do another agent's job.
+- Delegate when another agent's description matches the sub-task better.
 - Never delegate back to yourself.
 - Provide enough context for the next agent to work autonomously.
-- If no agent fits, do it yourself or ask the human.{depth_note}
+- Include the remaining pipeline so the chain continues to completion.
+- If no agent fits a sub-task, do it yourself or ask the human.{depth_note}
 """
 
     def _load_conversation_history(self, conversation_id: Optional[str] = None) -> None:
