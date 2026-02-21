@@ -321,10 +321,10 @@ class PulseEventService:
             logger.warning("Could not dispatch alert: %s", e)
 
     async def _dispatch_to_agent(self, event: PulseEvent):
-        """Dispatch event to Support_Agent via /agents/dispatch endpoint."""
-        conductor_api_url = os.getenv(
-            "CONDUCTOR_API_URL", "http://primoia-conductor-api:8000"
-        )
+        """Dispatch event to Support_Agent via the Agent Task Queue (RabbitMQ).
+
+        Falls back to HTTP /agents/dispatch if the queue is unavailable.
+        """
         support_agent_id = os.getenv(
             "SUPPORT_COUNCILOR_AGENT_ID", "Support_Agent"
         )
@@ -341,6 +341,37 @@ class PulseEventService:
             f"6. Log your analysis using write_screenplay_log\n"
         )
 
+        # Try RabbitMQ queue first (priority=8 for Pulse escalations)
+        try:
+            from src.core.services.agent_task_queue_service import (
+                AgentTaskMessage,
+                agent_task_queue_service,
+            )
+
+            msg = AgentTaskMessage(
+                agent_id=support_agent_id,
+                input=prompt,
+                priority=8,
+                source="pulse",
+            )
+            published = await agent_task_queue_service.publish(msg)
+            if published:
+                logger.info(
+                    "Enqueued Pulse alert for %s (task=%s, priority=8)",
+                    support_agent_id,
+                    msg.task_id,
+                )
+                return
+            else:
+                logger.warning("Queue publish failed, falling back to HTTP dispatch")
+        except Exception as e:
+            logger.warning("Queue unavailable (%s), falling back to HTTP dispatch", e)
+
+        # Fallback: HTTP dispatch
+        conductor_api_url = os.getenv(
+            "CONDUCTOR_API_URL", "http://primoia-conductor-api:8000"
+        )
+
         import httpx
 
         async with httpx.AsyncClient(timeout=15) as client:
@@ -354,7 +385,7 @@ class PulseEventService:
             if resp.status_code < 300:
                 data = resp.json()
                 logger.info(
-                    "Dispatched %s to %s (task=%s, conversation=%s)",
+                    "Dispatched %s to %s via HTTP fallback (task=%s, conversation=%s)",
                     event.title,
                     support_agent_id,
                     data.get("task_id"),

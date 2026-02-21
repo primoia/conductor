@@ -40,6 +40,7 @@ class PromptEngine:
         self.screenplay_id = screenplay_id  # Store screenplay_id directly
         self.screenplay_content: str = ""
         self.conversation_context: str = ""
+        self.conversation_delegation: Dict[str, Any] = {}  # auto_delegate settings + squad
         self.task_state_context: list = []  # World state from task observations
 
         # Extract agent_id from MongoDB path
@@ -126,12 +127,17 @@ class PromptEngine:
 {self.playbook_content}
 """
 
+        # Delegation section for text format
+        delegation_text = ""
+        if self.conversation_delegation.get("auto_delegate"):
+            delegation_text = self._build_delegation_text()
+
         final_prompt = f"""
 {persona_content}
 
 ### INSTRUÇÕES DO AGENTE
 {agent_instructions}
-{playbook_section}
+{playbook_section}{delegation_text}
 ### HISTÓRICO DA TAREFA ATUAL
 {formatted_history}
 ### NOVA INSTRUÇÃO DO USUÁRIO
@@ -458,8 +464,132 @@ class PromptEngine:
             else:
                 logger.debug(f"Conversa '{conversation_id}' não possui contexto definido")
 
+            # Load delegation settings if auto_delegate is enabled
+            if conversation_doc and conversation_doc.get("auto_delegate"):
+                squad_agents = self._load_squad_agents(db, conversation_id)
+                self.conversation_delegation = {
+                    "auto_delegate": True,
+                    "max_chain_depth": conversation_doc.get("max_chain_depth"),
+                    "squad": squad_agents,
+                }
+                logger.info(
+                    f"Delegation enabled for '{conversation_id}': "
+                    f"{len(squad_agents)} agents in squad"
+                )
+
         except Exception as e:
             logger.warning(f"Falha ao carregar contexto da conversa: {e}")
+
+    def _load_squad_agents(self, db, conversation_id: str) -> list:
+        """Load agent info for all agents instantiated in this conversation."""
+        try:
+            agent_ids = db.agent_instances.distinct(
+                "agent_id", {"conversation_id": conversation_id}
+            )
+            if not agent_ids:
+                return []
+
+            agents = list(db.agents.find(
+                {"agent_id": {"$in": agent_ids}},
+                {"agent_id": 1, "definition.name": 1, "definition.description": 1,
+                 "definition.emoji": 1, "group": 1, "_id": 0},
+            ))
+            result = []
+            for a in agents:
+                defn = a.get("definition", {})
+                result.append({
+                    "agent_id": a["agent_id"],
+                    "name": defn.get("name", a["agent_id"]),
+                    "description": defn.get("description", ""),
+                    "emoji": defn.get("emoji", ""),
+                    "squad": a.get("group", ""),
+                })
+            return result
+        except Exception as e:
+            logger.warning(f"Failed to load squad agents: {e}")
+            return []
+
+    def _build_delegation_xml(self) -> str:
+        """Build <delegation> XML section with squad info and delegation instructions."""
+        squad = self.conversation_delegation.get("squad", [])
+        max_depth = self.conversation_delegation.get("max_chain_depth")
+
+        # Filter out self from the squad list
+        other_agents = [a for a in squad if a["agent_id"] != self.agent_id]
+        if not other_agents:
+            return ""
+
+        agents_xml = ""
+        for a in other_agents:
+            agents_xml += (
+                f'            <agent id="{a["agent_id"]}" '
+                f'name="{a["name"]}" '
+                f'squad="{a["squad"]}">'
+                f'{a["description"]}'
+                f'</agent>\n'
+            )
+
+        depth_note = ""
+        if max_depth:
+            depth_note = f"\n            Chain depth limit: {max_depth} cycles."
+
+        return f"""
+        <delegation>
+            <mode>auto_delegate</mode>
+            <available_agents>
+{agents_xml}            </available_agents>
+            <instructions>
+                Auto-delegation is ENABLED for this conversation.
+                When your task is complete and a follow-up action is clearly
+                needed by a different specialist, you MAY delegate by ending
+                your response with a delegation block:
+
+                [DELEGATE]
+                target_agent_id: AgentId_Here
+                input: Clear instructions for the next agent
+                [/DELEGATE]
+
+                Rules:
+                - Only delegate if the next step is clearly outside your expertise.
+                - Never delegate back to yourself.
+                - Provide enough context in 'input' for the next agent to work autonomously.
+                - If unsure, ask the human instead of delegating.{depth_note}
+            </instructions>
+        </delegation>"""
+
+    def _build_delegation_text(self) -> str:
+        """Build delegation section for text-format prompts."""
+        squad = self.conversation_delegation.get("squad", [])
+        other_agents = [a for a in squad if a["agent_id"] != self.agent_id]
+        if not other_agents:
+            return ""
+
+        agents_list = "\n".join(
+            f"  - {a['agent_id']} ({a['name']}): {a['description']}"
+            for a in other_agents
+        )
+        max_depth = self.conversation_delegation.get("max_chain_depth")
+        depth_note = f"\n  Chain depth limit: {max_depth} cycles." if max_depth else ""
+
+        return f"""
+### DELEGATION (auto_delegate=ON)
+Available agents in this conversation:
+{agents_list}
+
+When your task is complete and a follow-up action is clearly needed
+by a different specialist, you MAY delegate by ending your response with:
+
+[DELEGATE]
+target_agent_id: AgentId_Here
+input: Clear instructions for the next agent
+[/DELEGATE]
+
+Rules:
+- Only delegate if the next step is clearly outside your expertise.
+- Never delegate back to yourself.
+- Provide enough context for the next agent to work autonomously.
+- If unsure, ask the human instead of delegating.{depth_note}
+"""
 
     def _load_conversation_history(self, conversation_id: Optional[str] = None) -> None:
         """
@@ -1017,6 +1147,11 @@ class PromptEngine:
         if hasattr(self, 'task_state_context') and self.task_state_context:
             world_state_section = "\n" + self._build_world_state_xml()
 
+        # Delegation section: when auto_delegate is enabled, inject squad awareness
+        delegation_section = ""
+        if self.conversation_delegation.get("auto_delegate"):
+            delegation_section = self._build_delegation_xml()
+
         # SAGA-016: Inject live MCP mesh topology for Council agents
         mesh_section = ""
         try:
@@ -1039,7 +1174,7 @@ class PromptEngine:
         </instructions>
         <playbook>
             <![CDATA[{playbook_cdata}]]>
-        </playbook>{screenplay_section}{conversation_context_section}{world_state_section}{mesh_section}
+        </playbook>{screenplay_section}{conversation_context_section}{delegation_section}{world_state_section}{mesh_section}
     </system_context>
     <conversation_history>
 {history_xml}

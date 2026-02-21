@@ -26,7 +26,7 @@ class MongoTaskClient:
             logger.critical(f"❌ Falha ao conectar com MongoDB: {e}")
             raise
 
-    def submit_task(self, task_id: str, agent_id: str, cwd: str, timeout: int = 1800, provider: str = "claude", prompt: str = None, instance_id: str = None, is_councilor_execution: bool = False, councilor_config: dict = None, conversation_id: str = None, screenplay_id: str = None) -> str:
+    def submit_task(self, task_id: str, agent_id: str, cwd: str, timeout: int = 1800, provider: str = "claude", prompt: str = None, instance_id: str = None, is_councilor_execution: bool = False, councilor_config: dict = None, conversation_id: str = None, screenplay_id: str = None, idempotency_key: str = None) -> str:
         """
         Insere uma nova tarefa na coleção e retorna seu ID.
 
@@ -41,6 +41,7 @@ class MongoTaskClient:
             councilor_config: Configuração do conselheiro (se aplicável)
             conversation_id: ID da conversa para contexto (REQUIRED)
             screenplay_id: ID do screenplay para contexto do projeto (REQUIRED)
+            idempotency_key: UUID for dedup (optional, used by task queue)
 
         Returns:
             str: ID da task inserida
@@ -53,6 +54,7 @@ class MongoTaskClient:
         logger.info(f"   - instance_id: {instance_id}")
         logger.info(f"   - conversation_id: {conversation_id}")
         logger.info(f"   - screenplay_id: {screenplay_id}")
+        logger.info(f"   - idempotency_key: {idempotency_key}")
         logger.info(f"   - cwd: {cwd}")
         logger.info(f"   - timeout: {timeout}")
         
@@ -114,6 +116,11 @@ class MongoTaskClient:
             "councilor_config": councilor_config if is_councilor_execution else None,
             "severity": None,  # Será definido após análise do resultado
         }
+
+        # Only include idempotency_key when set (sparse unique index
+        # treats null as a real value, causing duplicate key errors).
+        if idempotency_key is not None:
+            task_document["idempotency_key"] = idempotency_key
 
         result = self.collection.insert_one(task_document)
         logger.info(f"📤 Tarefa submetida ao MongoDB com ID: {task_id}")
@@ -322,3 +329,16 @@ class MongoTaskClient:
             logger.info("✅ Índices de conselheiros criados com sucesso.")
         except Exception as e:
             logger.warning(f"⚠️ Falha ao criar índices de conselheiros: {e}")
+
+    def ensure_task_queue_indexes(self):
+        """Create indexes for task queue dedup."""
+        try:
+            self.collection.create_index(
+                "idempotency_key",
+                unique=True,
+                sparse=True,
+                name="idx_idempotency_key",
+            )
+            logger.info("Task queue idempotency_key index created.")
+        except Exception as e:
+            logger.warning(f"Failed to create idempotency_key index: {e}")

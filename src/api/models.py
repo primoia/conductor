@@ -3,19 +3,21 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional, Literal
 from datetime import datetime
 
-# Grupos válidos para agentes
-AgentGroup = Literal[
-    'development',    # 🔧 Desenvolvimento & Arquitetura
-    'crm',            # 📊 CRM & Vendas
-    'documentation',  # 📝 Documentação & Conteúdo
-    'devops',         # 🛡️ DevOps & Segurança
-    'orchestration',  # 🎼 Orquestração & Meta-Agentes
-    'testing',        # 🧪 Testes & Qualidade
-    'career',         # 💼 Carreira & Profissional
-    'other'           # 📦 Outros
+# Squads válidos para agentes (1 agente pode pertencer a N squads)
+VALID_SQUADS = [
+    'development',    # Desenvolvimento & Arquitetura
+    'crm',            # CRM & Vendas
+    'content',        # Conteudo & Redes Sociais
+    'documentation',  # Documentacao Tecnica
+    'devops',         # DevOps & Seguranca
+    'orchestration',  # Orquestracao & Meta-Agentes
+    'testing',        # Testes & Qualidade
+    'career',         # Carreira & Profissional
+    'other',          # Outros
 ]
 
-VALID_GROUPS = ['development', 'crm', 'documentation', 'devops', 'orchestration', 'testing', 'career', 'other']
+# Backward compat alias
+VALID_GROUPS = VALID_SQUADS
 
 class AgentSummary(BaseModel):
     """Modelo para listagem de agentes"""
@@ -23,7 +25,8 @@ class AgentSummary(BaseModel):
     name: str = Field(..., description="Nome de exibição do agente")
     emoji: str = Field(default="🤖", description="Emoji do agente")
     description: str = Field(default="", description="Descrição curta do agente")
-    group: str = Field(default="other", description="Grupo/categoria do agente")
+    group: str = Field(default="other", description="Grupo principal (backward compat)")
+    squads: List[str] = Field(default_factory=lambda: ["other"], description="Squads do agente (1:N)")
     tags: List[str] = Field(default_factory=list, description="Tags para busca")
     created_at: Optional[str] = Field(default=None, description="Data de criação do agente (ISO format)")
 
@@ -52,7 +55,8 @@ class AgentCreationRequest(BaseModel):
     """Modelo normalizado para criação de novo agente (web e terminal)"""
     name: str = Field(..., description="Nome do agente (deve terminar com _Agent)")
     description: str = Field(..., min_length=10, max_length=200, description="Descrição do propósito do agente (10-200 chars)")
-    group: str = Field(..., description="Grupo/categoria do agente (development, crm, documentation, devops, orchestration, testing, career, other)")
+    group: Optional[str] = Field(None, description="(deprecated) Use 'squads' instead. Kept for backward compat.")
+    squads: List[str] = Field(default_factory=lambda: ["other"], description="Squads do agente. Valores: development, crm, content, documentation, devops, orchestration, testing, career, other")
     emoji: str = Field(default="🤖", description="Emoji representativo")
     tags: List[str] = Field(default_factory=list, description="Tags para busca e organização")
     persona_content: str = Field(..., min_length=50, description="Persona do agente em Markdown (mín 50 chars, deve começar com #)")
@@ -62,7 +66,8 @@ class AgentUpdateRequest(BaseModel):
     """Modelo para atualização de agente existente"""
     name: Optional[str] = Field(None, description="Nome de exibição do agente")
     description: Optional[str] = Field(None, min_length=10, max_length=200, description="Descrição do agente (10-200 chars)")
-    group: Optional[str] = Field(None, description="Grupo/categoria do agente")
+    group: Optional[str] = Field(None, description="(deprecated) Use 'squads' instead")
+    squads: Optional[List[str]] = Field(None, description="Squads do agente (1:N)")
     emoji: Optional[str] = Field(None, description="Emoji representativo")
     tags: Optional[List[str]] = Field(None, description="Tags para busca e organização")
     persona_content: Optional[str] = Field(None, min_length=50, description="Persona do agente em Markdown")

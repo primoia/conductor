@@ -67,6 +67,31 @@ class ScreenplayLogResponse(BaseModel):
     timestamp: str
 
 
+class QueueStatsResponse(BaseModel):
+    """Agent task queue statistics."""
+    rabbitmq_available: bool
+    running: bool
+    published: int
+    consumed: int
+    failed: int
+    deduplicated: int
+
+
+@router.get("/queue-stats", response_model=QueueStatsResponse, summary="Get agent task queue stats")
+def get_queue_stats():
+    """
+    Returns statistics from the Agent Task Queue Service:
+    published/consumed/failed/deduplicated message counts and connection status.
+    """
+    try:
+        from src.core.services.agent_task_queue_service import agent_task_queue_service
+        stats = agent_task_queue_service.get_stats()
+        return QueueStatsResponse(**stats)
+    except Exception as e:
+        logger.error("Failed to get queue stats: %s", e)
+        raise HTTPException(status_code=500, detail=f"Failed to get queue stats: {str(e)}")
+
+
 @router.get("/status", response_model=PulseStatusResponse, summary="Get Pulse service status")
 def get_pulse_status():
     """

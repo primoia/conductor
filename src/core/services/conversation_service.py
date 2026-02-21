@@ -81,16 +81,20 @@ class ConversationService:
         title: Optional[str] = None,
         active_agent: Optional[Dict[str, Any]] = None,
         screenplay_id: Optional[str] = None,
-        context: Optional[str] = None
+        context: Optional[str] = None,
+        allowed_agents: Optional[List[str]] = None,
+        max_chain_depth: Optional[int] = None,
+        auto_delegate: bool = False,
     ) -> str:
         """
         Cria uma nova conversa.
 
         Args:
-            title: Título da conversa (opcional, será gerado se não fornecido)
+            title: Titulo da conversa (opcional, sera gerado se nao fornecido)
             active_agent: Metadados do agente inicial {agent_id, instance_id, name, emoji}
             screenplay_id: ID do roteiro ao qual esta conversa pertence (opcional)
             context: Contexto da conversa em markdown (bug, feature, etc.) (opcional)
+            allowed_agents: Lista de agent_ids permitidos (squad da conversa). None = sem restricao.
 
         Returns:
             str: conversation_id (UUID)
@@ -136,7 +140,10 @@ class ConversationService:
             "messages": [],
             "screenplay_id": screenplay_id,
             "context": context,  # Campo de contexto em markdown (pode ser null)
-            "display_order": display_order  # 🔥 NOVO: Ordem de exibição inicial
+            "allowed_agents": allowed_agents,  # Squad da conversa (None = sem restricao)
+            "display_order": display_order,  # Ordem de exibicao inicial
+            "max_chain_depth": max_chain_depth,  # Per-conversation chain limit (None = use global)
+            "auto_delegate": auto_delegate,  # Allow agents to auto-chain without human interaction
         }
 
         try:
@@ -490,6 +497,54 @@ class ConversationService:
 
         except Exception as e:
             logger.error(f"❌ Erro ao atualizar contexto: {e}", exc_info=True)
+            return False
+
+    def update_conversation_settings(
+        self,
+        conversation_id: str,
+        max_chain_depth: Optional[int] = None,
+        auto_delegate: Optional[bool] = None,
+    ) -> bool:
+        """
+        Update conversation chain settings (max_chain_depth, auto_delegate).
+
+        Args:
+            conversation_id: ID da conversa
+            max_chain_depth: Per-conversation chain limit (None = unchanged, 0 = reset to global)
+            auto_delegate: Allow agents to auto-chain (None = unchanged)
+
+        Returns:
+            bool: True if updated successfully
+        """
+        try:
+            timestamp = datetime.utcnow().isoformat()
+            updates: Dict[str, Any] = {"updated_at": timestamp}
+
+            if max_chain_depth is not None:
+                # 0 means "reset to global default" → store as None
+                updates["max_chain_depth"] = max_chain_depth if max_chain_depth > 0 else None
+
+            if auto_delegate is not None:
+                updates["auto_delegate"] = auto_delegate
+
+            if len(updates) == 1:
+                # Only updated_at, nothing to change
+                return True
+
+            result = self.conversations.update_one(
+                {"conversation_id": conversation_id},
+                {"$set": updates}
+            )
+
+            if result.matched_count == 0:
+                logger.error(f"Conversa nao encontrada: {conversation_id}")
+                return False
+
+            logger.info(f"Settings updated for conversation {conversation_id}: {updates}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Erro ao atualizar settings: {e}", exc_info=True)
             return False
 
     def update_conversation_order(self, order_updates: List[Dict[str, Any]]) -> int:

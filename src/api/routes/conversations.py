@@ -9,7 +9,7 @@ Ref: PLANO_REFATORACAO_CONVERSATION_ID.md - Fase 1
 Data: 2025-11-01
 """
 
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, Body, HTTPException, Path, Query
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 import logging
@@ -37,10 +37,13 @@ class AgentInfo(BaseModel):
 
 class CreateConversationRequest(BaseModel):
     """Request para criar nova conversa."""
-    title: Optional[str] = Field(None, description="Título da conversa")
+    title: Optional[str] = Field(None, description="Titulo da conversa")
     active_agent: Optional[AgentInfo] = Field(None, description="Agente inicial")
     screenplay_id: Optional[str] = Field(None, description="ID do roteiro ao qual esta conversa pertence")
     context: Optional[str] = Field(None, description="Contexto da conversa em markdown (bug, feature, etc.)")
+    allowed_agents: Optional[List[str]] = Field(None, description="Lista de agent_ids permitidos nesta conversa (squad). Se null, qualquer agente pode participar.")
+    max_chain_depth: Optional[int] = Field(None, ge=1, le=100, description="Max autonomous chain cycles for this conversation. Null = use global default.")
+    auto_delegate: bool = Field(False, description="If true, agents can auto-chain to other agents without waiting for human.")
 
 
 class CreateConversationResponse(BaseModel):
@@ -82,6 +85,9 @@ class ConversationDetail(BaseModel):
     messages: List[Dict[str, Any]]
     screenplay_id: Optional[str] = None
     context: Optional[str] = None
+    allowed_agents: Optional[List[str]] = None
+    max_chain_depth: Optional[int] = None
+    auto_delegate: bool = False
 
 
 class ConversationSummary(BaseModel):
@@ -118,7 +124,10 @@ def create_conversation(request: CreateConversationRequest):
             title=request.title,
             active_agent=agent_info_dict,
             screenplay_id=request.screenplay_id,
-            context=request.context
+            context=request.context,
+            allowed_agents=request.allowed_agents,
+            max_chain_depth=request.max_chain_depth,
+            auto_delegate=request.auto_delegate,
         )
 
         # Buscar conversa criada para retornar dados completos
@@ -417,6 +426,43 @@ def update_conversation_context(
     except Exception as e:
         logger.error(f"❌ Erro ao atualizar contexto: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar contexto: {str(e)}")
+
+
+class UpdateSettingsRequest(BaseModel):
+    """Request to update conversation chain settings."""
+    max_chain_depth: Optional[int] = Field(None, ge=0, le=100, description="Max autonomous chain cycles. 0 = reset to global default. Null = unchanged.")
+    auto_delegate: Optional[bool] = Field(None, description="Allow agents to auto-chain without human. Null = unchanged.")
+
+
+@router.patch("/{conversation_id}/settings", summary="Update conversation chain settings")
+def update_conversation_settings(
+    conversation_id: str = Path(..., description="ID da conversa"),
+    request: UpdateSettingsRequest = Body(...),
+):
+    """
+    Update chain settings for a conversation (max_chain_depth, auto_delegate).
+
+    - max_chain_depth: per-conversation limit for autonomous agent chaining.
+      Set to 0 to reset to global default. Null leaves unchanged.
+    - auto_delegate: if true, agents can auto-chain without waiting for human.
+    """
+    try:
+        success = conversation_service.update_conversation_settings(
+            conversation_id=conversation_id,
+            max_chain_depth=request.max_chain_depth,
+            auto_delegate=request.auto_delegate,
+        )
+
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Conversa nao encontrada: {conversation_id}")
+
+        return {"success": True, "message": "Settings updated"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao atualizar settings: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar settings: {str(e)}")
 
 
 @router.patch("/reorder", summary="Atualizar ordem das conversas")

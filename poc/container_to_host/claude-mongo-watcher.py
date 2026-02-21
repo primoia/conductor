@@ -34,6 +34,7 @@ except ImportError:
 import json
 import re
 import tempfile
+import uuid
 
 try:
     import websocket as ws_client  # websocket-client (sync, thread-safe)
@@ -1059,6 +1060,17 @@ class UniversalMongoWatcher:
             event_type = "task_completed" if exit_code == 0 else "task_error"
             self.emit_task_event(event_type, request)
 
+            # 💬 Update delegation bot placeholder in conversation (if this was a delegated task)
+            conversation_id = request.get("conversation_id")
+            if conversation_id:
+                self._update_delegation_placeholder(
+                    conversation_id=conversation_id,
+                    task_id=str(request_id),
+                    result=result,
+                    status="completed" if exit_code == 0 else "error",
+                    exit_code=exit_code,
+                )
+
             # 🔗 Auto-delegation: parse [DELEGATE] block and enqueue next agent
             if exit_code == 0:
                 self._handle_delegation(result, request)
@@ -1138,11 +1150,24 @@ class UniversalMongoWatcher:
             resp = requests.post(url, json=payload, timeout=10)
             if resp.status_code == 200:
                 data = resp.json()
+                new_task_id = data.get("task_id", "")
                 logger.info(
-                    f"✅ [DELEGATION] Enqueued task {data.get('task_id')} "
+                    f"✅ [DELEGATION] Enqueued task {new_task_id} "
                     f"for {target_agent_id} "
                     f"(chain_depth={data.get('chain_depth')}/{data.get('max_chain_depth')})"
                 )
+
+                # Add delegation messages to conversation so frontend can display them
+                if conversation_id:
+                    self._add_delegation_messages(
+                        conversation_id=conversation_id,
+                        source_agent_id=agent_id,
+                        target_agent_id=target_agent_id,
+                        delegate_input=delegate_input,
+                        new_task_id=new_task_id,
+                        chain_depth=data.get("chain_depth", 0),
+                        max_chain_depth=data.get("max_chain_depth", 10),
+                    )
             elif resp.status_code == 429:
                 # Chain depth limit reached — surface to user
                 detail = resp.json().get("detail", "Chain depth limit reached")
@@ -1170,6 +1195,114 @@ class UniversalMongoWatcher:
                 )
         except Exception as e:
             logger.warning(f"⚠️ [DELEGATION] Failed to enqueue: {e}")
+
+    def _update_delegation_placeholder(
+        self,
+        conversation_id: str,
+        task_id: str,
+        result: str,
+        status: str,
+        exit_code: int,
+    ) -> None:
+        """Update a delegation bot placeholder with the task result.
+
+        Only updates messages with delegated=true to avoid touching
+        placeholders managed by the BFF (gateway).
+        """
+        try:
+            conversations_col = self.db["conversations"]
+            now_ts = datetime.now(timezone.utc).isoformat()
+            content = result if status == "completed" else (result or f"Erro na execução (exit_code: {exit_code})")
+            update_result = conversations_col.update_one(
+                {
+                    "conversation_id": conversation_id,
+                    "messages.task_id": task_id,
+                    "messages.delegated": True,
+                },
+                {
+                    "$set": {
+                        "messages.$.content": content,
+                        "messages.$.status": status,
+                        "messages.$.completed_at": now_ts,
+                    }
+                },
+            )
+            if update_result.modified_count > 0:
+                logger.info(
+                    f"💬 [DELEGATION] Updated placeholder for task {task_id} in conversation {conversation_id}"
+                )
+        except Exception as e:
+            logger.warning(f"⚠️ [DELEGATION] Failed to update placeholder: {e}")
+
+    def _add_delegation_messages(
+        self,
+        conversation_id: str,
+        source_agent_id: str,
+        target_agent_id: str,
+        delegate_input: str,
+        new_task_id: str,
+        chain_depth: int,
+        max_chain_depth: int,
+    ) -> None:
+        """Add delegation notice + bot placeholder to conversation messages."""
+        try:
+            conversations_col = self.db["conversations"]
+            agents_col = self.db["agents"]
+
+            # Look up target agent info for display
+            target_agent = agents_col.find_one(
+                {"agent_id": target_agent_id},
+                {"name": 1, "emoji": 1},
+            )
+            target_name = target_agent.get("name", target_agent_id) if target_agent else target_agent_id
+            target_emoji = target_agent.get("emoji", "🤖") if target_agent else "🤖"
+
+            now_ts = datetime.now(timezone.utc).isoformat()
+
+            # Delegation notice (system-like message showing the handoff)
+            delegation_msg = {
+                "id": str(uuid.uuid4()),
+                "type": "delegation",
+                "content": (
+                    f"🔗 **{source_agent_id}** delegou para **{target_name}**"
+                    f" (ciclo {chain_depth}/{max_chain_depth})\n\n"
+                    f"> {delegate_input[:500]}"
+                ),
+                "timestamp": now_ts,
+                "source_agent_id": source_agent_id,
+                "target_agent_id": target_agent_id,
+            }
+
+            # Bot placeholder (will be updated when delegated task completes)
+            bot_placeholder = {
+                "id": str(uuid.uuid4()),
+                "type": "bot",
+                "content": "Executando delegação...",
+                "timestamp": now_ts,
+                "status": "pending",
+                "task_id": new_task_id,
+                "delegated": True,
+                "agent": {
+                    "agent_id": target_agent_id,
+                    "instance_id": f"delegation-{new_task_id[:8]}",
+                    "name": target_name,
+                    "emoji": target_emoji,
+                },
+            }
+
+            conversations_col.update_one(
+                {"conversation_id": conversation_id},
+                {
+                    "$push": {"messages": {"$each": [delegation_msg, bot_placeholder]}},
+                    "$set": {"updated_at": now_ts},
+                },
+            )
+            logger.info(
+                f"💬 [DELEGATION] Added delegation messages to conversation {conversation_id} "
+                f"(task_id={new_task_id})"
+            )
+        except Exception as e:
+            logger.warning(f"⚠️ [DELEGATION] Failed to add conversation messages: {e}")
 
     def _append_delegation_note(self, task_id, note: str) -> None:
         """Append a delegation status note to the task result in MongoDB."""

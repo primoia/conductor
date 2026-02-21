@@ -57,18 +57,23 @@ class MongoStateRepository(IStateRepository):
             return {}
         return doc["definition"]
 
-    def save_definition(self, agent_id: str, definition_data: Dict, group: str = None) -> bool:
+    def save_definition(self, agent_id: str, definition_data: Dict, group: str = None, squads: list = None) -> bool:
         """Salva a definição do agente.
 
         Args:
             agent_id: ID do agente
             definition_data: Dados da definição
-            group: Grupo/categoria do agente (salvo na raiz do documento)
+            group: (deprecated) Grupo único — use squads
+            squads: Lista de squads (1:N)
         """
         try:
             update_data = {"definition": definition_data}
-            if group:
+            if squads:
+                update_data["squads"] = squads
+                update_data["group"] = squads[0]  # backward compat: primeiro squad
+            elif group:
                 update_data["group"] = group
+                update_data["squads"] = [group]  # migrate single -> list
 
             self.agents_collection.update_one(
                 {"agent_id": agent_id},
@@ -104,18 +109,21 @@ class MongoStateRepository(IStateRepository):
             return {}
 
     def get_all_agents_metadata(self) -> Dict[str, Dict]:
-        """Retorna metadados (created_at, group) de todos os agentes.
+        """Retorna metadados (created_at, group, squads) de todos os agentes.
 
         Returns:
-            Dict com agent_id -> {'created_at': datetime, 'group': str}
+            Dict com agent_id -> {'created_at': datetime, 'group': str, 'squads': list}
         """
         try:
             result = {}
-            for doc in self.agents_collection.find({}, {"agent_id": 1, "created_at": 1, "group": 1}):
+            for doc in self.agents_collection.find({}, {"agent_id": 1, "created_at": 1, "group": 1, "squads": 1}):
                 if "agent_id" in doc:
+                    group = doc.get("group", "other")
+                    squads = doc.get("squads") or [group]
                     result[doc["agent_id"]] = {
                         "created_at": doc.get("created_at"),
-                        "group": doc.get("group", "other")
+                        "group": group,
+                        "squads": squads,
                     }
             return result
         except Exception:

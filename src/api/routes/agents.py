@@ -7,8 +7,7 @@ import logging
 
 # Importar da arquitetura existente
 from src.container import container  # Usar instância global do container DI
-from src.container import container  # Usar instância global do container DI
-from src.api.models import AgentListResponse, AgentSummary, AgentDetailResponse, ValidationResult, AgentCreationRequest, AgentUpdateRequest, VALID_GROUPS
+from src.api.models import AgentListResponse, AgentSummary, AgentDetailResponse, ValidationResult, AgentCreationRequest, AgentUpdateRequest, VALID_GROUPS, VALID_SQUADS
 from src.core.services.mongo_task_client import MongoTaskClient
 
 logger = logging.getLogger(__name__)
@@ -55,6 +54,8 @@ def list_agents():
             created_at_str = created_at.isoformat() if created_at else None
             group = metadata.get("group", "other")
 
+            squads = metadata.get("squads") or [group]
+
             agent_summaries.append(
                 AgentSummary(
                     id=agent.agent_id,
@@ -62,6 +63,7 @@ def list_agents():
                     emoji=getattr(agent, 'emoji', '🤖') or '🤖',
                     description=getattr(agent, 'description', '') or '',
                     group=group,
+                    squads=squads,
                     tags=getattr(agent, 'tags', []) or [],
                     created_at=created_at_str
                 )
@@ -74,6 +76,53 @@ def list_agents():
             status_code=500,
             detail=f"Erro interno ao processar a lista de agentes: {e}"
         )
+
+@router.get("/squad/{squad}", summary="List agents in a squad", operation_id="list_squad_agents")
+def list_squad_agents(squad: str = Path(..., description="Squad name (e.g. 'devops', 'development', 'testing')")):
+    """
+    Returns all agents belonging to a squad.
+    Agents can belong to multiple squads (1:N).
+
+    Use this to discover colleagues an agent can delegate work to.
+    Only returns agent_id, name, description and squads — lightweight for LLM consumption.
+
+    Valid squads: development, crm, content, documentation, devops, orchestration, testing, career, other.
+    """
+    if squad not in VALID_SQUADS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid squad '{squad}'. Valid: {', '.join(VALID_SQUADS)}",
+        )
+
+    try:
+        conductor_service = container.get_conductor_service()
+        agents = conductor_service.discover_agents()
+
+        storage_service = container.get_storage_service()
+        repository = storage_service.get_repository()
+        metadata_map = repository.get_all_agents_metadata()
+
+        squad_members = []
+        for agent in agents:
+            metadata = metadata_map.get(agent.agent_id, {})
+            agent_squads = metadata.get("squads") or [metadata.get("group", "other")]
+            if squad in agent_squads:
+                squad_members.append({
+                    "agent_id": agent.agent_id,
+                    "name": getattr(agent, 'name', agent.agent_id),
+                    "description": getattr(agent, 'description', '') or '',
+                    "squads": agent_squads,
+                })
+
+        return {
+            "squad": squad,
+            "total": len(squad_members),
+            "agents": squad_members,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/{agent_id}/info", response_model=AgentDetailResponse, summary="Obter detalhes de um agente")
 def get_agent_info(agent_id: str = Path(..., description="ID do agente a ser consultado")):
@@ -168,11 +217,13 @@ def create_agent(request: AgentCreationRequest):
         if not request.name.endswith('_Agent'):
             raise HTTPException(status_code=400, detail="Nome deve terminar com '_Agent'")
 
-        # Validar grupo
-        if request.group not in VALID_GROUPS:
+        # Resolve squads: prefer squads field, fallback to group for backward compat
+        squads = request.squads if request.squads else ([request.group] if request.group else ["other"])
+        invalid = [s for s in squads if s not in VALID_SQUADS]
+        if invalid:
             raise HTTPException(
                 status_code=400,
-                detail=f"Grupo inválido: '{request.group}'. Valores válidos: {', '.join(VALID_GROUPS)}"
+                detail=f"Squads invalidos: {invalid}. Valores validos: {', '.join(VALID_SQUADS)}"
             )
 
         # Validar persona (deve começar com #)
@@ -201,8 +252,7 @@ def create_agent(request: AgentCreationRequest):
         }
 
         # Salvar definição (cria diretório automaticamente)
-        # O grupo é passado separadamente para ser salvo na raiz do documento
-        if not repository.save_definition(agent_id, definition_data, group=request.group):
+        if not repository.save_definition(agent_id, definition_data, squads=squads):
             raise HTTPException(status_code=500, detail="Falha ao salvar definição do agente")
 
         # Usar persona fornecida pelo usuário (não gerar default)
@@ -258,12 +308,23 @@ def update_agent(agent_id: str, request: AgentUpdateRequest):
         if not current_definition:
             raise HTTPException(status_code=404, detail=f"Definição do agente '{agent_id}' não encontrada")
 
-        # Validar grupo se fornecido
-        if request.group is not None and request.group not in VALID_GROUPS:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Grupo inválido: '{request.group}'. Valores válidos: {', '.join(VALID_GROUPS)}"
-            )
+        # Validate squads if provided
+        squads_to_save = None
+        if request.squads is not None:
+            invalid = [s for s in request.squads if s not in VALID_SQUADS]
+            if invalid:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Squads invalidos: {invalid}. Valores validos: {', '.join(VALID_SQUADS)}"
+                )
+            squads_to_save = request.squads
+        elif request.group is not None:
+            if request.group not in VALID_SQUADS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Grupo invalido: '{request.group}'. Valores validos: {', '.join(VALID_SQUADS)}"
+                )
+            squads_to_save = [request.group]
 
         # Validar persona se fornecida
         if request.persona_content is not None:
@@ -284,11 +345,8 @@ def update_agent(agent_id: str, request: AgentUpdateRequest):
             "emoji": request.emoji if request.emoji is not None else (current_definition.emoji or "🤖"),
         }
 
-        # Determinar grupo para salvar
-        group_to_save = request.group  # Pode ser None se não foi fornecido
-
         # Salvar definição atualizada
-        if not repository.save_definition(agent_id, definition_data, group=group_to_save):
+        if not repository.save_definition(agent_id, definition_data, squads=squads_to_save):
             raise HTTPException(status_code=500, detail="Falha ao atualizar definição do agente")
 
         # Atualizar persona se fornecida

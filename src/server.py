@@ -34,6 +34,7 @@ from src.api.routes.mcp_mesh import router as mcp_mesh_router  # SAGA-016: MCP M
 from src.api.routes.pulse import router as pulse_router  # SAGA-016: Pulse event triggers
 from src.api.routes.sagas import router as sagas_router  # SAGA-016: Saga healing & rollback
 from src.api.routes.dispatch import router as dispatch_router  # Agent-to-agent dispatch
+from src.api.routes.enqueue import router as enqueue_router  # Async agent task queue
 
 # Configura o logging e a aplicação FastAPI
 logging.basicConfig(level=logging.INFO)
@@ -64,6 +65,7 @@ app.include_router(mcp_mesh_router)  # SAGA-016: Live MCP mesh topology
 app.include_router(pulse_router)  # SAGA-016: Pulse event triggers & screenplay logs
 app.include_router(sagas_router)  # SAGA-016: Saga healing & rollback
 app.include_router(dispatch_router)  # Agent-to-agent dispatch
+app.include_router(enqueue_router)  # Async agent task queue via RabbitMQ
 
 @app.on_event("startup")
 async def startup_event():
@@ -91,9 +93,29 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"⚠️ Pulse Event Service failed to start: {e}")
 
+    # Start Agent Task Queue Service (RabbitMQ consumer)
+    try:
+        from src.core.services.agent_task_queue_service import agent_task_queue_service
+        await agent_task_queue_service.start()
+        logger.info("✅ Agent Task Queue Service started.")
+    except Exception as e:
+        logger.warning(f"⚠️ Agent Task Queue Service failed to start: {e}")
+
+    # Ensure task queue indexes
+    try:
+        task_client = MongoTaskClient()
+        task_client.ensure_task_queue_indexes()
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to ensure task queue indexes: {e}")
+
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on server shutdown."""
+    try:
+        from src.core.services.agent_task_queue_service import agent_task_queue_service
+        await agent_task_queue_service.stop()
+    except Exception:
+        pass
     try:
         from src.core.services.pulse_event_service import pulse_service
         await pulse_service.stop()
