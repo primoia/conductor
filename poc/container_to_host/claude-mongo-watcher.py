@@ -1071,6 +1071,7 @@ class UniversalMongoWatcher:
                     exit_code=exit_code,
                 )
 
+
             # 🔗 Auto-delegation: parse [DELEGATE] block and enqueue next agent
             if exit_code == 0:
                 self._handle_delegation(result, request)
@@ -1302,6 +1303,7 @@ class UniversalMongoWatcher:
             )
         except Exception as e:
             logger.warning(f"⚠️ [DELEGATION] Failed to add conversation messages: {e}")
+
 
     def run(self, poll_interval: float = 1.0, metrics_interval: int = 60):
         """

@@ -395,6 +395,7 @@ class AgentTaskQueueService:
 
         return "ok"
 
+
     # ------------------------------------------------------------------
     # Topology setup
     # ------------------------------------------------------------------
@@ -505,6 +506,7 @@ class AgentTaskQueueService:
             fallback_id,
         )
         return fallback_id
+
 
     def _is_duplicate(self, idempotency_key: str) -> bool:
         """Check MongoDB for an existing task with this idempotency_key."""
