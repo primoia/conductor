@@ -32,6 +32,7 @@ except ImportError:
     sys.exit(1)
 
 import json
+import re
 import tempfile
 
 try:
@@ -1058,6 +1059,10 @@ class UniversalMongoWatcher:
             event_type = "task_completed" if exit_code == 0 else "task_error"
             self.emit_task_event(event_type, request)
 
+            # 🔗 Auto-delegation: parse [DELEGATE] block and enqueue next agent
+            if exit_code == 0:
+                self._handle_delegation(result, request)
+
         else:
             logger.error(f"❌ [{thread_name}] FALHA AO SALVAR RESULTADO NO MONGODB")
             logger.error(f"   ID: {request_id}")
@@ -1072,6 +1077,112 @@ class UniversalMongoWatcher:
         logger.info("=" * 80)
 
         return success
+
+    # Pre-compiled regex for delegation block parsing (tolerant of LLM formatting)
+    _DELEGATE_RE = re.compile(
+        r'\[DELEGATE\]\s*'
+        r'target_agent_id:\s*(.+?)\s*\n'
+        r'input:\s*(.*?)\s*'
+        r'\[/DELEGATE\]',
+        re.DOTALL | re.IGNORECASE,
+    )
+    _DELEGATE_STRIP_RE = re.compile(
+        r'\s*\[DELEGATE\].*?\[/DELEGATE\]\s*', re.DOTALL | re.IGNORECASE
+    )
+
+    def _handle_delegation(self, result: str, request: Dict) -> None:
+        """Parse [DELEGATE] block from agent output and enqueue next agent.
+
+        Chain depth is enforced server-side by POST /agents/enqueue (HTTP 429).
+        Auto-delegate is enforced server-side (HTTP 403).
+        On rejection, the reason is appended to the task result in MongoDB.
+        """
+        match = self._DELEGATE_RE.search(result)
+        if not match:
+            return
+
+        target_agent_id = match.group(1).strip()
+        delegate_input = match.group(2).strip()
+        task_id = str(request.get("_id", ""))
+        conversation_id = request.get("conversation_id")
+        screenplay_id = request.get("screenplay_id")
+        agent_id = request.get("agent_id", "unknown")
+
+        logger.info(
+            f"🔗 [DELEGATION] {agent_id} requested delegation to {target_agent_id} "
+            f"(parent={task_id}, conv={conversation_id})"
+        )
+
+        # Strip [DELEGATE] block from stored result so frontend shows clean output
+        clean_result = self._DELEGATE_STRIP_RE.sub('', result).rstrip()
+        try:
+            self.collection.update_one(
+                {"_id": request.get("_id")},
+                {"$set": {"result": clean_result}},
+            )
+        except Exception as e:
+            logger.warning(f"⚠️ [DELEGATION] Failed to clean result: {e}")
+
+        try:
+            conductor_api = os.environ.get("CONDUCTOR_API_URL", "http://localhost:12199")
+            url = f"{conductor_api}/agents/enqueue"
+            payload = {
+                "target_agent_id": target_agent_id,
+                "input": delegate_input,
+                "conversation_id": conversation_id,
+                "screenplay_id": screenplay_id,
+                "priority": 5,
+                "source": "agent_chain",
+                "parent_task_id": task_id,
+            }
+            resp = requests.post(url, json=payload, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                logger.info(
+                    f"✅ [DELEGATION] Enqueued task {data.get('task_id')} "
+                    f"for {target_agent_id} "
+                    f"(chain_depth={data.get('chain_depth')}/{data.get('max_chain_depth')})"
+                )
+            elif resp.status_code == 429:
+                # Chain depth limit reached — surface to user
+                detail = resp.json().get("detail", "Chain depth limit reached")
+                logger.warning(
+                    f"🛑 [DELEGATION] Chain depth limit: {agent_id} -> {target_agent_id} blocked. {detail}"
+                )
+                self._append_delegation_note(
+                    request.get("_id"),
+                    f"\n\n---\n⚠️ Delegation to {target_agent_id} was blocked: {detail}"
+                )
+            elif resp.status_code == 403:
+                # Auto-delegate disabled or squad guard
+                detail = resp.json().get("detail", "Delegation not allowed")
+                logger.warning(
+                    f"🛑 [DELEGATION] Forbidden: {agent_id} -> {target_agent_id}. {detail}"
+                )
+                self._append_delegation_note(
+                    request.get("_id"),
+                    f"\n\n---\n⚠️ Delegation to {target_agent_id} was blocked: {detail}"
+                )
+            else:
+                logger.warning(
+                    f"⚠️ [DELEGATION] Enqueue failed ({resp.status_code}): "
+                    f"{resp.text[:200]}"
+                )
+        except Exception as e:
+            logger.warning(f"⚠️ [DELEGATION] Failed to enqueue: {e}")
+
+    def _append_delegation_note(self, task_id, note: str) -> None:
+        """Append a delegation status note to the task result in MongoDB."""
+        try:
+            task = self.collection.find_one({"_id": task_id}, {"result": 1})
+            if task:
+                current = task.get("result", "")
+                self.collection.update_one(
+                    {"_id": task_id},
+                    {"$set": {"result": current + note}},
+                )
+        except Exception as e:
+            logger.warning(f"⚠️ [DELEGATION] Failed to append note: {e}")
 
     def run(self, poll_interval: float = 1.0, metrics_interval: int = 60):
         """
