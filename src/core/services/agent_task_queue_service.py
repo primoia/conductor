@@ -31,6 +31,7 @@ class AgentTaskMessage:
     __slots__ = (
         "task_id",
         "agent_id",
+        "instance_id",
         "conversation_id",
         "screenplay_id",
         "input",
@@ -46,6 +47,7 @@ class AgentTaskMessage:
         agent_id: str,
         input: str,
         task_id: Optional[str] = None,
+        instance_id: Optional[str] = None,
         conversation_id: Optional[str] = None,
         screenplay_id: Optional[str] = None,
         priority: int = 5,
@@ -56,6 +58,7 @@ class AgentTaskMessage:
     ):
         self.task_id = task_id or str(ObjectId())
         self.agent_id = agent_id
+        self.instance_id = instance_id
         self.conversation_id = conversation_id or str(uuid.uuid4())
         self.screenplay_id = screenplay_id
         self.input = input
@@ -69,6 +72,7 @@ class AgentTaskMessage:
         return {
             "task_id": self.task_id,
             "agent_id": self.agent_id,
+            "instance_id": self.instance_id,
             "conversation_id": self.conversation_id,
             "screenplay_id": self.screenplay_id,
             "input": self.input,
@@ -84,6 +88,7 @@ class AgentTaskMessage:
         return cls(
             task_id=data.get("task_id"),
             agent_id=data["agent_id"],
+            instance_id=data.get("instance_id"),
             conversation_id=data.get("conversation_id"),
             screenplay_id=data.get("screenplay_id"),
             input=data["input"],
@@ -265,7 +270,12 @@ class AgentTaskQueueService:
                 await asyncio.sleep(10)
 
     async def _process_message(self, message):
-        """Process a single message from the queue."""
+        """Process a single message from the queue.
+
+        The heavy sync work (dedup check, prompt building, MongoDB submit)
+        runs in a thread pool to avoid blocking the uvicorn event loop.
+        This prevents delegation enqueue timeouts caused by event loop starvation.
+        """
         try:
             body = message.body.decode("utf-8")
             data = json.loads(body)
@@ -278,95 +288,26 @@ class AgentTaskQueueService:
                 msg.idempotency_key,
             )
 
-            # Layer 1: Dedup check via MongoDB
-            if self._is_duplicate(msg.idempotency_key):
-                logger.info(
-                    "Duplicate task skipped (key=%s)", msg.idempotency_key
-                )
+            # Run all sync-heavy operations in a thread to unblock the event loop
+            result = await asyncio.to_thread(self._process_message_sync, msg)
+
+            if result == "duplicate":
                 self._stats["deduplicated"] += 1
                 await message.ack()
-                return
-
-            # Validate agent exists
-            agent_def = self._get_agent_definition(msg.agent_id)
-            if not agent_def:
-                logger.error("Agent '%s' not found, sending to DLQ", msg.agent_id)
+            elif result == "failed":
                 self._stats["failed"] += 1
                 await message.nack(requeue=False)
-                return
-
-            # Ensure screenplay
-            screenplay_id = self._ensure_screenplay(
-                msg.screenplay_id, msg.agent_id
-            )
-
-            # Inject delegation context so agent always passes parent_task_id
-            delegation_footer = (
-                f"\n\n---\n"
-                f"[DELEGATION CONTEXT — mandatory when calling enqueue_agent]\n"
-                f"parent_task_id: \"{msg.task_id}\"\n"
-                f"conversation_id: \"{msg.conversation_id}\"\n"
-                f"screenplay_id: \"{screenplay_id}\"\n"
-                f"When delegating work to another agent via enqueue_agent, "
-                f"you MUST include parent_task_id=\"{msg.task_id}\". "
-                f"The server will automatically enforce the correct "
-                f"conversation_id and screenplay_id.\n"
-                f"---"
-            )
-            input_with_context = msg.input + delegation_footer
-
-            # Build prompt fresh (with up-to-date history)
-            xml_prompt = self._build_prompt(
-                agent_id=msg.agent_id,
-                input_text=input_with_context,
-                conversation_id=msg.conversation_id,
-                screenplay_id=screenplay_id,
-            )
-
-            if not xml_prompt:
-                logger.error("Failed to build prompt for agent %s", msg.agent_id)
+            elif result == "ok":
+                self._stats["consumed"] += 1
+                await message.ack()
+                logger.info(
+                    "Task %s submitted to MongoDB for agent %s",
+                    msg.task_id,
+                    msg.agent_id,
+                )
+            else:
                 self._stats["failed"] += 1
                 await message.nack(requeue=False)
-                return
-
-            # Determine provider
-            provider = self._get_provider(agent_def)
-
-            # Generate instance_id
-            instance_id = (
-                f"queue-{int(time.time())}-"
-                f"{''.join(random.choices(string.ascii_lowercase, k=6))}"
-            )
-
-            # Submit task to MongoDB (watcher picks it up)
-            from src.core.services.mongo_task_client import MongoTaskClient
-
-            task_client = MongoTaskClient()
-            cwd = os.getenv("CONDUCTOR_HOST_CWD", os.path.expanduser("~"))
-
-            task_client.submit_task(
-                task_id=msg.task_id,
-                agent_id=msg.agent_id,
-                cwd=cwd,
-                timeout=getattr(agent_def, "timeout", 300) or 300,
-                provider=provider,
-                prompt=xml_prompt,
-                instance_id=instance_id,
-                conversation_id=msg.conversation_id,
-                screenplay_id=screenplay_id,
-                is_councilor_execution=False,
-                idempotency_key=msg.idempotency_key,
-                source=msg.source,
-            )
-
-            self._stats["consumed"] += 1
-            await message.ack()
-
-            logger.info(
-                "Task %s submitted to MongoDB for agent %s",
-                msg.task_id,
-                msg.agent_id,
-            )
 
         except Exception as e:
             logger.error("Error processing task message: %s", e, exc_info=True)
@@ -375,6 +316,84 @@ class AgentTaskQueueService:
                 await message.nack(requeue=False)
             except Exception:
                 pass
+
+    def _process_message_sync(self, msg: "AgentTaskMessage") -> str:
+        """Sync-heavy part of message processing. Runs in a thread pool.
+
+        Returns: "ok", "duplicate", or "failed".
+        """
+        # Layer 1: Dedup check via MongoDB
+        if self._is_duplicate(msg.idempotency_key):
+            logger.info("Duplicate task skipped (key=%s)", msg.idempotency_key)
+            return "duplicate"
+
+        # Validate agent exists
+        agent_def = self._get_agent_definition(msg.agent_id)
+        if not agent_def:
+            logger.error("Agent '%s' not found, sending to DLQ", msg.agent_id)
+            return "failed"
+
+        # Ensure screenplay
+        screenplay_id = self._ensure_screenplay(msg.screenplay_id, msg.agent_id)
+
+        # Inject delegation context so agent always passes parent_task_id
+        delegation_footer = (
+            f"\n\n---\n"
+            f"[DELEGATION CONTEXT — mandatory when calling enqueue_agent]\n"
+            f"parent_task_id: \"{msg.task_id}\"\n"
+            f"conversation_id: \"{msg.conversation_id}\"\n"
+            f"screenplay_id: \"{screenplay_id}\"\n"
+            f"When delegating work to another agent via enqueue_agent, "
+            f"you MUST include parent_task_id=\"{msg.task_id}\". "
+            f"The server will automatically enforce the correct "
+            f"conversation_id and screenplay_id.\n"
+            f"---"
+        )
+        input_with_context = msg.input + delegation_footer
+
+        # Build prompt fresh (with up-to-date history)
+        xml_prompt = self._build_prompt(
+            agent_id=msg.agent_id,
+            input_text=input_with_context,
+            conversation_id=msg.conversation_id,
+            screenplay_id=screenplay_id,
+        )
+
+        if not xml_prompt:
+            logger.error("Failed to build prompt for agent %s", msg.agent_id)
+            return "failed"
+
+        # Determine provider
+        provider = self._get_provider(agent_def)
+
+        # Use instance_id from the message if the LLM provided it via
+        # [DELEGATE] block. Otherwise, resolve from agent_instances collection.
+        instance_id = msg.instance_id or self._resolve_instance_id(
+            msg.agent_id, msg.conversation_id
+        )
+
+        # Submit task to MongoDB (watcher picks it up)
+        from src.core.services.mongo_task_client import MongoTaskClient
+
+        task_client = MongoTaskClient()
+        cwd = os.getenv("CONDUCTOR_HOST_CWD", os.path.expanduser("~"))
+
+        task_client.submit_task(
+            task_id=msg.task_id,
+            agent_id=msg.agent_id,
+            cwd=cwd,
+            timeout=getattr(agent_def, "timeout", 300) or 300,
+            provider=provider,
+            prompt=xml_prompt,
+            instance_id=instance_id,
+            conversation_id=msg.conversation_id,
+            screenplay_id=screenplay_id,
+            is_councilor_execution=False,
+            idempotency_key=msg.idempotency_key,
+            source=msg.source,
+        )
+
+        return "ok"
 
     # ------------------------------------------------------------------
     # Topology setup
@@ -440,6 +459,52 @@ class AgentTaskQueueService:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    def _resolve_instance_id(
+        self, agent_id: str, conversation_id: Optional[str]
+    ) -> str:
+        """Resolve the existing instance_id for an agent in a conversation.
+
+        Looks up agent_instances collection to find the instance that was
+        created when the user added this agent to the conversation via the
+        frontend. If found, returns the existing instance_id so the task
+        runs under the same instance. Falls back to generating a new one
+        if no instance is found (e.g., direct API calls without UI setup).
+        """
+        if conversation_id:
+            try:
+                db = self._get_mongo_db()
+                if db is not None:
+                    doc = db.agent_instances.find_one(
+                        {
+                            "agent_id": agent_id,
+                            "conversation_id": conversation_id,
+                            "isDeleted": {"$ne": True},
+                        },
+                        {"instance_id": 1},
+                    )
+                    if doc and doc.get("instance_id"):
+                        logger.info(
+                            "Resolved instance_id=%s for agent %s in conversation %s",
+                            doc["instance_id"],
+                            agent_id,
+                            conversation_id,
+                        )
+                        return doc["instance_id"]
+            except Exception as e:
+                logger.warning("Instance resolution failed: %s", e)
+
+        # Fallback: generate a new instance_id
+        fallback_id = (
+            f"queue-{int(time.time())}-"
+            f"{''.join(random.choices(string.ascii_lowercase, k=6))}"
+        )
+        logger.info(
+            "No existing instance found for agent %s, generated %s",
+            agent_id,
+            fallback_id,
+        )
+        return fallback_id
 
     def _is_duplicate(self, idempotency_key: str) -> bool:
         """Check MongoDB for an existing task with this idempotency_key."""

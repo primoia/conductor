@@ -1091,9 +1091,11 @@ class UniversalMongoWatcher:
         return success
 
     # Pre-compiled regex for delegation block parsing (tolerant of LLM formatting)
+    # instance_id is optional — LLM may omit it; server resolves as fallback
     _DELEGATE_RE = re.compile(
         r'\[DELEGATE\]\s*'
         r'target_agent_id:\s*(.+?)\s*\n'
+        r'(?:instance_id:\s*(.+?)\s*\n)?'
         r'input:\s*(.*?)\s*'
         r'\[/DELEGATE\]',
         re.DOTALL | re.IGNORECASE,
@@ -1114,7 +1116,8 @@ class UniversalMongoWatcher:
             return
 
         target_agent_id = match.group(1).strip()
-        delegate_input = match.group(2).strip()
+        instance_id = (match.group(2) or "").strip() or None
+        delegate_input = match.group(3).strip()
         task_id = str(request.get("_id", ""))
         conversation_id = request.get("conversation_id")
         screenplay_id = request.get("screenplay_id")
@@ -1122,7 +1125,7 @@ class UniversalMongoWatcher:
 
         logger.info(
             f"🔗 [DELEGATION] {agent_id} requested delegation to {target_agent_id} "
-            f"(parent={task_id}, conv={conversation_id})"
+            f"(instance={instance_id}, parent={task_id}, conv={conversation_id})"
         )
 
         # Strip [DELEGATE] block from stored result so frontend shows clean output
@@ -1140,6 +1143,7 @@ class UniversalMongoWatcher:
             url = f"{conductor_api}/agents/enqueue"
             payload = {
                 "target_agent_id": target_agent_id,
+                "instance_id": instance_id,
                 "input": delegate_input,
                 "conversation_id": conversation_id,
                 "screenplay_id": screenplay_id,
@@ -1147,7 +1151,7 @@ class UniversalMongoWatcher:
                 "source": "agent_chain",
                 "parent_task_id": task_id,
             }
-            resp = requests.post(url, json=payload, timeout=10)
+            resp = requests.post(url, json=payload, timeout=30)
             if resp.status_code == 200:
                 data = resp.json()
                 new_task_id = data.get("task_id", "")

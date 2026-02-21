@@ -83,8 +83,8 @@ class ConversationService:
         screenplay_id: Optional[str] = None,
         context: Optional[str] = None,
         allowed_agents: Optional[List[str]] = None,
-        max_chain_depth: Optional[int] = None,
-        auto_delegate: bool = False,
+        max_chain_depth: Optional[int] = 10,
+        auto_delegate: bool = True,
     ) -> str:
         """
         Cria uma nova conversa.

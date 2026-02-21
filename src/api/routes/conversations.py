@@ -42,8 +42,8 @@ class CreateConversationRequest(BaseModel):
     screenplay_id: Optional[str] = Field(None, description="ID do roteiro ao qual esta conversa pertence")
     context: Optional[str] = Field(None, description="Contexto da conversa em markdown (bug, feature, etc.)")
     allowed_agents: Optional[List[str]] = Field(None, description="Lista de agent_ids permitidos nesta conversa (squad). Se null, qualquer agente pode participar.")
-    max_chain_depth: Optional[int] = Field(None, ge=1, le=100, description="Max autonomous chain cycles for this conversation. Null = use global default.")
-    auto_delegate: bool = Field(False, description="If true, agents can auto-chain to other agents without waiting for human.")
+    max_chain_depth: Optional[int] = Field(10, ge=1, le=100, description="Max autonomous chain cycles for this conversation. Default 10.")
+    auto_delegate: bool = Field(True, description="If true, agents can auto-chain to other agents without waiting for human. Default true.")
 
 
 class CreateConversationResponse(BaseModel):
@@ -86,8 +86,8 @@ class ConversationDetail(BaseModel):
     screenplay_id: Optional[str] = None
     context: Optional[str] = None
     allowed_agents: Optional[List[str]] = None
-    max_chain_depth: Optional[int] = None
-    auto_delegate: bool = False
+    max_chain_depth: Optional[int] = 10
+    auto_delegate: bool = True
 
 
 class ConversationSummary(BaseModel):

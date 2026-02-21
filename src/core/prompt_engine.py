@@ -464,12 +464,12 @@ class PromptEngine:
             else:
                 logger.debug(f"Conversa '{conversation_id}' não possui contexto definido")
 
-            # Load delegation settings if auto_delegate is enabled
-            if conversation_doc and conversation_doc.get("auto_delegate"):
+            # Load delegation settings if auto_delegate is enabled (default True)
+            if conversation_doc and conversation_doc.get("auto_delegate", True):
                 squad_agents = self._load_squad_agents(db, conversation_id)
                 self.conversation_delegation = {
                     "auto_delegate": True,
-                    "max_chain_depth": conversation_doc.get("max_chain_depth"),
+                    "max_chain_depth": conversation_doc.get("max_chain_depth", 10),
                     "squad": squad_agents,
                 }
                 logger.info(
@@ -481,13 +481,26 @@ class PromptEngine:
             logger.warning(f"Falha ao carregar contexto da conversa: {e}")
 
     def _load_squad_agents(self, db, conversation_id: str) -> list:
-        """Load agent info for all agents instantiated in this conversation."""
+        """Load agent info for all agents instantiated in this conversation.
+
+        Fetches instance_id from agent_instances so delegation can target
+        the exact instance the user added, not create a phantom one.
+        """
         try:
-            agent_ids = db.agent_instances.distinct(
-                "agent_id", {"conversation_id": conversation_id}
-            )
-            if not agent_ids:
+            # Fetch instances with their instance_id (one per agent per conversation)
+            instances = list(db.agent_instances.find(
+                {"conversation_id": conversation_id, "isDeleted": {"$ne": True}},
+                {"agent_id": 1, "instance_id": 1, "_id": 0},
+            ))
+            if not instances:
                 return []
+
+            # Build a map: agent_id -> instance_id
+            instance_map = {
+                inst["agent_id"]: inst.get("instance_id", "")
+                for inst in instances
+            }
+            agent_ids = list(instance_map.keys())
 
             agents = list(db.agents.find(
                 {"agent_id": {"$in": agent_ids}},
@@ -499,6 +512,7 @@ class PromptEngine:
                 defn = a.get("definition", {})
                 result.append({
                     "agent_id": a["agent_id"],
+                    "instance_id": instance_map.get(a["agent_id"], ""),
                     "name": defn.get("name", a["agent_id"]),
                     "description": defn.get("description", ""),
                     "emoji": defn.get("emoji", ""),
@@ -523,8 +537,8 @@ class PromptEngine:
         for a in other_agents:
             agents_xml += (
                 f'            <agent id="{a["agent_id"]}" '
-                f'name="{a["name"]}" '
-                f'squad="{a["squad"]}">'
+                f'instance_id="{a.get("instance_id", "")}" '
+                f'name="{a["name"]}">'
                 f'{a["description"]}'
                 f'</agent>\n'
             )
@@ -570,17 +584,23 @@ class PromptEngine:
 
                 [DELEGATE]
                 target_agent_id: AgentId_Here
+                instance_id: instance_id_from_available_agents
                 input: Clear instructions for the next agent
                 [/DELEGATE]
 
                 Rules:
+                - CLOSED SQUAD: You can ONLY delegate to agents listed in
+                  <available_agents> above. Copy the id and instance_id
+                  exactly as shown. Do NOT create, add, or instantiate
+                  new agents. Do NOT use agent creation tools. The squad is
+                  fixed — work exclusively with who is already here.
                 - ALWAYS decompose multi-part requests before acting.
                 - Execute ONLY your sub-task, then hand off. Never do another agent's job.
                 - Delegate when another agent's description matches the sub-task better.
                 - Never delegate back to yourself.
                 - Provide enough context in 'input' for the next agent to work autonomously.
                 - Include the remaining pipeline so the chain continues to completion.
-                - If no agent fits a sub-task, do it yourself or ask the human.
+                - If no listed agent fits a sub-task, do it yourself or ask the human.
                 - SCOPE BOUNDARY: Only perform actions described in YOUR agent
                   description. Git operations (commit, push, branch) belong to
                   the agent whose description covers Git/DevOps. Code writing
@@ -598,7 +618,7 @@ class PromptEngine:
             return ""
 
         agents_list = "\n".join(
-            f"  - {a['agent_id']} ({a['name']}): {a['description']}"
+            f"  - {a['agent_id']} [instance={a.get('instance_id', '')}] ({a['name']}): {a['description']}"
             for a in other_agents
         )
         max_depth = self.conversation_delegation.get("max_chain_depth")
@@ -632,17 +652,22 @@ To delegate, end your response with:
 
 [DELEGATE]
 target_agent_id: AgentId_Here
+instance_id: instance_id_from_list
 input: Clear instructions for the next agent
 [/DELEGATE]
 
 Rules:
+- CLOSED SQUAD: You can ONLY delegate to agents listed above. Copy the id
+  and instance_id exactly as shown. Do NOT create, add, or instantiate new
+  agents. Do NOT use agent creation tools. The squad is fixed — work
+  exclusively with who is already here.
 - ALWAYS decompose multi-part requests before acting.
 - Execute ONLY your sub-task, then hand off. Never do another agent's job.
 - Delegate when another agent's description matches the sub-task better.
 - Never delegate back to yourself.
 - Provide enough context for the next agent to work autonomously.
 - Include the remaining pipeline so the chain continues to completion.
-- If no agent fits a sub-task, do it yourself or ask the human.
+- If no listed agent fits a sub-task, do it yourself or ask the human.
 - SCOPE BOUNDARY: Only perform actions described in YOUR agent description.
   Git operations (commit, push, branch) belong to the Git/DevOps agent.
   Code writing belongs to the code executor. Content creation belongs to the

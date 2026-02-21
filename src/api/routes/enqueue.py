@@ -11,6 +11,7 @@ Agents can call this endpoint to chain work recursively:
 If RabbitMQ is offline, returns HTTP 503 (fallback: use /agents/dispatch).
 """
 
+import asyncio
 import logging
 import os
 import uuid
@@ -56,11 +57,17 @@ class EnqueueRequest(BaseModel):
         None,
         description="Parent task ID for chained agent execution.",
     )
+    instance_id: Optional[str] = Field(
+        None,
+        description="Existing agent instance ID from agent_instances collection. "
+        "If provided, the task runs under this instance instead of creating a new one.",
+    )
 
 
 class EnqueueResponse(BaseModel):
     task_id: str
     target_agent_id: str
+    instance_id: Optional[str] = None
     conversation_id: str
     idempotency_key: str
     chain_depth: int
@@ -81,16 +88,16 @@ def _get_conversation_settings(conversation_id: str) -> dict:
     try:
         db = _get_mongo_db()
         if db is None:
-            return {"max_chain_depth": MAX_CHAIN_DEPTH, "auto_delegate": False}
+            return {"max_chain_depth": MAX_CHAIN_DEPTH, "auto_delegate": True}
         conv = db.conversations.find_one(
             {"conversation_id": conversation_id},
             {"max_chain_depth": 1, "auto_delegate": 1},
         )
         if not conv:
-            return {"max_chain_depth": MAX_CHAIN_DEPTH, "auto_delegate": False}
+            return {"max_chain_depth": MAX_CHAIN_DEPTH, "auto_delegate": True}
         return {
             "max_chain_depth": conv.get("max_chain_depth") or MAX_CHAIN_DEPTH,
-            "auto_delegate": conv.get("auto_delegate", False),
+            "auto_delegate": conv.get("auto_delegate", True),
         }
     except Exception as e:
         logger.warning("Conversation settings lookup failed: %s", e)
@@ -228,9 +235,12 @@ async def enqueue_agent(request: EnqueueRequest):
         # Deterministic context inheritance: if parent_task_id is provided,
         # force conversation_id and screenplay_id from the parent task.
         # The agent cannot escape the squad this way.
+        # NOTE: All _get_* helpers use sync pymongo. We run them in a thread
+        # pool to avoid blocking the async event loop (pymongo heartbeat
+        # uses streaming protocol which can block for up to 10s).
         screenplay_id = request.screenplay_id
         if request.parent_task_id:
-            parent_ctx = _inherit_from_parent(request.parent_task_id)
+            parent_ctx = await asyncio.to_thread(_inherit_from_parent, request.parent_task_id)
             if parent_ctx.get("conversation_id"):
                 conversation_id = parent_ctx["conversation_id"]
                 if request.conversation_id and request.conversation_id != conversation_id:
@@ -249,7 +259,7 @@ async def enqueue_agent(request: EnqueueRequest):
 
         # Squad guard: only agents instantiated in this conversation can participate.
         # The squad is built automatically from agent_instances (frontend Add Agent).
-        squad = _get_squad(conversation_id)
+        squad = await asyncio.to_thread(_get_squad, conversation_id)
         if squad and request.target_agent_id not in squad:
             logger.warning(
                 "Agent %s not in conversation %s squad: %s",
@@ -266,7 +276,7 @@ async def enqueue_agent(request: EnqueueRequest):
             )
 
         # Per-conversation settings (max_chain_depth, auto_delegate)
-        conv_settings = _get_conversation_settings(conversation_id)
+        conv_settings = await asyncio.to_thread(_get_conversation_settings, conversation_id)
         limit = conv_settings["max_chain_depth"]
 
         # auto_delegate guard: if disabled, only the first enqueue (from
@@ -288,7 +298,7 @@ async def enqueue_agent(request: EnqueueRequest):
                 ),
             )
 
-        chain_depth = _get_chain_depth(conversation_id)
+        chain_depth = await asyncio.to_thread(_get_chain_depth, conversation_id)
         if chain_depth >= limit:
             logger.warning(
                 "Chain depth limit reached (%d/%d) for conversation %s. "
@@ -310,6 +320,7 @@ async def enqueue_agent(request: EnqueueRequest):
         msg = AgentTaskMessage(
             task_id=task_id,
             agent_id=request.target_agent_id,
+            instance_id=request.instance_id,
             conversation_id=conversation_id,
             screenplay_id=screenplay_id,
             input=request.input,
@@ -341,6 +352,7 @@ async def enqueue_agent(request: EnqueueRequest):
         return EnqueueResponse(
             task_id=task_id,
             target_agent_id=request.target_agent_id,
+            instance_id=request.instance_id,
             conversation_id=conversation_id,
             idempotency_key=idempotency_key,
             chain_depth=chain_depth + 1,
