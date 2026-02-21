@@ -1092,10 +1092,13 @@ class UniversalMongoWatcher:
 
     # Pre-compiled regex for delegation block parsing (tolerant of LLM formatting)
     # instance_id is optional — LLM may omit it; server resolves as fallback
+    # IMPORTANT: Use [^\n] instead of . for single-line fields because re.DOTALL
+    # makes . match newlines, causing backtracking to swallow the optional
+    # instance_id line into target_agent_id when the optional group is skipped.
     _DELEGATE_RE = re.compile(
         r'\[DELEGATE\]\s*'
-        r'target_agent_id:\s*(.+?)\s*\n'
-        r'(?:instance_id:\s*(.+?)\s*\n)?'
+        r'target_agent_id:\s*([^\n]+?)\s*\n'
+        r'(?:instance_id:\s*([^\n]+?)\s*\n)?'
         r'input:\s*(.*?)\s*'
         r'\[/DELEGATE\]',
         re.DOTALL | re.IGNORECASE,
