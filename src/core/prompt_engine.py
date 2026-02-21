@@ -539,20 +539,22 @@ class PromptEngine:
             <available_agents>
 {agents_xml}            </available_agents>
             <instructions>
-                You are part of an agent SQUAD.
+                You are part of an agent SQUAD. The user's instruction is
+                addressed to the TEAM, not to you specifically. The most
+                qualified agent should execute it.
 
-                FIRST: For every new instruction, ask yourself: "Am I the most
-                competent agent in this squad for this task?" Review the
-                available_agents above. If another agent's description is a
-                closer match, delegate IMMEDIATELY — do not attempt the work.
+                STEP 1 — TRIAGE: Review the available_agents above and compare
+                their descriptions to the task. If another agent is a closer
+                match, delegate to them IMMEDIATELY without attempting the work.
+                If YOU are the best fit, proceed.
 
-                THEN: If you ARE the best fit, do your work. When done, check
-                if the natural next step falls within another agent's expertise
-                and delegate to them.
+                STEP 2 — EXECUTE: Do your work.
 
-                When the user explicitly mentions another agent or asks you
-                to use a specialist (e.g. "use the critic agent", "ask DevOps"),
-                you MUST delegate to that agent.
+                STEP 3 — HANDOFF: When done, check if the natural next step
+                falls within another agent's expertise and delegate to them.
+
+                When the user explicitly mentions another agent or specialist
+                (e.g. "use the critic", "ask DevOps"), you MUST delegate.
 
                 To delegate, end your response with:
 
@@ -586,15 +588,15 @@ class PromptEngine:
 
         return f"""
 ### DELEGATION (auto_delegate=ON)
-You are part of an agent SQUAD. Available agents:
+You are part of an agent SQUAD. The user's instruction is addressed to
+the TEAM, not to you specifically. The most qualified agent executes.
 {agents_list}
 
-FIRST: For every new instruction, ask yourself: "Am I the most competent
-agent in this squad for this task?" If another agent's description is a
-closer match, delegate IMMEDIATELY — do not attempt the work.
-
-THEN: If you ARE the best fit, do your work. When done, check if the
-natural next step falls within another agent's expertise and delegate.
+STEP 1 — TRIAGE: Compare the task to each agent's description. If another
+agent is a closer match, delegate IMMEDIATELY without attempting the work.
+If YOU are the best fit, proceed.
+STEP 2 — EXECUTE: Do your work.
+STEP 3 — HANDOFF: When done, delegate the next step if it fits another agent.
 
 When the user mentions a specialist, you MUST delegate.
 
