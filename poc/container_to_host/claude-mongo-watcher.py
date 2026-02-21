@@ -1169,24 +1169,16 @@ class UniversalMongoWatcher:
                         max_chain_depth=data.get("max_chain_depth", 10),
                     )
             elif resp.status_code == 429:
-                # Chain depth limit reached — surface to user
+                # Chain depth limit reached — log only, don't pollute task result
                 detail = resp.json().get("detail", "Chain depth limit reached")
                 logger.warning(
                     f"🛑 [DELEGATION] Chain depth limit: {agent_id} -> {target_agent_id} blocked. {detail}"
                 )
-                self._append_delegation_note(
-                    request.get("_id"),
-                    f"\n\n---\n⚠️ Delegation to {target_agent_id} was blocked: {detail}"
-                )
             elif resp.status_code == 403:
-                # Auto-delegate disabled or squad guard
+                # Auto-delegate disabled or squad guard — log only
                 detail = resp.json().get("detail", "Delegation not allowed")
                 logger.warning(
                     f"🛑 [DELEGATION] Forbidden: {agent_id} -> {target_agent_id}. {detail}"
-                )
-                self._append_delegation_note(
-                    request.get("_id"),
-                    f"\n\n---\n⚠️ Delegation to {target_agent_id} was blocked: {detail}"
                 )
             else:
                 logger.warning(
@@ -1303,19 +1295,6 @@ class UniversalMongoWatcher:
             )
         except Exception as e:
             logger.warning(f"⚠️ [DELEGATION] Failed to add conversation messages: {e}")
-
-    def _append_delegation_note(self, task_id, note: str) -> None:
-        """Append a delegation status note to the task result in MongoDB."""
-        try:
-            task = self.collection.find_one({"_id": task_id}, {"result": 1})
-            if task:
-                current = task.get("result", "")
-                self.collection.update_one(
-                    {"_id": task_id},
-                    {"$set": {"result": current + note}},
-                )
-        except Exception as e:
-            logger.warning(f"⚠️ [DELEGATION] Failed to append note: {e}")
 
     def run(self, poll_interval: float = 1.0, metrics_interval: int = 60):
         """

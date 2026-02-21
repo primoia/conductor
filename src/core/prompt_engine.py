@@ -539,10 +539,22 @@ class PromptEngine:
             <available_agents>
 {agents_xml}            </available_agents>
             <instructions>
-                Auto-delegation is ENABLED for this conversation.
-                When your task is complete and a follow-up action is clearly
-                needed by a different specialist, you MAY delegate by ending
-                your response with a delegation block:
+                You are part of an agent SQUAD.
+
+                FIRST: For every new instruction, ask yourself: "Am I the most
+                competent agent in this squad for this task?" Review the
+                available_agents above. If another agent's description is a
+                closer match, delegate IMMEDIATELY — do not attempt the work.
+
+                THEN: If you ARE the best fit, do your work. When done, check
+                if the natural next step falls within another agent's expertise
+                and delegate to them.
+
+                When the user explicitly mentions another agent or asks you
+                to use a specialist (e.g. "use the critic agent", "ask DevOps"),
+                you MUST delegate to that agent.
+
+                To delegate, end your response with:
 
                 [DELEGATE]
                 target_agent_id: AgentId_Here
@@ -550,10 +562,11 @@ class PromptEngine:
                 [/DELEGATE]
 
                 Rules:
-                - Only delegate if the next step is clearly outside your expertise.
+                - Delegate when another agent's description matches the task better than yours.
+                - Complete YOUR part first, then delegate the next step.
                 - Never delegate back to yourself.
                 - Provide enough context in 'input' for the next agent to work autonomously.
-                - If unsure, ask the human instead of delegating.{depth_note}
+                - If no agent fits, do it yourself or ask the human.{depth_note}
             </instructions>
         </delegation>"""
 
@@ -573,11 +586,19 @@ class PromptEngine:
 
         return f"""
 ### DELEGATION (auto_delegate=ON)
-Available agents in this conversation:
+You are part of an agent SQUAD. Available agents:
 {agents_list}
 
-When your task is complete and a follow-up action is clearly needed
-by a different specialist, you MAY delegate by ending your response with:
+FIRST: For every new instruction, ask yourself: "Am I the most competent
+agent in this squad for this task?" If another agent's description is a
+closer match, delegate IMMEDIATELY — do not attempt the work.
+
+THEN: If you ARE the best fit, do your work. When done, check if the
+natural next step falls within another agent's expertise and delegate.
+
+When the user mentions a specialist, you MUST delegate.
+
+To delegate, end your response with:
 
 [DELEGATE]
 target_agent_id: AgentId_Here
@@ -585,10 +606,11 @@ input: Clear instructions for the next agent
 [/DELEGATE]
 
 Rules:
-- Only delegate if the next step is clearly outside your expertise.
+- Delegate when another agent's description matches the task better than yours.
+- Complete YOUR part first, then delegate the next step.
 - Never delegate back to yourself.
 - Provide enough context for the next agent to work autonomously.
-- If unsure, ask the human instead of delegating.{depth_note}
+- If no agent fits, do it yourself or ask the human.{depth_note}
 """
 
     def _load_conversation_history(self, conversation_id: Optional[str] = None) -> None:

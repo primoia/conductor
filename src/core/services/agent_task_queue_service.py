@@ -356,6 +356,7 @@ class AgentTaskQueueService:
                 screenplay_id=screenplay_id,
                 is_councilor_execution=False,
                 idempotency_key=msg.idempotency_key,
+                source=msg.source,
             )
 
             self._stats["consumed"] += 1

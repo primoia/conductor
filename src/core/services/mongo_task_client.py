@@ -26,7 +26,7 @@ class MongoTaskClient:
             logger.critical(f"❌ Falha ao conectar com MongoDB: {e}")
             raise
 
-    def submit_task(self, task_id: str, agent_id: str, cwd: str, timeout: int = 1800, provider: str = "claude", prompt: str = None, instance_id: str = None, is_councilor_execution: bool = False, councilor_config: dict = None, conversation_id: str = None, screenplay_id: str = None, idempotency_key: str = None) -> str:
+    def submit_task(self, task_id: str, agent_id: str, cwd: str, timeout: int = 1800, provider: str = "claude", prompt: str = None, instance_id: str = None, is_councilor_execution: bool = False, councilor_config: dict = None, conversation_id: str = None, screenplay_id: str = None, idempotency_key: str = None, source: str = "dispatch_api") -> str:
         """
         Insere uma nova tarefa na coleção e retorna seu ID.
 
@@ -115,6 +115,7 @@ class MongoTaskClient:
             "is_councilor_execution": is_councilor_execution,
             "councilor_config": councilor_config if is_councilor_execution else None,
             "severity": None,  # Será definido após análise do resultado
+            "source": source,  # dispatch_api | agent_chain | pulse
         }
 
         # Only include idempotency_key when set (sparse unique index

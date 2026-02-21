@@ -113,12 +113,27 @@ def _get_mongo_db():
 
 
 def _get_chain_depth(conversation_id: str) -> int:
-    """Count how many tasks already exist in this conversation."""
+    """Count agent-chain tasks since the last human-initiated task.
+
+    Human intervention (source != 'agent_chain') resets the counter.
+    Only consecutive agent_chain tasks at the tail count toward depth.
+    """
     try:
         db = _get_mongo_db()
         if db is None:
             return 0
-        return db.tasks.count_documents({"conversation_id": conversation_id})
+        # Walk backwards from newest task; stop at first non-chain task
+        cursor = db.tasks.find(
+            {"conversation_id": conversation_id},
+            {"source": 1},
+        ).sort("created_at", -1)
+        depth = 0
+        for task in cursor:
+            if task.get("source") == "agent_chain":
+                depth += 1
+            else:
+                break
+        return depth
     except Exception as e:
         logger.warning("Chain depth check failed: %s", e)
         return 0
